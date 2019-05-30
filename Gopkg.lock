@@ -154,7 +154,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:57813137504a60474f24a15d3a17f2010602ba2846d97f982128c861ff1cb0f5"
+  digest = "1:441be753b685d1cacb45a05f8e7152b05f9b96aca358ac7a89a1d779f40b766e"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -166,12 +166,13 @@
     "event",
     "eventsource",
     "handler",
+    "helper",
     "predicate",
     "scheme",
     "util",
   ]
   pruneopts = "UT"
-  revision = "9a73017bafb9d636b9aa36bae5c398747bd370f0"
+  revision = "e55f0f5278130624d129f993ad571ab766b6f424"
 
 [[projects]]
   branch = "master"
@@ -452,6 +453,7 @@
     "github.com/zdnscloud/gok8s/controller",
     "github.com/zdnscloud/gok8s/event",
     "github.com/zdnscloud/gok8s/handler",
+    "github.com/zdnscloud/gok8s/helper",
     "github.com/zdnscloud/gok8s/predicate",
     "github.com/zdnscloud/gok8s/scheme",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
