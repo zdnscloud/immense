@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/zdnscloud/gok8s/client"
@@ -34,7 +35,10 @@ func mapOnYamlDocument(yaml string, fn func(context.Context, runtime.Object) err
 			return err
 		}
 		if err := fn(context.TODO(), obj); err != nil {
-			return err
+			if apierrors.IsAlreadyExists(err) == false &&
+				apierrors.IsNotFound(err) == false {
+				return err
+			}
 		}
 	}
 	return nil
