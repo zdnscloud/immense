@@ -154,7 +154,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:57813137504a60474f24a15d3a17f2010602ba2846d97f982128c861ff1cb0f5"
+  digest = "1:b2441246ebb8c81f17d8657a92f3ec99f0ab9f13c1702d91f1dbe0a99954ba61"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -171,7 +171,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "7ba6306b8d6a34b911e4ebbe2b9adb0a35341f54"
+  revision = "4824101d9c601b7275b3a02d33826e5dd18c2c6a"
 
 [[projects]]
   branch = "master"
@@ -418,6 +418,17 @@
   version = "v0.3.2"
 
 [[projects]]
+  branch = "master"
+  digest = "1:133c46d092102e69977181b43e6fa17b52b050568225f50fff5bcdcd41d10e57"
+  name = "k8s.io/kube-aggregator"
+  packages = [
+    "pkg/apis/apiregistration",
+    "pkg/apis/apiregistration/v1beta1",
+  ]
+  pruneopts = "UT"
+  revision = "b998c87818f673b58e26800667dadc3d2e2f49c7"
+
+[[projects]]
   branch = "release-1.13"
   digest = "1:0306ff09375dc31052d211f0e9db9b9b1156e5306d36ab0080e432bc9972262a"
   name = "k8s.io/metrics"
@@ -432,6 +443,14 @@
   ]
   pruneopts = "UT"
   revision = "486c9ba21ea924d069175e771671f026eda5a34c"
+
+[[projects]]
+  branch = "master"
+  digest = "1:8b5d43a2ffe1c0df5e9d7f635227f179341964dd7d0b72fc12f857186a47c224"
+  name = "k8s.io/utils"
+  packages = ["pointer"]
+  pruneopts = "UT"
+  revision = "6999998975a717e7f5fc2a7476497044cb111854"
 
 [[projects]]
   digest = "1:7719608fe0b52a4ece56c2dde37bedd95b938677d1ab0f84b8a7852e4c59f849"
