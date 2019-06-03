@@ -23,7 +23,7 @@ spec:
       containers:
       - name: storage-agent-lvmd
         image: {{.StorageLvmdImage}}
-	command: ["/bin/sh", "-c", "/lvmd", "-listen", "0.0.0.0:1736"]
+        command: ["/bin/sh", "-c", "/lvmd", "-listen", "0.0.0.0:1736"]
         env:
           - name: NodeName
             valueFrom:

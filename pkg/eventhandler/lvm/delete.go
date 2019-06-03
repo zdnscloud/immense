@@ -1,7 +1,7 @@
 package lvm
 
 import (
-	"fmt"
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
@@ -10,14 +10,13 @@ import (
 
 func Delete(cli client.Client, cluster *storagev1.Cluster) error {
 	if err := undeploy(cli, cluster); err != nil {
-		fmt.Println("2222", err)
 		return err
 	}
 	return common.DeleteNodeAnnotationsAndLabels(cli, cluster, NodeLabelValue)
 }
 
 func undeploy(cli client.Client, cluster *storagev1.Cluster) error {
-	fmt.Println("undeploy for %s", cluster.Spec.StorageType)
+	log.Debugf("Undeploy for storage cluster:%s", cluster.Spec.StorageType)
 	cfg := map[string]interface{}{
 		"AoDNamespace":                   "no",
 		"RBACConfig":                     common.RBACConfig,
@@ -33,7 +32,6 @@ func undeploy(cli client.Client, cluster *storagev1.Cluster) error {
 	}
 	yaml, err := common.CompileTemplateFromMap(LvmDTemplate, cfg)
 	if err != nil {
-		fmt.Println("1111", err)
 		return err
 	}
 	return helper.DeleteResourceFromYaml(cli, yaml)

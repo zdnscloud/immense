@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -21,7 +22,7 @@ const (
 
 func CreateNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluster, nodelabelvalue string) error {
 	for _, host := range cluster.Spec.Hosts {
-		fmt.Println("Add Annotations and Labels fot host:%s", host.NodeName)
+		log.Debugf("Add Annotations and Labels fot host:%s", host.NodeName)
 		node := corev1.Node{}
 		if err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
 			return err
@@ -46,15 +47,21 @@ func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error)
 
 func DeleteNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluster, nodelabelvalue string) error {
 	for _, host := range cluster.Spec.Hosts {
-		fmt.Println("Del Annotations and Labels fot host:%s", host.NodeName)
+		log.Debugf("Del Annotations and Labels fot host:%s", host.NodeName)
 		node := corev1.Node{}
 		if err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
 			return err
 		}
-		fmt.Println(node.Labels[StorageHostLabels])
-		fmt.Println(node.Annotations[StorageBlocksAnnotations])
 		delete(node.Labels, StorageHostLabels)
 		delete(node.Annotations, StorageBlocksAnnotations)
 	}
 	return nil
+}
+
+func GetHostAddr(ctx context.Context, cli client.Client, name string) (string, error) {
+	node := corev1.Node{}
+	if err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &node); err != nil {
+		return "", err
+	}
+	return node.Annotations["zdnscloud.cn/internal-ip"], nil
 }
