@@ -12,6 +12,7 @@ import (
 	pb "github.com/zdnscloud/lvmd/proto"
 	corev1 "k8s.io/api/core/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
+	"net"
 	"time"
 )
 
@@ -53,7 +54,6 @@ func deployLvmCSI(cli client.Client, cluster *storagev1.Cluster) error {
 	yaml, err := common.CompileTemplateFromMap(LvmCSITemplate, cfg)
 	if err != nil {
 		return err
-		fmt.Println("1111", err)
 	}
 	return helper.CreateResourceFromYaml(cli, yaml)
 }
@@ -71,7 +71,6 @@ func deployLvmd(cli client.Client, cluster *storagev1.Cluster) error {
 	yaml, err := common.CompileTemplateFromMap(LvmDTemplate, cfg)
 	if err != nil {
 		return err
-		fmt.Println("1111", err)
 	}
 	return helper.CreateResourceFromYaml(cli, yaml)
 }
@@ -83,11 +82,10 @@ func initBlocks(cli client.Client, cluster *storagev1.Cluster) error {
 			return err
 		}
 		addr := hostip + ":" + LvmdPort
-		if !waitLvmd {
+		if !waitLvmd(addr) {
 			return errors.New("Lvmd not ready!" + addr)
 		}
 		lvmdcli, err := lvmdclient.New(addr, ConLvmdTimeout)
-		fmt.Println(addr)
 		defer lvmdcli.Close()
 		if err != nil {
 			return err
@@ -97,7 +95,6 @@ func initBlocks(cli client.Client, cluster *storagev1.Cluster) error {
 			fmt.Println("check block:", block)
 			v, err := validate(lvmdcli, block)
 			if err != nil {
-				fmt.Println("000000")
 				return err
 			}
 			if !v {
@@ -208,7 +205,7 @@ func vgExtend(lvmdcli *lvmdclient.Client, block string) error {
 	return err
 }
 
-func waitLvmd(addr) bool {
+func waitLvmd(addr string) bool {
 	for i := 0; i < 20; i++ {
 		_, err := net.Dial("tcp", addr)
 		if err == nil {
