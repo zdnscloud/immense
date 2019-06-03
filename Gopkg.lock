@@ -154,7 +154,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b2441246ebb8c81f17d8657a92f3ec99f0ab9f13c1702d91f1dbe0a99954ba61"
+  digest = "1:358d4ed194b2820fc798c2ced9a1e1bb9dd0cd89c8380f982efc9320c724cd58"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -166,12 +166,24 @@
     "event",
     "eventsource",
     "handler",
+    "helper",
     "predicate",
     "scheme",
     "util",
   ]
   pruneopts = "UT"
   revision = "4824101d9c601b7275b3a02d33826e5dd18c2c6a"
+
+[[projects]]
+  branch = "master"
+  digest = "1:f564f737682f886406786ff53ea474c21dec0534b525a0afcf05abf639e7c858"
+  name = "github.com/zdnscloud/lvmd"
+  packages = [
+    "client",
+    "proto",
+  ]
+  pruneopts = "UT"
+  revision = "681e952228bebe240c9a8eeb470c3011e1262f15"
 
 [[projects]]
   branch = "master"
@@ -183,7 +195,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4c791e2b9890e96a29cc3c330652b0639ee18026e766c838667b0119099d31ea"
+  digest = "1:1b13e8770142a9251361b13a3b8b9b77296be6fa32856c937b346a45f93c845c"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -192,6 +204,8 @@
     "http2",
     "http2/hpack",
     "idna",
+    "internal/timeseries",
+    "trace",
   ]
   pruneopts = "UT"
   revision = "f3200d17e092c607f615320ecaad13d87ad9a2b3"
@@ -266,6 +280,55 @@
   pruneopts = "UT"
   revision = "4c25cacc810c02874000e4f7071286a8e96b2515"
   version = "v1.6.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:583a0c80f5e3a9343d33aea4aead1e1afcc0043db66fdf961ddd1fe8cd3a4faf"
+  name = "google.golang.org/genproto"
+  packages = ["googleapis/rpc/status"]
+  pruneopts = "UT"
+  revision = "fb225487d10142b5bcc35abfc6cb9a0609614976"
+
+[[projects]]
+  digest = "1:c69a4c19c4f241e6b75ad65c5e7a1c4eec5705ae504624df4eb6fb659c2df46c"
+  name = "google.golang.org/grpc"
+  packages = [
+    ".",
+    "balancer",
+    "balancer/base",
+    "balancer/roundrobin",
+    "binarylog/grpc_binarylog_v1",
+    "codes",
+    "connectivity",
+    "credentials",
+    "credentials/internal",
+    "encoding",
+    "encoding/proto",
+    "grpclog",
+    "internal",
+    "internal/backoff",
+    "internal/balancerload",
+    "internal/binarylog",
+    "internal/channelz",
+    "internal/envconfig",
+    "internal/grpcrand",
+    "internal/grpcsync",
+    "internal/syscall",
+    "internal/transport",
+    "keepalive",
+    "metadata",
+    "naming",
+    "peer",
+    "resolver",
+    "resolver/dns",
+    "resolver/passthrough",
+    "stats",
+    "status",
+    "tap",
+  ]
+  pruneopts = "UT"
+  revision = "869adfc8d5a43efc0d05780ad109106f457f51e4"
+  version = "v1.21.0"
 
 [[projects]]
   digest = "1:2d1fbdc6777e5408cabeb02bf336305e724b925ff4546ded0fa8715a7267922a"
@@ -467,15 +530,21 @@
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/signal",
     "github.com/zdnscloud/gok8s/cache",
+    "github.com/zdnscloud/gok8s/client",
     "github.com/zdnscloud/gok8s/client/config",
     "github.com/zdnscloud/gok8s/controller",
     "github.com/zdnscloud/gok8s/event",
     "github.com/zdnscloud/gok8s/handler",
+    "github.com/zdnscloud/gok8s/helper",
     "github.com/zdnscloud/gok8s/predicate",
     "github.com/zdnscloud/gok8s/scheme",
+    "github.com/zdnscloud/lvmd/client",
+    "github.com/zdnscloud/lvmd/proto",
+    "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
+    "k8s.io/apimachinery/pkg/types",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
   ]
