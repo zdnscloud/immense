@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
+	//"context"
 	"fmt"
 	k8scli "github.com/zdnscloud/gok8s/client"
 	k8scfg "github.com/zdnscloud/gok8s/client/config"
-	//"github.com/zdnscloud/gok8s/helper"
-	corev1 "k8s.io/api/core/v1"
-	k8stypes "k8s.io/apimachinery/pkg/types"
+	"github.com/zdnscloud/gok8s/helper"
 )
 
 const (
@@ -17,7 +15,9 @@ const (
 	StorageNamespace         = "zcloud"
 )
 
-const yaml3 = `
+const yaml = `
+
+---
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -29,11 +29,6 @@ metadata:
   name: zdns2
 `
 
-func del(n *corev1.Node) {
-	delete(*n.Labels, StorageHostLabels)
-	return
-}
-
 func main() {
 	cfg, err := k8scfg.GetConfig()
 	if err != nil {
@@ -43,14 +38,5 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	//fmt.Println(helper.DeleteResourceFromYaml(cli, yaml3))
-	node := corev1.Node{}
-	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", "k8s-02"}, &node); err != nil {
-		fmt.Println(err)
-	}
-	del(node)
-	//node.Labels[StorageHostLabels] = "ycy"
-	//node.Annotations[StorageBlocksAnnotations] = "test"
-	//delete(&node.Labels, StorageHostLabels)
-	//delete(&node.Annotations, StorageBlocksAnnotations)
+	fmt.Println(helper.CreateResourceFromYaml(cli, yaml))
 }

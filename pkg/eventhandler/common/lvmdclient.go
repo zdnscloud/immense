@@ -92,3 +92,11 @@ func GetVG(ctx context.Context, lvmdcli *lvmdclient.Client, block string) (strin
 	out, err := lvmdcli.Match(ctx, &req)
 	return out.CommandOutput, err
 }
+
+func Destory(ctx context.Context, lvmdcli *lvmdclient.Client, block string) (string, error) {
+	req := pb.DestoryRequest{
+		Block: block,
+	}
+	out, err := lvmdcli.Destory(ctx, &req)
+	return out.CommandOutput, err
+}

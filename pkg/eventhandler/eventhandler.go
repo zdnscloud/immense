@@ -23,10 +23,9 @@ func Delete(cli client.Client, cluster *storagev1.Cluster) error {
 }
 
 func Update(cli client.Client, oldc *storagev1.Cluster, newc *storagev1.Cluster) error {
-	/*
-		switch oldc.Spec.StorageType {
-		case "lvm":
-			return lvm.Update(cli, oldc, newc)
-		}*/
+	switch oldc.Spec.StorageType {
+	case "lvm":
+		return lvm.Update(cli, oldc, newc)
+	}
 	return nil
 }

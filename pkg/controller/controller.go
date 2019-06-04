@@ -72,11 +72,11 @@ func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
 
 func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	log.Debugf("update event")
-	//oldc := e.ObjectOld.(*storagev1.Cluster)
-	//newc := e.ObjectNew.(*storagev1.Cluster)
+	oldc := e.ObjectOld.(*storagev1.Cluster)
+	newc := e.ObjectNew.(*storagev1.Cluster)
 	//logCluster(oldc)
 	//logCluster(newc)
-	//return handler.Result{}, eventhandler.Delete(d.client, oldc, newc)
+	return handler.Result{}, eventhandler.Update(d.client, oldc, newc)
 	return handler.Result{}, nil
 }
 

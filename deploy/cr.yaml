@@ -6,8 +6,6 @@ spec:
   # Add fields here
   storageType: "lvm"
   hosts: 
-  - nodeName: "k8s-02"
-    blockDevices: ["/dev/vdb"]
   - nodeName: "k8s-03"
     blockDevices: ["/dev/vdb"]
   - nodeName: "k8s-04"

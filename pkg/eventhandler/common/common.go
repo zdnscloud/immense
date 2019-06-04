@@ -54,6 +54,9 @@ func DeleteNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluste
 		}
 		delete(node.Labels, StorageHostLabels)
 		delete(node.Annotations, StorageBlocksAnnotations)
+		if err := cli.Update(context.TODO(), &node); err != nil {
+			return err
+		}
 	}
 	return nil
 }
