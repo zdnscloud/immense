@@ -1,38 +1,80 @@
 package lvm
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/eventhandler/common"
+	lvmdclient "github.com/zdnscloud/lvmd/client"
 )
 
 func Delete(cli client.Client, cluster *storagev1.Cluster) error {
-	if err := undeploy(cli, cluster); err != nil {
+	if err := undeployLvmCSI(cli, cluster); err != nil {
+		return err
+	}
+	/*
+		if err := formatted(cli, cluster); err != nil {
+			return err
+		}*/
+	if err := undeployLvmd(cli, cluster); err != nil {
 		return err
 	}
 	return common.DeleteNodeAnnotationsAndLabels(cli, cluster, NodeLabelValue)
 }
 
-func undeploy(cli client.Client, cluster *storagev1.Cluster) error {
+func undeployLvmCSI(cli client.Client, cluster *storagev1.Cluster) error {
 	log.Debugf("Undeploy for storage cluster:%s", cluster.Spec.StorageType)
-	cfg := map[string]interface{}{
-		"AoDNamespace":                   "no",
-		"RBACConfig":                     common.RBACConfig,
-		"LabelKey":                       common.StorageHostLabels,
-		"LabelValue":                     NodeLabelValue,
-		"StorageNamespace":               common.StorageNamespace,
-		"StorageLvmdImage":               "zdnscloud/lvmd:v0.4",
-		"StorageLvmAttacherImage":        "quay.io/k8scsi/csi-attacher:v1.0.0",
-		"StorageLvmProvisionerImage":     "quay.io/k8scsi/csi-provisioner:v1.0.0",
-		"StorageLvmDriverRegistrarImage": "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2",
-		"StorageLvmCSIImage":             "zdnscloud/lvmcsi:v0.5",
-		"StorageClassName":               "lvm",
-	}
-	yaml, err := common.CompileTemplateFromMap(LvmDTemplate, cfg)
+	yaml, err := csiyaml()
 	if err != nil {
 		return err
 	}
 	return helper.DeleteResourceFromYaml(cli, yaml)
+}
+
+func undeployLvmd(cli client.Client, cluster *storagev1.Cluster) error {
+	log.Debugf("Undeploy for storage cluster:%s", cluster.Spec.StorageType)
+	yaml, err := lvmdyaml()
+	if err != nil {
+		return err
+	}
+	return helper.DeleteResourceFromYaml(cli, yaml)
+}
+
+func formatted(cli client.Client, cluster *storagev1.Cluster) error {
+	ctx := context.TODO()
+	for _, host := range cluster.Spec.Hosts {
+		hostip, err := common.GetHostAddr(ctx, cli, host.NodeName)
+		if err != nil {
+			log.Warnf("Get address from host %s failed:%s", host.NodeName, err.Error())
+			return err
+		}
+		addr := hostip + ":" + LvmdPort
+
+		log.Debugf("Check %s Lvmd Rinning", host.NodeName)
+		if !common.WaitLvmd(addr) {
+			log.Warnf("Lvmd wait run timeout:%s", addr)
+			return errors.New("Lvmd not ready!" + addr)
+		}
+
+		lvmdcli, err := lvmdclient.New(addr, ConLvmdTimeout)
+		defer lvmdcli.Close()
+		if err != nil {
+			log.Warnf("Create Lvmd client failed:%s", err.Error())
+			return err
+		}
+		for _, block := range host.BlockDevices {
+			log.Debugf("Destory block start: %s", block)
+			out, err := common.Destory(ctx, lvmdcli, block)
+			if err != nil {
+				log.Warnf("Destory block failed:%s", err.Error())
+				return nil
+			}
+			fmt.Println(out)
+		}
+	}
+	return nil
 }

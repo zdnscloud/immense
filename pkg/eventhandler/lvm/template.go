@@ -44,7 +44,6 @@ spec:
 
 const LvmCSITemplate = `
 {{- if eq .RBACConfig "rbac"}}
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -194,8 +193,8 @@ roleRef:
   kind: ClusterRole
   name: csi-lvmplugin
   apiGroup: rbac.authorization.k8s.io  
-{{- end}}
 ---
+{{- end}}
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:

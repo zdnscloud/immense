@@ -29,25 +29,12 @@ func Create(cli client.Client, cluster *storagev1.Cluster) error {
 	if err := initBlocks(cli, cluster); err != nil {
 		return err
 	}
-	return nil
 	return deployLvmCSI(cli, cluster)
 }
 
 func deployLvmCSI(cli client.Client, cluster *storagev1.Cluster) error {
 	log.Debugf("Deploy CSI for storage cluster: %s", cluster.Spec.StorageType)
-	cfg := map[string]interface{}{
-		"AoDNamespace":                   "yes",
-		"RBACConfig":                     common.RBACConfig,
-		"LabelKey":                       common.StorageHostLabels,
-		"LabelValue":                     NodeLabelValue,
-		"StorageNamespace":               common.StorageNamespace,
-		"StorageLvmAttacherImage":        "quay.io/k8scsi/csi-attacher:v1.0.0",
-		"StorageLvmProvisionerImage":     "quay.io/k8scsi/csi-provisioner:v1.0.0",
-		"StorageLvmDriverRegistrarImage": "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2",
-		"StorageLvmCSIImage":             "zdnscloud/lvmcsi:v0.5",
-		"StorageClassName":               "lvm",
-	}
-	yaml, err := common.CompileTemplateFromMap(LvmCSITemplate, cfg)
+	yaml, err := csiyaml()
 	if err != nil {
 		return err
 	}
@@ -56,15 +43,7 @@ func deployLvmCSI(cli client.Client, cluster *storagev1.Cluster) error {
 
 func deployLvmd(cli client.Client, cluster *storagev1.Cluster) error {
 	log.Debugf("Deploy LvmD for storage cluster: %s", cluster.Spec.StorageType)
-	cfg := map[string]interface{}{
-		"AoDNamespace":     "yes",
-		"RBACConfig":       common.RBACConfig,
-		"LabelKey":         common.StorageHostLabels,
-		"LabelValue":       NodeLabelValue,
-		"StorageNamespace": common.StorageNamespace,
-		"StorageLvmdImage": "zdnscloud/lvmd:v0.94",
-	}
-	yaml, err := common.CompileTemplateFromMap(LvmDTemplate, cfg)
+	yaml, err := lvmdyaml()
 	if err != nil {
 		return err
 	}
@@ -76,23 +55,27 @@ func initBlocks(cli client.Client, cluster *storagev1.Cluster) error {
 	for _, host := range cluster.Spec.Hosts {
 		hostip, err := common.GetHostAddr(ctx, cli, host.NodeName)
 		if err != nil {
+			log.Warnf("Get address from host %s failed:%s", host.NodeName, err.Error())
 			return err
 		}
 		addr := hostip + ":" + LvmdPort
 
 		log.Debugf("Check %s Lvmd Rinning", host.NodeName)
 		if !common.WaitLvmd(addr) {
+			log.Warnf("Lvmd wait run timeout:%s", addr)
 			return errors.New("Lvmd not ready!" + addr)
 		}
 
 		lvmdcli, err := lvmdclient.New(addr, ConLvmdTimeout)
 		defer lvmdcli.Close()
 		if err != nil {
+			log.Warnf("Create Lvmd client failed:%s", err.Error())
 			return err
 		}
 
 		for _, block := range host.BlockDevices {
-			log.Debugf("Init block: %s", block)
+			log.Debugf("Init block start: %s", block)
+
 			name, err := common.GetVG(ctx, lvmdcli, block)
 			if err != nil {
 				log.Warnf("Get VGName failed:%s", err.Error())
@@ -102,6 +85,7 @@ func initBlocks(cli client.Client, cluster *storagev1.Cluster) error {
 				log.Debugf("Block had inited before")
 				continue
 			}
+			log.Debugf("Block have no volume group, validate availability now")
 
 			v, err := common.Validate(ctx, lvmdcli, block)
 			if err != nil {
@@ -109,8 +93,10 @@ func initBlocks(cli client.Client, cluster *storagev1.Cluster) error {
 				return err
 			}
 			if !v {
+				log.Warnf("%s can not be uesd", block)
 				return errors.New("Some blocks cat not be used!" + block)
 			}
+			log.Debugf("Block is clean, create pv now")
 
 			p, err := common.PvExist(ctx, lvmdcli, block)
 			if err != nil {
@@ -123,6 +109,7 @@ func initBlocks(cli client.Client, cluster *storagev1.Cluster) error {
 					return err
 				}
 			}
+			log.Debugf("PV had created, create volume group now")
 
 			v, err = common.VgExist(ctx, lvmdcli)
 			if err != nil {
@@ -130,6 +117,7 @@ func initBlocks(cli client.Client, cluster *storagev1.Cluster) error {
 				return err
 			}
 			if v {
+				log.Debugf("Volume group had created before, extend now")
 				if common.VgExtend(ctx, lvmdcli, block); err != nil {
 					log.Warnf("Vgextend block failed:%s", err.Error())
 					return err
