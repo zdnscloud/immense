@@ -65,27 +65,30 @@ func logCluster(cluster *storagev1.Cluster) {
 func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	log.Debugf("create event")
 	cluster := e.Object.(*storagev1.Cluster)
-	//logCluster(cluster)
-	//eventhandler.Create(d.client, cluster)
-	return handler.Result{}, eventhandler.Create(d.client, cluster)
+	if err := eventhandler.Create(d.client, cluster); err != nil {
+		log.Warnf("Create failed:%s", err.Error())
+	}
+	return handler.Result{}, nil
 }
 
 func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	log.Debugf("update event")
 	oldc := e.ObjectOld.(*storagev1.Cluster)
 	newc := e.ObjectNew.(*storagev1.Cluster)
-	//logCluster(oldc)
-	//logCluster(newc)
-	return handler.Result{}, eventhandler.Update(d.client, oldc, newc)
+	err := eventhandler.Update(d.client, oldc, newc)
+	if err != nil {
+		log.Warnf("Update failed:%s", err.Error())
+	}
 	return handler.Result{}, nil
 }
 
 func (d *Controller) OnDelete(e event.DeleteEvent) (handler.Result, error) {
 	log.Debugf("delete event")
 	cluster := e.Object.(*storagev1.Cluster)
-	//logCluster(cluster)
-	//eventhandler.Delete(d.client, cluster)
-	return handler.Result{}, eventhandler.Delete(d.client, cluster)
+	if err := eventhandler.Delete(d.client, cluster); err != nil {
+		log.Warnf("Delete failed:%s", err.Error())
+	}
+	return handler.Result{}, nil
 }
 
 func (d *Controller) OnGeneric(e event.GenericEvent) (handler.Result, error) {

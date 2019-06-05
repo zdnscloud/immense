@@ -1,6 +1,13 @@
 package lvm
 
-const LvmDTemplate = `
+const LvmdTemplate = `
+{{- if eq .AoDNamespace "createns"}}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{.StorageNamespace}}
+---
+{{- end}}
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -43,6 +50,13 @@ spec:
             path: /dev`
 
 const LvmCSITemplate = `
+{{- if eq .AoDNamespace "createns"}}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{.StorageNamespace}}
+---
+{{- end}}
 {{- if eq .RBACConfig "rbac"}}
 apiVersion: v1
 kind: ServiceAccount

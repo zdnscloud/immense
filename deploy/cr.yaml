@@ -10,5 +10,5 @@ spec:
     blockDevices: ["/dev/vdb"]
   - nodeName: "k8s-04"
     blockDevices: ["/dev/vdb"]
-  - nodeName: "k8s-05"
-    blockDevices: ["/dev/vdb"]
+  - nodeName: "k8s-09"
+    blockDevices: ["/dev/vdb", "/dev/vdc"]

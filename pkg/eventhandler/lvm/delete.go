@@ -2,24 +2,20 @@ package lvm
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/eventhandler/common"
-	lvmdclient "github.com/zdnscloud/lvmd/client"
 )
 
 func Delete(cli client.Client, cluster *storagev1.Cluster) error {
 	if err := undeployLvmCSI(cli, cluster); err != nil {
 		return err
 	}
-	/*
-		if err := formatted(cli, cluster); err != nil {
-			return err
-		}*/
+	if err := unInitBlocks(cli, cluster); err != nil {
+		return err
+	}
 	if err := undeployLvmd(cli, cluster); err != nil {
 		return err
 	}
@@ -27,8 +23,8 @@ func Delete(cli client.Client, cluster *storagev1.Cluster) error {
 }
 
 func undeployLvmCSI(cli client.Client, cluster *storagev1.Cluster) error {
-	log.Debugf("Undeploy for storage cluster:%s", cluster.Spec.StorageType)
-	yaml, err := csiyaml()
+	log.Debugf("Undeploy CSI for storage cluster:%s", cluster.Spec.StorageType)
+	yaml, err := csiyaml("keepns")
 	if err != nil {
 		return err
 	}
@@ -36,44 +32,32 @@ func undeployLvmCSI(cli client.Client, cluster *storagev1.Cluster) error {
 }
 
 func undeployLvmd(cli client.Client, cluster *storagev1.Cluster) error {
-	log.Debugf("Undeploy for storage cluster:%s", cluster.Spec.StorageType)
-	yaml, err := lvmdyaml()
+	log.Debugf("Undeploy Lvmd for storage cluster:%s", cluster.Spec.StorageType)
+	yaml, err := lvmdyaml("keepns")
 	if err != nil {
 		return err
 	}
 	return helper.DeleteResourceFromYaml(cli, yaml)
 }
 
-func formatted(cli client.Client, cluster *storagev1.Cluster) error {
+func unInitBlocks(cli client.Client, cluster *storagev1.Cluster) error {
 	ctx := context.TODO()
 	for _, host := range cluster.Spec.Hosts {
-		hostip, err := common.GetHostAddr(ctx, cli, host.NodeName)
+		lvmdcli, err := common.CreateLvmdClient(ctx, cli, host.NodeName)
 		if err != nil {
-			log.Warnf("Get address from host %s failed:%s", host.NodeName, err.Error())
+			log.Warnf("[%s] Create Lvmd client failed:%s", host.NodeName, err.Error())
 			return err
 		}
-		addr := hostip + ":" + LvmdPort
-
-		log.Debugf("Check %s Lvmd Rinning", host.NodeName)
-		if !common.WaitLvmd(addr) {
-			log.Warnf("Lvmd wait run timeout:%s", addr)
-			return errors.New("Lvmd not ready!" + addr)
-		}
-
-		lvmdcli, err := lvmdclient.New(addr, ConLvmdTimeout)
 		defer lvmdcli.Close()
-		if err != nil {
-			log.Warnf("Create Lvmd client failed:%s", err.Error())
-			return err
-		}
 		for _, block := range host.BlockDevices {
-			log.Debugf("Destory block start: %s", block)
-			out, err := common.Destory(ctx, lvmdcli, block)
-			if err != nil {
-				log.Warnf("Destory block failed:%s", err.Error())
-				return nil
+			log.Debugf("[%s] Remove vg with %s", host.NodeName, block)
+			if err := common.RemoveVG(ctx, lvmdcli); err != nil {
+				return err
 			}
-			fmt.Println(out)
+			log.Debugf("[%s] Remove pv with %s", host.NodeName, block)
+			if err := common.RemovePV(ctx, lvmdcli, block); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

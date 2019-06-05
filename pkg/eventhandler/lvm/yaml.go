@@ -4,9 +4,13 @@ import (
 	"github.com/zdnscloud/immense/pkg/eventhandler/common"
 )
 
-func csiyaml() (string, error) {
+const (
+	NodeLabelValue = "Lvm"
+)
+
+func csiyaml(flag string) (string, error) {
 	cfg := map[string]interface{}{
-		"AoDNamespace":                   "yes",
+		"AoDNamespace":                   flag,
 		"RBACConfig":                     common.RBACConfig,
 		"LabelKey":                       common.StorageHostLabels,
 		"LabelValue":                     NodeLabelValue,
@@ -20,14 +24,14 @@ func csiyaml() (string, error) {
 	return common.CompileTemplateFromMap(LvmCSITemplate, cfg)
 }
 
-func lvmdyaml() (string, error) {
+func lvmdyaml(flag string) (string, error) {
 	cfg := map[string]interface{}{
-		"AoDNamespace":     "yes",
+		"AoDNamespace":     flag,
 		"RBACConfig":       common.RBACConfig,
 		"LabelKey":         common.StorageHostLabels,
 		"LabelValue":       NodeLabelValue,
 		"StorageNamespace": common.StorageNamespace,
-		"StorageLvmdImage": "zdnscloud/lvmd:v0.96",
+		"StorageLvmdImage": "zdnscloud/lvmd:v0.5",
 	}
-	return common.CompileTemplateFromMap(LvmDTemplate, cfg)
+	return common.CompileTemplateFromMap(LvmdTemplate, cfg)
 }
