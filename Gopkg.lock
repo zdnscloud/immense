@@ -142,11 +142,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2a86f8e23bea8ae83beedd6eb626e5edb5cc03b7ecacacd0aa466fc8cba99df6"
+  digest = "1:2064d09e37de4f86f94fa63bdcb6bdf062b1d480c2e090cf36806875126d51da"
   name = "github.com/zdnscloud/cement"
   packages = [
     "log",
     "log/log4go",
+    "set",
     "signal",
   ]
   pruneopts = "UT"
@@ -176,14 +177,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:f564f737682f886406786ff53ea474c21dec0534b525a0afcf05abf639e7c858"
+  digest = "1:dc432cf9f3ef705b89ca57d5dbf835bbf66fe640164d1700c8de84b29b6bd830"
   name = "github.com/zdnscloud/lvmd"
   packages = [
     "client",
     "proto",
   ]
   pruneopts = "UT"
-  revision = "681e952228bebe240c9a8eeb470c3011e1262f15"
+  revision = "545c5ff4a4075d5dd1c197b45a946377a47f5d55"
 
 [[projects]]
   branch = "master"
@@ -528,6 +529,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/zdnscloud/cement/log",
+    "github.com/zdnscloud/cement/set",
     "github.com/zdnscloud/cement/signal",
     "github.com/zdnscloud/gok8s/cache",
     "github.com/zdnscloud/gok8s/client",
