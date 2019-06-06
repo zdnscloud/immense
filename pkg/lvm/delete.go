@@ -6,21 +6,8 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	"github.com/zdnscloud/immense/pkg/eventhandler/common"
+	"github.com/zdnscloud/immense/pkg/common"
 )
-
-func Delete(cli client.Client, cluster *storagev1.Cluster) error {
-	if err := undeployLvmCSI(cli, cluster); err != nil {
-		return err
-	}
-	if err := unInitBlocks(cli, cluster); err != nil {
-		return err
-	}
-	if err := undeployLvmd(cli, cluster); err != nil {
-		return err
-	}
-	return common.DeleteNodeAnnotationsAndLabels(cli, cluster, NodeLabelValue)
-}
 
 func undeployLvmCSI(cli client.Client, cluster *storagev1.Cluster) error {
 	log.Debugf("Undeploy CSI for storage cluster:%s", cluster.Spec.StorageType)

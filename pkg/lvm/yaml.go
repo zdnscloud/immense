@@ -1,12 +1,7 @@
 package lvm
 
 import (
-	"github.com/zdnscloud/immense/pkg/eventhandler/common"
-)
-
-const (
-	NodeLabelValue = "Lvm"
-	VGName         = "k8s"
+	"github.com/zdnscloud/immense/pkg/common"
 )
 
 func csiyaml(flag string) (string, error) {

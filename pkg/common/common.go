@@ -18,6 +18,7 @@ const (
 	StorageHostLabels        = "storage.zcloud.cn/storagetype"
 	StorageBlocksAnnotations = "storage.zcloud.cn/blocks"
 	StorageNamespace         = "zcloud"
+	NodeIPLabels             = "zdnscloud.cn/internal-ip"
 )
 
 func CreateNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluster, nodelabelvalue string) error {
@@ -66,5 +67,5 @@ func GetHostAddr(ctx context.Context, cli client.Client, name string) (string, e
 	if err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &node); err != nil {
 		return "", err
 	}
-	return node.Annotations["zdnscloud.cn/internal-ip"], nil
+	return node.Annotations[NodeIPLabels], nil
 }

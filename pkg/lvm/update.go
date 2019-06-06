@@ -5,25 +5,8 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	"github.com/zdnscloud/immense/pkg/eventhandler/common"
+	"github.com/zdnscloud/immense/pkg/common"
 )
-
-func Update(cli client.Client, oldcfg, newcfg *storagev1.Cluster) error {
-	delcfg, addcfg, changetodel, changetoadd := common.Diff(oldcfg, newcfg)
-	if err := doAddhost(cli, addcfg); err != nil {
-		return err
-	}
-	if err := doChangeAdd(cli, changetoadd); err != nil {
-		return err
-	}
-	if err := doDelhost(cli, delcfg); err != nil {
-		return err
-	}
-	if err := doChangeDel(cli, changetodel); err != nil {
-		return err
-	}
-	return nil
-}
 
 func doDelhost(cli client.Client, cfg map[string][]string) error {
 	if len(cfg) == 0 {
@@ -93,7 +76,6 @@ func doChangeDel(cli client.Client, cfg map[string][]string) error {
 
 func makeClusterCfg(cfg map[string][]string) *storagev1.Cluster {
 	hosts := make([]storagev1.HostSpec, 0)
-
 	for k, v := range cfg {
 		host := storagev1.HostSpec{
 			NodeName:     k,

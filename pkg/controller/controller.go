@@ -16,8 +16,8 @@ import (
 )
 
 type Controller struct {
-	stopCh chan struct{}
-	client k8scli.Client
+	stopCh     chan struct{}
+	handlermgr *eventhandler.HandlerManager
 }
 
 func New(config *rest.Config) (*Controller, error) {
@@ -41,13 +41,15 @@ func New(config *rest.Config) (*Controller, error) {
 		return nil, err
 	}
 
+	hm := eventhandler.New(cli)
+
 	stopCh := make(chan struct{})
 	go c.Start(stopCh)
 	c.WaitForCacheSync(stopCh)
 
 	storageCtrl := &Controller{
-		stopCh: stopCh,
-		client: cli,
+		stopCh:     stopCh,
+		handlermgr: hm,
 	}
 	ctrl := controller.New("zcloudStorage", c, scm)
 	ctrl.Watch(&storagev1.Cluster{})
@@ -65,7 +67,7 @@ func logCluster(cluster *storagev1.Cluster) {
 func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	log.Debugf("create event")
 	cluster := e.Object.(*storagev1.Cluster)
-	if err := eventhandler.Create(d.client, cluster); err != nil {
+	if err := d.handlermgr.Create(cluster); err != nil {
 		log.Warnf("Create failed:%s", err.Error())
 	}
 	return handler.Result{}, nil
@@ -75,8 +77,7 @@ func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	log.Debugf("update event")
 	oldc := e.ObjectOld.(*storagev1.Cluster)
 	newc := e.ObjectNew.(*storagev1.Cluster)
-	err := eventhandler.Update(d.client, oldc, newc)
-	if err != nil {
+	if err := d.handlermgr.Update(oldc, newc); err != nil {
 		log.Warnf("Update failed:%s", err.Error())
 	}
 	return handler.Result{}, nil
@@ -85,7 +86,7 @@ func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 func (d *Controller) OnDelete(e event.DeleteEvent) (handler.Result, error) {
 	log.Debugf("delete event")
 	cluster := e.Object.(*storagev1.Cluster)
-	if err := eventhandler.Delete(d.client, cluster); err != nil {
+	if err := d.handlermgr.Delete(cluster); err != nil {
 		log.Warnf("Delete failed:%s", err.Error())
 	}
 	return handler.Result{}, nil

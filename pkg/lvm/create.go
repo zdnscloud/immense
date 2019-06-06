@@ -6,21 +6,8 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	"github.com/zdnscloud/immense/pkg/eventhandler/common"
+	"github.com/zdnscloud/immense/pkg/common"
 )
-
-func Create(cli client.Client, cluster *storagev1.Cluster) error {
-	if err := common.CreateNodeAnnotationsAndLabels(cli, cluster, NodeLabelValue); err != nil {
-		return err
-	}
-	if err := deployLvmd(cli, cluster); err != nil {
-		return err
-	}
-	if err := initBlocks(cli, cluster); err != nil {
-		return err
-	}
-	return deployLvmCSI(cli, cluster)
-}
 
 func deployLvmCSI(cli client.Client, cluster *storagev1.Cluster) error {
 	log.Debugf("Deploy CSI for storage cluster: %s", cluster.Spec.StorageType)
@@ -49,7 +36,6 @@ func initBlocks(cli client.Client, cluster *storagev1.Cluster) error {
 			return err
 		}
 		defer lvmdcli.Close()
-
 		for _, block := range host.BlockDevices {
 			log.Debugf("[%s] Init block start: %s", host.NodeName, block)
 			name, err := common.GetVG(ctx, lvmdcli, block)

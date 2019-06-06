@@ -3,29 +3,51 @@ package eventhandler
 import (
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	"github.com/zdnscloud/immense/pkg/eventhandler/lvm"
+	"github.com/zdnscloud/immense/pkg/lvm"
 )
 
-func Create(cli client.Client, cluster *storagev1.Cluster) error {
-	switch cluster.Spec.StorageType {
-	case "lvm":
-		return lvm.Create(cli, cluster)
+type Handler interface {
+	GetType() string
+	Create(cluster *storagev1.Cluster) error
+	Delete(cluster *storagev1.Cluster) error
+	Update(oldc, newc *storagev1.Cluster) error
+}
+
+type HandlerManager struct {
+	handlers []Handler
+}
+
+func New(cli client.Client) *HandlerManager {
+	return &HandlerManager{
+		handlers: []Handler{
+			lvm.New(cli),
+		},
+	}
+}
+
+func (h *HandlerManager) Create(cluster *storagev1.Cluster) error {
+	for _, s := range h.handlers {
+		if s.GetType() == cluster.Spec.StorageType {
+			return s.Create(cluster)
+		}
 	}
 	return nil
 }
 
-func Delete(cli client.Client, cluster *storagev1.Cluster) error {
-	switch cluster.Spec.StorageType {
-	case "lvm":
-		return lvm.Delete(cli, cluster)
+func (h *HandlerManager) Delete(cluster *storagev1.Cluster) error {
+	for _, s := range h.handlers {
+		if s.GetType() == cluster.Spec.StorageType {
+			return s.Delete(cluster)
+		}
 	}
 	return nil
 }
 
-func Update(cli client.Client, oldc *storagev1.Cluster, newc *storagev1.Cluster) error {
-	switch oldc.Spec.StorageType {
-	case "lvm":
-		return lvm.Update(cli, oldc, newc)
+func (h *HandlerManager) Update(oldc *storagev1.Cluster, newc *storagev1.Cluster) error {
+	for _, s := range h.handlers {
+		if s.GetType() == oldc.Spec.StorageType {
+			return s.Update(oldc, newc)
+		}
 	}
 	return nil
 }
