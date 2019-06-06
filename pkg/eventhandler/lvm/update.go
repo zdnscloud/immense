@@ -83,8 +83,8 @@ func doChangeDel(cli client.Client, cfg map[string][]string) error {
 		defer lvmdcli.Close()
 		for _, block := range host.BlockDevices {
 			log.Debugf("[%s] Reduce vg and Remove pv with %s", host.NodeName, block)
-			if err := common.VgReduce(ctx, lvmdcli, block); err != nil {
-				return nil
+			if err := common.VgReduce(ctx, lvmdcli, block, VGName); err != nil {
+				return err
 			}
 		}
 	}

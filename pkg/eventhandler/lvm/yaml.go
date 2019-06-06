@@ -6,6 +6,7 @@ import (
 
 const (
 	NodeLabelValue = "Lvm"
+	VGName         = "k8s"
 )
 
 func csiyaml(flag string) (string, error) {

@@ -55,9 +55,9 @@ func initBlocks(cli client.Client, cluster *storagev1.Cluster) error {
 			name, err := common.GetVG(ctx, lvmdcli, block)
 			if err != nil {
 				log.Warnf("Get VGName failed:%s", err.Error())
-				return nil
+				return err
 			}
-			if name == common.VGName {
+			if name == VGName {
 				log.Debugf("[%s] Block had inited before, skip %s", host.NodeName, block)
 				continue
 			}
@@ -70,7 +70,7 @@ func initBlocks(cli client.Client, cluster *storagev1.Cluster) error {
 				return err
 			}
 			log.Debugf("[%s] Create vg with %s", host.NodeName, block)
-			if err := common.CreateVG(ctx, lvmdcli, block); err != nil {
+			if err := common.CreateVG(ctx, lvmdcli, block, VGName); err != nil {
 				return err
 			}
 		}
