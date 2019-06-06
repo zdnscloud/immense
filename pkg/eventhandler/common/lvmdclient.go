@@ -7,6 +7,7 @@ import (
 	lvmdclient "github.com/zdnscloud/lvmd/client"
 	pb "github.com/zdnscloud/lvmd/proto"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -168,6 +169,21 @@ func GetVG(ctx context.Context, lvmdcli *lvmdclient.Client, block string) (strin
 	return out.CommandOutput, nil
 }
 
+func getPVNum(ctx context.Context, lvmdcli *lvmdclient.Client) (int, error) {
+	req := pb.CreateVGRequest{
+		Name: VGName,
+	}
+	out, err := lvmdcli.GetPVNum(ctx, &req)
+	if err != nil {
+		return 0, err
+	}
+	num, err := strconv.Atoi(out.CommandOutput)
+	if err != nil {
+		return 0, err
+	}
+	return num, nil
+}
+
 func CreateVG(ctx context.Context, lvmdcli *lvmdclient.Client, block string) error {
 	v, err := vgExist(ctx, lvmdcli)
 	if err != nil {
@@ -239,9 +255,20 @@ func VgReduce(ctx context.Context, lvmdcli *lvmdclient.Client, block string) err
 		return errors.New("Check vg failed!" + err.Error())
 	}
 	if v {
-		_, err := vgReduce(ctx, lvmdcli, block)
+		num, err := getPVNum(ctx, lvmdcli)
 		if err != nil {
-			return errors.New("Reduce vg failed!" + err.Error())
+			return errors.New("Get vg's pv num failed!" + err.Error())
+		}
+		if num == 1 {
+			_, err := removeVG(ctx, lvmdcli, VGName)
+			if err != nil {
+				return errors.New("Remove vg failed!" + err.Error())
+			}
+		} else {
+			_, err := vgReduce(ctx, lvmdcli, block)
+			if err != nil {
+				return errors.New("Reduce vg failed!" + err.Error())
+			}
 		}
 	}
 	return RemovePV(ctx, lvmdcli, block)

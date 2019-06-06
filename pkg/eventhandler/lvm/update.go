@@ -10,13 +10,13 @@ import (
 
 func Update(cli client.Client, oldcfg, newcfg *storagev1.Cluster) error {
 	delcfg, addcfg, changetodel, changetoadd := common.Diff(oldcfg, newcfg)
-	if err := doDelhost(cli, delcfg); err != nil {
-		return err
-	}
 	if err := doAddhost(cli, addcfg); err != nil {
 		return err
 	}
 	if err := doChangeAdd(cli, changetoadd); err != nil {
+		return err
+	}
+	if err := doDelhost(cli, delcfg); err != nil {
 		return err
 	}
 	if err := doChangeDel(cli, changetodel); err != nil {
