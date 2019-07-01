@@ -1,0 +1,12 @@
+apiVersion: storage.zcloud.cn/v1
+kind: Cluster
+metadata:
+  name: lvm-cluster
+spec:
+  # Add fields here
+  storageType: "lvm"
+  hosts: 
+  - nodeName: "k8s-03"
+    blockDevices: ["/dev/vdb"]
+  - nodeName: "k8s-05"
+    blockDevices: ["/dev/vdb"]

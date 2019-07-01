@@ -4,11 +4,11 @@ metadata:
   name: example-cluster
 spec:
   # Add fields here
-  storageType: "lvm"
+  storageType: "ceph"
   hosts: 
-  - nodeName: "k8s-03"
+  - nodeName: "k8s-02"
     blockDevices: ["/dev/vdb"]
   - nodeName: "k8s-04"
     blockDevices: ["/dev/vdb"]
-  - nodeName: "k8s-09"
+  - nodeName: "k8s-06"
     blockDevices: ["/dev/vdb", "/dev/vdc"]

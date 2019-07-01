@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
@@ -12,49 +11,43 @@ func doDelhost(cli client.Client, cfg map[string][]string) error {
 	if len(cfg) == 0 {
 		return nil
 	}
-	cluster := makeClusterCfg(cfg)
+	cluster := common.MakeClusterCfg(cfg, NodeLabelValue)
 	log.Debugf("Delete host for storage cluster:%s, Cfg: %s", cluster.Spec.StorageType, cfg)
 	if err := unInitBlocks(cli, cluster); err != nil {
 		return err
 	}
-	if err := common.DeleteNodeAnnotationsAndLabels(cli, cluster, NodeLabelValue); err != nil {
-		return err
-	}
-	return nil
+	return common.DeleteNodeAnnotationsAndLabels(cli, cluster)
 }
 
 func doAddhost(cli client.Client, cfg map[string][]string) error {
 	if len(cfg) == 0 {
 		return nil
 	}
-	cluster := makeClusterCfg(cfg)
+	cluster := common.MakeClusterCfg(cfg, NodeLabelValue)
 	log.Debugf("Add host for storage cluster:%s, Cfg: %s", cluster.Spec.StorageType, cfg)
-	if err := common.CreateNodeAnnotationsAndLabels(cli, cluster, NodeLabelValue); err != nil {
+	if err := common.CreateNodeAnnotationsAndLabels(cli, cluster); err != nil {
 		return err
 	}
-	if err := initBlocks(cli, cluster); err != nil {
-		return err
-	}
-	return nil
+	return initBlocks(cli, cluster)
 }
 
 func doChangeAdd(cli client.Client, cfg map[string][]string) error {
 	if len(cfg) == 0 {
 		return nil
 	}
-	cluster := makeClusterCfg(cfg)
+	cluster := common.MakeClusterCfg(cfg, NodeLabelValue)
 	log.Debugf("Add host config for storage cluster:%s, Cfg: %s", cluster.Spec.StorageType, cfg)
 	if err := initBlocks(cli, cluster); err != nil {
 		return err
 	}
-	return nil
+	return common.UpdateNodeAnnotations(cli, cluster)
 }
 
 func doChangeDel(cli client.Client, cfg map[string][]string) error {
 	if len(cfg) == 0 {
 		return nil
 	}
-	cluster := makeClusterCfg(cfg)
+	cluster := common.MakeClusterCfg(cfg, NodeLabelValue)
 	log.Debugf("Delete host config for storage cluster:%s, Cfg: %s", cluster.Spec.StorageType, cfg)
 	ctx := context.TODO()
 	for _, host := range cluster.Spec.Hosts {
@@ -71,22 +64,5 @@ func doChangeDel(cli client.Client, cfg map[string][]string) error {
 			}
 		}
 	}
-	return nil
-}
-
-func makeClusterCfg(cfg map[string][]string) *storagev1.Cluster {
-	hosts := make([]storagev1.HostSpec, 0)
-	for k, v := range cfg {
-		host := storagev1.HostSpec{
-			NodeName:     k,
-			BlockDevices: v,
-		}
-		hosts = append(hosts, host)
-	}
-	return &storagev1.Cluster{
-		Spec: storagev1.ClusterSpec{
-			StorageType: NodeLabelValue,
-			Hosts:       hosts,
-		},
-	}
+	return common.UpdateNodeAnnotations(cli, cluster)
 }

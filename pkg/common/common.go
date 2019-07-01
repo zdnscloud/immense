@@ -19,20 +19,40 @@ const (
 	StorageBlocksAnnotations = "storage.zcloud.cn/blocks"
 	StorageNamespace         = "zcloud"
 	NodeIPLabels             = "zdnscloud.cn/internal-ip"
+	StorageHostRole          = "node-role.kubernetes.io/storage"
 )
 
-func CreateNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluster, nodelabelvalue string) error {
+var ctx = context.TODO()
+
+func CreateNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluster) error {
 	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("Add Annotations and Labels fot host:%s", host.NodeName)
+		log.Debugf("Add Annotations and Labels for host:%s", host.NodeName)
 		node := corev1.Node{}
-		if err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
+		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
 			return err
 		}
-		node.Labels[StorageHostLabels] = nodelabelvalue
+		//node.Labels[StorageHostLabels] = nodelabelvalue
+		node.Labels[StorageHostRole] = "true"
 		node.Annotations[StorageBlocksAnnotations] = strings.Replace(strings.Trim(fmt.Sprint(host.BlockDevices), "[]"), " ", ",", -1)
-		if err := cli.Update(context.TODO(), &node); err != nil {
+		if cluster.Spec.StorageType == "lvm" {
+			node.Labels[StorageHostLabels] = "Lvm"
+		}
+		if err := cli.Update(ctx, &node); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func UpdateNodeAnnotations(cli client.Client, cluster *storagev1.Cluster) error {
+	for _, host := range cluster.Spec.Hosts {
+		log.Debugf("Update Annotations for host:%s", host.NodeName)
+		node := corev1.Node{}
+		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
+			return err
+		}
+		node.Annotations[StorageBlocksAnnotations] = strings.Replace(strings.Trim(fmt.Sprint(host.BlockDevices), "[]"), " ", ",", -1)
+		return cli.Update(ctx, &node)
 	}
 	return nil
 }
@@ -46,26 +66,47 @@ func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error)
 	return out.String(), nil
 }
 
-func DeleteNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluster, nodelabelvalue string) error {
+func DeleteNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluster) error {
 	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("Del Annotations and Labels fot host:%s", host.NodeName)
+		log.Debugf("Del Annotations and Labels for host:%s", host.NodeName)
 		node := corev1.Node{}
-		if err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
+		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
 			return err
 		}
-		delete(node.Labels, StorageHostLabels)
+		//delete(node.Labels, StorageHostLabels)
+		delete(node.Labels, StorageHostRole)
 		delete(node.Annotations, StorageBlocksAnnotations)
-		if err := cli.Update(context.TODO(), &node); err != nil {
+		if cluster.Spec.StorageType == "lvm" {
+			delete(node.Labels, StorageHostLabels)
+		}
+		if err := cli.Update(ctx, &node); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func GetHostAddr(ctx context.Context, cli client.Client, name string) (string, error) {
+func GetHostAddr(cli client.Client, name string) (string, error) {
 	node := corev1.Node{}
 	if err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &node); err != nil {
 		return "", err
 	}
 	return node.Annotations[NodeIPLabels], nil
+}
+
+func MakeClusterCfg(cfg map[string][]string, nodeLabelValue string) *storagev1.Cluster {
+	hosts := make([]storagev1.HostSpec, 0)
+	for k, v := range cfg {
+		host := storagev1.HostSpec{
+			NodeName:     k,
+			BlockDevices: v,
+		}
+		hosts = append(hosts, host)
+	}
+	return &storagev1.Cluster{
+		Spec: storagev1.ClusterSpec{
+			StorageType: nodeLabelValue,
+			Hosts:       hosts,
+		},
+	}
 }

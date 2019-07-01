@@ -3,6 +3,7 @@ package eventhandler
 import (
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"github.com/zdnscloud/immense/pkg/ceph"
 	"github.com/zdnscloud/immense/pkg/lvm"
 )
 
@@ -21,6 +22,7 @@ func New(cli client.Client) *HandlerManager {
 	return &HandlerManager{
 		handlers: []Handler{
 			lvm.New(cli),
+			ceph.New(cli),
 		},
 	}
 }

@@ -12,7 +12,7 @@ import (
 )
 
 func CreateLvmdClient(ctx context.Context, cli client.Client, hostname string) (*lvmdclient.Client, error) {
-	hostip, err := GetHostAddr(ctx, cli, hostname)
+	hostip, err := GetHostAddr(cli, hostname)
 	if err != nil {
 		return nil, errors.New("Get host address failed!" + err.Error())
 	}

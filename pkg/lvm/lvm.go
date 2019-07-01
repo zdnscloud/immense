@@ -1,6 +1,8 @@
 package lvm
 
 import (
+	"errors"
+	"fmt"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
@@ -26,7 +28,7 @@ func (s *Lvm) GetType() string {
 }
 
 func (s *Lvm) Create(cluster *storagev1.Cluster) error {
-	if err := common.CreateNodeAnnotationsAndLabels(s.cli, cluster, NodeLabelValue); err != nil {
+	if err := common.CreateNodeAnnotationsAndLabels(s.cli, cluster); err != nil {
 		return err
 	}
 	if err := deployLvmd(s.cli, cluster); err != nil {
@@ -40,6 +42,28 @@ func (s *Lvm) Create(cluster *storagev1.Cluster) error {
 
 func (s *Lvm) Update(oldcfg, newcfg *storagev1.Cluster) error {
 	delcfg, addcfg, changetodel, changetoadd := common.Diff(oldcfg, newcfg)
+	var usedHost string
+	for node := range changetodel {
+		used, err := CheckUsed(s.cli, node)
+		if err != nil {
+			return err
+		}
+		if used {
+			usedHost = usedHost + node + ","
+		}
+	}
+	for node := range delcfg {
+		used, err := CheckUsed(s.cli, node)
+		if err != nil {
+			return err
+		}
+		if used {
+			usedHost = usedHost + node + ","
+		}
+	}
+	if len(usedHost) > 0 {
+		return errors.New(fmt.Sprintf("Host %v block device is used by pod, can not to be remove", usedHost))
+	}
 	if err := doAddhost(s.cli, addcfg); err != nil {
 		return err
 	}
@@ -56,6 +80,19 @@ func (s *Lvm) Update(oldcfg, newcfg *storagev1.Cluster) error {
 }
 
 func (s *Lvm) Delete(cluster *storagev1.Cluster) error {
+	var usedHost string
+	for _, node := range cluster.Spec.Hosts {
+		used, err := CheckUsed(s.cli, node.NodeName)
+		if err != nil {
+			return err
+		}
+		if used {
+			usedHost = usedHost + node.NodeName + ","
+		}
+	}
+	if len(usedHost) > 0 {
+		return errors.New(fmt.Sprintf("Host %v block device is used by pod, can not to be remove", usedHost))
+	}
 	if err := undeployLvmCSI(s.cli, cluster); err != nil {
 		return err
 	}
@@ -65,5 +102,5 @@ func (s *Lvm) Delete(cluster *storagev1.Cluster) error {
 	if err := undeployLvmd(s.cli, cluster); err != nil {
 		return err
 	}
-	return common.DeleteNodeAnnotationsAndLabels(s.cli, cluster, NodeLabelValue)
+	return common.DeleteNodeAnnotationsAndLabels(s.cli, cluster)
 }
