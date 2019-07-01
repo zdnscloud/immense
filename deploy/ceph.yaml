@@ -2,6 +2,7 @@ apiVersion: storage.zcloud.cn/v1
 kind: Cluster
 metadata:
   name: example-cluster
+  namespace: zcloud
 spec:
   # Add fields here
   storageType: "ceph"
