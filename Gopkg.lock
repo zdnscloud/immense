@@ -142,16 +142,17 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2064d09e37de4f86f94fa63bdcb6bdf062b1d480c2e090cf36806875126d51da"
+  digest = "1:6768687efc79eaa2adca533d72f19a047fa09e29054c6052efb8d73d9dbf581a"
   name = "github.com/zdnscloud/cement"
   packages = [
+    "errgroup",
     "log",
     "log/log4go",
     "set",
     "signal",
   ]
   pruneopts = "UT"
-  revision = "4e659246475c1b00f2644fc6860e49c0c3cdf2b9"
+  revision = "9279085b6869051d3541ed600b3c35c34dcdf2d6"
 
 [[projects]]
   branch = "master"
@@ -177,14 +178,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:dc432cf9f3ef705b89ca57d5dbf835bbf66fe640164d1700c8de84b29b6bd830"
+  digest = "1:2405ede47048952aef9dde24e808d5a4a6dca8b83769fb4c246b7ddfe00b4347"
   name = "github.com/zdnscloud/lvmd"
   packages = [
     "client",
     "proto",
   ]
   pruneopts = "UT"
-  revision = "545c5ff4a4075d5dd1c197b45a946377a47f5d55"
+  revision = "0ab82e0bc757453ec7bfa9b3bd2b1bc11de945df"
 
 [[projects]]
   branch = "master"
@@ -528,6 +529,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/zdnscloud/cement/errgroup",
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/set",
     "github.com/zdnscloud/cement/signal",
@@ -543,6 +545,7 @@
     "github.com/zdnscloud/lvmd/client",
     "github.com/zdnscloud/lvmd/proto",
     "k8s.io/api/core/v1",
+    "k8s.io/api/storage/v1",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
