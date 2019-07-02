@@ -13,9 +13,8 @@ type Lvm struct {
 }
 
 const (
-	NodeLabelValue = "Lvm"
-	StorageType    = "lvm"
-	VGName         = "k8s"
+	StorageType = "lvm"
+	VGName      = "k8s"
 )
 
 func New(c client.Client) *Lvm {

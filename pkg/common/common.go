@@ -20,6 +20,8 @@ const (
 	StorageNamespace         = "zcloud"
 	NodeIPLabels             = "zdnscloud.cn/internal-ip"
 	StorageHostRole          = "node-role.kubernetes.io/storage"
+	LvmLabelsValue           = "Lvm"
+	CephLabelsValue          = "Ceph"
 )
 
 var ctx = context.TODO()
@@ -35,7 +37,10 @@ func CreateNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluste
 		node.Labels[StorageHostRole] = "true"
 		node.Annotations[StorageBlocksAnnotations] = strings.Replace(strings.Trim(fmt.Sprint(host.BlockDevices), "[]"), " ", ",", -1)
 		if cluster.Spec.StorageType == "lvm" {
-			node.Labels[StorageHostLabels] = "Lvm"
+			node.Labels[StorageHostLabels] = LvmLabelsValue
+		}
+		if cluster.Spec.StorageType == "ceph" {
+			node.Labels[StorageHostLabels] = CephLabelsValue
 		}
 		if err := cli.Update(ctx, &node); err != nil {
 			return err
@@ -76,9 +81,7 @@ func DeleteNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluste
 		//delete(node.Labels, StorageHostLabels)
 		delete(node.Labels, StorageHostRole)
 		delete(node.Annotations, StorageBlocksAnnotations)
-		if cluster.Spec.StorageType == "lvm" {
-			delete(node.Labels, StorageHostLabels)
-		}
+		delete(node.Labels, StorageHostLabels)
 		if err := cli.Update(ctx, &node); err != nil {
 			return err
 		}

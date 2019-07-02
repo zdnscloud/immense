@@ -1,7 +1,6 @@
 package global
 
 const (
-	NodeLabelValue          = "Ceph"
 	RBAC                    = "rbac"
 	MonSvc                  = "ceph-mon"
 	ConfigMapName           = "ceph-conf"

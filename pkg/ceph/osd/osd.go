@@ -120,7 +120,7 @@ func Remove(cli client.Client, host, dev string) error {
 }
 
 func checkHealth() error {
-	log.Debugf("Wait Ceph health ok")
+	log.Debugf("Wait Ceph health ok, it will check 10 times")
 	//time.Sleep(60 * time.Second)
 	var out string
 	for i := 0; i < 10; i++ {
@@ -128,7 +128,7 @@ func checkHealth() error {
 		if err != nil {
 			return err
 		}
-		log.Debugf(out)
+		log.Debugf("[%d], %s", i+1, out)
 		if strings.Contains(out, "HEALTH_OK") {
 			return nil
 		}

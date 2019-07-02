@@ -9,7 +9,7 @@ func csiyaml(flag string) (string, error) {
 		"AoDNamespace":                   flag,
 		"RBACConfig":                     common.RBACConfig,
 		"LabelKey":                       common.StorageHostLabels,
-		"LabelValue":                     NodeLabelValue,
+		"LabelValue":                     common.LvmLabelsValue,
 		"StorageNamespace":               common.StorageNamespace,
 		"StorageLvmAttacherImage":        "quay.io/k8scsi/csi-attacher:v1.0.0",
 		"StorageLvmProvisionerImage":     "quay.io/k8scsi/csi-provisioner:v1.0.0",
@@ -25,7 +25,7 @@ func lvmdyaml(flag string) (string, error) {
 		"AoDNamespace":     flag,
 		"RBACConfig":       common.RBACConfig,
 		"LabelKey":         common.StorageHostLabels,
-		"LabelValue":       NodeLabelValue,
+		"LabelValue":       common.LvmLabelsValue,
 		"StorageNamespace": common.StorageNamespace,
 		"StorageLvmdImage": "zdnscloud/lvmd:v0.5",
 	}
