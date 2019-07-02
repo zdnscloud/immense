@@ -11,7 +11,7 @@ func doDelhost(cli client.Client, cfg map[string][]string) error {
 	if len(cfg) == 0 {
 		return nil
 	}
-	cluster := common.MakeClusterCfg(cfg, NodeLabelValue)
+	cluster := common.MakeClusterCfg(cfg, StorageType)
 	log.Debugf("Delete host for storage cluster:%s, Cfg: %s", cluster.Spec.StorageType, cfg)
 	if err := unInitBlocks(cli, cluster); err != nil {
 		return err
@@ -23,7 +23,7 @@ func doAddhost(cli client.Client, cfg map[string][]string) error {
 	if len(cfg) == 0 {
 		return nil
 	}
-	cluster := common.MakeClusterCfg(cfg, NodeLabelValue)
+	cluster := common.MakeClusterCfg(cfg, StorageType)
 	log.Debugf("Add host for storage cluster:%s, Cfg: %s", cluster.Spec.StorageType, cfg)
 	if err := common.CreateNodeAnnotationsAndLabels(cli, cluster); err != nil {
 		return err
@@ -35,7 +35,7 @@ func doChangeAdd(cli client.Client, cfg map[string][]string) error {
 	if len(cfg) == 0 {
 		return nil
 	}
-	cluster := common.MakeClusterCfg(cfg, NodeLabelValue)
+	cluster := common.MakeClusterCfg(cfg, StorageType)
 	log.Debugf("Add host config for storage cluster:%s, Cfg: %s", cluster.Spec.StorageType, cfg)
 	if err := initBlocks(cli, cluster); err != nil {
 		return err
@@ -47,7 +47,7 @@ func doChangeDel(cli client.Client, cfg map[string][]string) error {
 	if len(cfg) == 0 {
 		return nil
 	}
-	cluster := common.MakeClusterCfg(cfg, NodeLabelValue)
+	cluster := common.MakeClusterCfg(cfg, StorageType)
 	log.Debugf("Delete host config for storage cluster:%s, Cfg: %s", cluster.Spec.StorageType, cfg)
 	ctx := context.TODO()
 	for _, host := range cluster.Spec.Hosts {

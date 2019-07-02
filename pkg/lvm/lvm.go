@@ -14,6 +14,7 @@ type Lvm struct {
 
 const (
 	NodeLabelValue = "Lvm"
+	StorageType    = "lvm"
 	VGName         = "k8s"
 )
 
@@ -24,7 +25,7 @@ func New(c client.Client) *Lvm {
 }
 
 func (s *Lvm) GetType() string {
-	return "lvm"
+	return StorageType
 }
 
 func (s *Lvm) Create(cluster *storagev1.Cluster) error {

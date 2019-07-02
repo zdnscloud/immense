@@ -26,7 +26,7 @@ var ctx = context.TODO()
 
 func CreateNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluster) error {
 	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("Add Annotations and Labels for host:%s", host.NodeName)
+		log.Debugf("[%s]Add Annotations and Labels for host:%s", cluster.Spec.StorageType, host.NodeName)
 		node := corev1.Node{}
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
 			return err
@@ -46,7 +46,7 @@ func CreateNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluste
 
 func UpdateNodeAnnotations(cli client.Client, cluster *storagev1.Cluster) error {
 	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("Update Annotations for host:%s", host.NodeName)
+		log.Debugf("[%s]Update Annotations for host:%s", cluster.Spec.StorageType, host.NodeName)
 		node := corev1.Node{}
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
 			return err
@@ -68,7 +68,7 @@ func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error)
 
 func DeleteNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluster) error {
 	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("Del Annotations and Labels for host:%s", host.NodeName)
+		log.Debugf("[%s]Del Annotations and Labels for host:%s", cluster.Spec.StorageType, host.NodeName)
 		node := corev1.Node{}
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
 			return err
