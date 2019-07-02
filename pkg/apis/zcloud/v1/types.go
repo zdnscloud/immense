@@ -25,9 +25,18 @@ type HostSpec struct {
 // ClusterStatus defines the observed state of Cluster
 // +k8s:openapi-gen=true
 type ClusterStatus struct {
+	State      string      `json:"state,omitempty"`
+	Message    string      `json:"message,omitempty"`
+	CephStatus *CephStatus `json:"ceph,omitempty"`
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
+}
+
+type CephStatus struct {
+	Health   string `json:"health,omitempty"`
+	Details  string `json:"details,omitempty"`
+	Capacity map[string]string
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
