@@ -28,7 +28,6 @@ func Do(cli client.Client, host, dev string) error {
 }
 
 func create(cli client.Client, host, dev string) error {
-	log.Debugf("Deploy zap %s:%s", host, dev)
 	yaml, err := osdZapYaml(host, dev)
 	if err != nil {
 		return err
@@ -40,7 +39,6 @@ func create(cli client.Client, host, dev string) error {
 }
 
 func check(cli client.Client, host, dev string) (bool, error) {
-	log.Debugf("Wait zap success %s:%s", host, dev)
 	name := "ceph-job-zap-" + host + "-" + dev
 	for i := 0; i < 10; i++ {
 		suc, err := util.IsPodSucceeded(cli, name)
@@ -56,7 +54,6 @@ func check(cli client.Client, host, dev string) (bool, error) {
 }
 
 func delete(cli client.Client, host, dev string) error {
-	log.Debugf("Undeploy zap %s:%s", host, dev)
 	yaml, err := osdZapYaml(host, dev)
 	if err != nil {
 		return err

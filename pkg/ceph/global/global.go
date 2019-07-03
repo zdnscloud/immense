@@ -9,6 +9,7 @@ const (
 	MgrNum                  = 2
 	MdsNum                  = 2
 	StorageClassName        = "cephfs"
+	PoolDefaultSize         = 2
 	CephFsName              = "myfs"
 	CephFsDate              = "myfs_data"
 	CephFsMetadata          = "myfs_metadata"

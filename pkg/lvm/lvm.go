@@ -17,10 +17,10 @@ const (
 	VGName      = "k8s"
 )
 
-func New(c client.Client) *Lvm {
+func New(c client.Client) (*Lvm, error) {
 	return &Lvm{
 		cli: c,
-	}
+	}, nil
 }
 
 func (s *Lvm) GetType() string {

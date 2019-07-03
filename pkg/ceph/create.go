@@ -7,6 +7,7 @@ import (
 	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
 	"github.com/zdnscloud/immense/pkg/ceph/config"
 	"github.com/zdnscloud/immense/pkg/ceph/fscsi"
+	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/ceph/mds"
 	"github.com/zdnscloud/immense/pkg/ceph/mgr"
 	"github.com/zdnscloud/immense/pkg/ceph/mon"
@@ -54,6 +55,7 @@ func create(cli client.Client, cluster *storagev1.Cluster) error {
 	if err := fscsi.Start(cli); err != nil {
 		return err
 	}
+	go osd.Watch()
 	return nil
 }
 
@@ -72,4 +74,17 @@ func initconf() (string, string, string, error) {
 		return uuid, adminkey, monkey, err
 	}
 	return uuid, adminkey, monkey, nil
+}
+
+func getReplication(cluster *storagev1.Cluster) int {
+	var num, Replication int
+	for _, host := range cluster.Spec.Hosts {
+		num += len(host.BlockDevices)
+	}
+	if num < 2 {
+		Replication = global.PoolDefaultSize
+	} else {
+		Replication = 1
+	}
+	return Replication
 }

@@ -26,7 +26,7 @@ func Start(cli client.Client) error {
 		return err
 	}
 	monitors := strings.Replace(strings.Trim(fmt.Sprint(mons), "[]"), " ", ",", -1)
-	yaml, err = storageClassYaml(monitors)
+	yaml, err = StorageClassYaml(monitors)
 	if err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func Start(cli client.Client) error {
 
 func Stop(cli client.Client) error {
 	log.Debugf("Undeploy stroageclass %s", global.StorageClassName)
-	yaml, err := storageClassYaml("")
+	yaml, err := StorageClassYaml("")
 	if err != nil {
 		return err
 	}

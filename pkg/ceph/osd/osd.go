@@ -2,6 +2,7 @@ package osd
 
 import (
 	"errors"
+	"fmt"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
@@ -67,76 +68,61 @@ func check(cli client.Client, host, dev string) (bool, error) {
 	return false, nil
 }
 
-func Remove(cli client.Client, host, dev string) error {
-	log.Debugf("Ceph del host:%s dev:%s", host, dev)
-	name := "ceph-osd-" + host + "-" + dev
-	ip, err := util.GetPodIp(cli, name)
+func checkHealth() error {
+	out, err := cephclient.CheckHealth()
 	if err != nil {
-		return err
+		return errors.New(fmt.Sprintf("Ceph check health failed: %v", err.Error()))
 	}
-	id, err := cephclient.GetOsdID(ip)
-	if err != nil {
-		return err
+	if strings.Contains(out, "HEALTH_OK") {
+		return nil
 	}
-	log.Debugf("Ceph get osd, id is:%s", id)
-	osdName := "osd." + id
-	log.Debugf("Ceph osd crush reweight %s", osdName)
-	if err := cephclient.ReweigtOsd(osdName); err != nil {
-		return err
-	}
-	time.Sleep(60 * time.Second)
-	if err := checkHealth(); err != nil {
-		return err
-	}
-	log.Debugf("Ceph osd out id %s", id)
-	if err := cephclient.OutOsd(id); err != nil {
-		return err
-	}
-	if err := checkHealth(); err != nil {
-		return err
-	}
-	log.Debugf("Ceph osd crush remove %s", osdName)
-	if err := cephclient.RemoveCrush(osdName); err != nil {
-		return err
-	}
-	if err := Stop(cli, host, dev); err != nil {
-		return err
-	}
-	if err := checkHealth(); err != nil {
-		return err
-	}
-	log.Debugf("Ceph osd rm %s", id)
-	if err := cephclient.RmOsd(id); err != nil {
-		return err
-	}
-	if err := checkHealth(); err != nil {
-		return err
-	}
-	log.Debugf("Ceph auth del %s", osdName)
-	if err := cephclient.RmOsdAuth(osdName); err != nil {
-		return err
-	}
-	return nil
+	return errors.New(out)
 }
 
-func checkHealth() error {
-	log.Debugf("Wait Ceph health ok, it will check 10 times")
-	//time.Sleep(60 * time.Second)
-	var out string
-	for i := 0; i < 10; i++ {
-		out, err := cephclient.CheckHealth()
+func Watch() {
+	log.Debugf("[osd-watcher] Start")
+	for {
+		time.Sleep(40 * time.Second)
+		downandin, err := cephclient.GetDownOsdIDs("in")
 		if err != nil {
-			return err
+			log.Warnf("[osd-watcher] Get osd down and in failed , err:%s", err.Error())
+			continue
 		}
-		log.Debugf("[%d], %s", i+1, out)
-		if strings.Contains(out, "HEALTH_OK") {
-			return nil
+		for _, id := range downandin {
+			log.Debugf("[osd-watcher] Ceph osd out id %s", id)
+			if err := cephclient.OutOsd(id); err != nil {
+				log.Warnf("[osd-watcher] Ceph out osd %s failed , err:%s", id, err.Error())
+				break
+			}
 		}
-		if strings.Contains(out, "HEALTH_ERR") {
-			return errors.New("Ceph cluster is ERR")
+		time.Sleep(20 * time.Second)
+		if err := checkHealth(); err != nil {
+			log.Warnf("[osd-watcher] Ceph health unnormal. Status: %s. Will rechecked after 60 seconds", err.Error())
+			continue
 		}
-		time.Sleep(60 * time.Second)
+		log.Debugf("[osd-watcher] Ceph cluster HEALTH_OK")
+		downandout, err := cephclient.GetDownOsdIDs("out")
+		if err != nil {
+			log.Warnf("[osd-watcher] Get osd down and out failed , err:%s", err.Error())
+			continue
+		}
+		for _, id := range downandout {
+			osdName := "osd." + id
+			log.Debugf("[osd-watcher] Ceph osd crush remove %s", osdName)
+			if err := cephclient.RemoveCrush(osdName); err != nil {
+				log.Warnf("[osd-watcher] Ceph osd remove crush %s failed , err:%s", osdName, err.Error())
+				break
+			}
+			log.Debugf("[osd-watcher] Ceph osd rm %s", id)
+			if err := cephclient.RmOsd(id); err != nil {
+				log.Warnf("[osd-watcher] Ceph osd rm %s failed , err:%s", id, err.Error())
+				break
+			}
+			log.Debugf("[osd-watcher] Ceph auth del %s", osdName)
+			if err := cephclient.RmOsdAuth(osdName); err != nil {
+				log.Warnf("[osd-watcher] Ceph auth del osd.%s failed , err:%s", id, err.Error())
+				break
+			}
+		}
 	}
-	log.Warnf("Wait Timeout. Ceph status %s", out)
-	return errors.New("Ceph cluster is not normal")
 }

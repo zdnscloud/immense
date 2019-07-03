@@ -1,19 +1,42 @@
 package ceph
 
 import (
+	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/gok8s/client/config"
+	"github.com/zdnscloud/gok8s/controller"
+	"github.com/zdnscloud/gok8s/predicate"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 type Ceph struct {
-	cli client.Client
+	cli    client.Client
+	stopCh chan struct{}
 }
 
-func New(c client.Client) *Ceph {
-	return &Ceph{
+func New(c client.Client) (*Ceph, error) {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	ca, err := cache.New(cfg, cache.Options{})
+	if err != nil {
+		return nil, err
+	}
+	stopCh := make(chan struct{})
+	go ca.Start(stopCh)
+	ca.WaitForCacheSync(stopCh)
+	cephCtrl := &Ceph{
 		cli: c,
 	}
+	ctrl := controller.New("ceph", ca, scheme.Scheme)
+	ctrl.Watch(&corev1.Endpoints{})
+	go ctrl.Start(stopCh, cephCtrl, predicate.NewIgnoreUnchangedUpdate())
+
+	return cephCtrl, nil
 }
 
 func (s *Ceph) GetType() string {

@@ -14,7 +14,7 @@ func doDelhost(cli client.Client, cfg map[string][]string) error {
 	for host, devs := range cfg {
 		for _, d := range devs {
 			dev := d[5:]
-			if err := osd.Remove(cli, host, dev); err != nil {
+			if err := osd.Stop(cli, host, dev); err != nil {
 				return err
 			}
 		}

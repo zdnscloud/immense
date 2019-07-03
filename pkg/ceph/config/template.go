@@ -31,7 +31,9 @@ data:
     mon host = {{.MonHost}}
     public network = {{.Network}}
     cluster network = {{.Network}}
-    osd_pool_default_size = 1
+    osd_pool_default_size = 2
+    osd_pool_default_min_size = 1
+    osd_crush_chooseleaf_type = 0
     osd_pool_default_pg_num   = 100
     osd_pool_default_pgp_num  = 100
     rbd_default_features      = 3

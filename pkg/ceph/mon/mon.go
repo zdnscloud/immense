@@ -5,6 +5,7 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
+	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"time"
@@ -51,4 +52,9 @@ func check(cli client.Client) (bool, error) {
 		time.Sleep(5 * time.Second)
 	}
 	return false, errors.New("Timeout. Mon has not ready")
+}
+
+func Remove(node string) error {
+	log.Debugf("Remove mon %s", node)
+	return cephclient.Rmmon(node)
 }

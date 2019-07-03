@@ -17,6 +17,15 @@ import (
 var root = "/etc/ceph"
 var files = []string{"ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"}
 
+func Rmmon(name string) error {
+	args := []string{"mon", "rm", name, "--connect-timeout", "15"}
+	_, err := util.ExecCMDWithOutput("ceph", args)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func ReweigtOsd(id string) error {
 	args := []string{"osd", "crush", "reweight", id, "0", "--connect-timeout", "15"}
 	_, err := util.ExecCMDWithOutput("ceph", args)
@@ -62,20 +71,21 @@ func RmOsdAuth(id string) error {
 	return nil
 }
 
-func GetOsdID(ip string) (string, error) {
+func GetDownOsdIDs(stat string) ([]string, error) {
+	ids := make([]string, 0)
 	args := []string{"osd", "dump", "--connect-timeout", "15"}
 	out, err := util.ExecCMDWithOutput("ceph", args)
 	if err != nil {
-		return "", err
+		return ids, err
 	}
 	lines := strings.Split(string(out), "\n")
 	for _, l := range lines {
-		if strings.HasPrefix(l, "osd") && strings.Contains(l, ip) {
-			name := strings.Fields(l)[0]
-			return strings.Split(name, ".")[1], nil
+		tmp := strings.Fields(l)
+		if strings.HasPrefix(tmp[0], "osd") && tmp[1] == "down" && !strings.Contains(tmp[len(tmp)-2], "new") && tmp[2] == stat {
+			ids = append(ids, strings.Split(tmp[0], ".")[1])
 		}
 	}
-	return "", errors.New("Can not found osd id")
+	return ids, nil
 }
 
 func CheckHealth() (string, error) {

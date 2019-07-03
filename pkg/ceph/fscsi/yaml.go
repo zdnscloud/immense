@@ -17,7 +17,7 @@ func fscsiYaml() (string, error) {
 	return common.CompileTemplateFromMap(FScsiTemp, cfg)
 }
 
-func storageClassYaml(monitors string) (string, error) {
+func StorageClassYaml(monitors string) (string, error) {
 	cfg := map[string]interface{}{
 		"CephClusterMonitors": monitors,
 		"CephSecretName":      global.SecretName,

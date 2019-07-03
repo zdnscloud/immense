@@ -1,15 +1,14 @@
 apiVersion: storage.zcloud.cn/v1
 kind: Cluster
 metadata:
-  name: example-cluster
+  name: ceph-cluster
   namespace: zcloud
 spec:
-  # Add fields here
   storageType: "ceph"
   hosts: 
-  - nodeName: "k8s-02"
-    blockDevices: ["/dev/vdb"]
   - nodeName: "k8s-04"
+    blockDevices: ["/dev/vdb"]
+  - nodeName: "k8s-05"
     blockDevices: ["/dev/vdb"]
   - nodeName: "k8s-06"
     blockDevices: ["/dev/vdb", "/dev/vdc"]

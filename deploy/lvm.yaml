@@ -4,10 +4,9 @@ metadata:
   name: lvm-cluster
   namespace: zcloud
 spec:
-  # Add fields here
   storageType: "lvm"
   hosts: 
-  - nodeName: "k8s-03"
+  - nodeName: "k8s-02"
     blockDevices: ["/dev/vdb"]
-  - nodeName: "k8s-05"
+  - nodeName: "k8s-03"
     blockDevices: ["/dev/vdb"]
