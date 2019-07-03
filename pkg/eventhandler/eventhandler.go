@@ -1,10 +1,12 @@
 package eventhandler
 
 import (
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/ceph"
 	"github.com/zdnscloud/immense/pkg/lvm"
+	"reflect"
 )
 
 type Handler interface {
@@ -54,6 +56,10 @@ func (h *HandlerManager) Delete(cluster *storagev1.Cluster) error {
 }
 
 func (h *HandlerManager) Update(oldc *storagev1.Cluster, newc *storagev1.Cluster) error {
+	if reflect.DeepEqual(oldc.Spec.Hosts, newc.Spec.Hosts) {
+		log.Debugf("Cluster spec has no change. Ignore this update")
+		return nil
+	}
 	for _, s := range h.handlers {
 		if s.GetType() == oldc.Spec.StorageType {
 			return s.Update(oldc, newc)

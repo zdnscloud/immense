@@ -12,7 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	k8stypes "k8s.io/apimachinery/pkg/types"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"strings"
 )
@@ -21,22 +21,17 @@ func DoEndpointsUpdate(cli client.Client, oldendpoint, newendpoint *corev1.Endpo
 	if newendpoint.Name != global.MonSvc {
 		return nil
 	}
-
-	sc := storagev1.StorageClass{}
-	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", global.StorageClassName}, &sc)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
 	nodename, monitors, change := getNodeFromEndpoint(oldendpoint, newendpoint)
 	if !change {
 		return nil
 	}
+
 	if monitors != "" {
 		log.Debugf("Watch k8s endpoint %s has changed, redeploy storageclass %s now", global.MonSvc, global.StorageClassName)
-		if err = cli.Delete(context.TODO(), &sc); err != nil {
+		sc := storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{Name: global.StorageClassName, Namespace: ""},
+		}
+		if err := cli.Delete(context.TODO(), &sc); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 		yaml, err := fscsi.StorageClassYaml(monitors)
