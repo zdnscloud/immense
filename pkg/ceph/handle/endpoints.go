@@ -27,13 +27,13 @@ func DoEndpointsUpdate(cli client.Client, oldendpoint, newendpoint *corev1.Endpo
 	}
 
 	if monitors != "" {
-		log.Debugf("Watch k8s endpoint %s has changed, redeploy storageclass %s now", global.MonSvc, global.StorageClassName)
 		sc := storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{Name: global.StorageClassName, Namespace: ""},
 		}
 		if err := cli.Delete(context.TODO(), &sc); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
+		log.Debugf("Watch k8s endpoint %s has changed, redeploy storageclass %s now", global.MonSvc, global.StorageClassName)
 		yaml, err := fscsi.StorageClassYaml(monitors)
 		if err != nil {
 			return err

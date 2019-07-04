@@ -8,6 +8,7 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/config"
 	"github.com/zdnscloud/immense/pkg/ceph/fscsi"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
+	cephhandle "github.com/zdnscloud/immense/pkg/ceph/handle"
 	"github.com/zdnscloud/immense/pkg/ceph/mds"
 	"github.com/zdnscloud/immense/pkg/ceph/mgr"
 	"github.com/zdnscloud/immense/pkg/ceph/mon"
@@ -17,16 +18,18 @@ import (
 )
 
 func create(cli client.Client, cluster *storagev1.Cluster) error {
-	networks, err := util.GetCIDRs(cli, cluster)
-	if err != nil {
-		return err
-	}
-	networks = "10.42.0.0/16"
+	/*
+		networks, err := util.GetCIDRs(cli, cluster)
+		if err != nil {
+			return err
+		}*/
+	networks := "10.42.0.0/16"
 	uuid, adminkey, monkey, err := initconf()
 	if err != nil {
 		return err
 	}
-	if err := config.Start(cli, uuid, networks, adminkey, monkey); err != nil {
+	copiers := getReplication(cluster)
+	if err := config.Start(cli, uuid, networks, adminkey, monkey, copiers); err != nil {
 		return err
 	}
 	if err := cephclient.SaveConf(cli); err != nil {
@@ -56,6 +59,7 @@ func create(cli client.Client, cluster *storagev1.Cluster) error {
 		return err
 	}
 	go osd.Watch()
+	go cephhandle.StatusControl(cli, cluster.Name)
 	return nil
 }
 
@@ -81,7 +85,7 @@ func getReplication(cluster *storagev1.Cluster) int {
 	for _, host := range cluster.Spec.Hosts {
 		num += len(host.BlockDevices)
 	}
-	if num < 2 {
+	if num > 2 {
 		Replication = global.PoolDefaultSize
 	} else {
 		Replication = 1

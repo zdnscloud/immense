@@ -10,7 +10,7 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
-func Start(cli client.Client, uuid, networks, adminkey, monkey string) error {
+func Start(cli client.Client, uuid, networks, adminkey, monkey string, number int) error {
 	log.Debugf("Deploy service %s", global.MonSvc)
 	yaml, err := svcYaml()
 	if err != nil {
@@ -23,7 +23,7 @@ func Start(cli client.Client, uuid, networks, adminkey, monkey string) error {
 	exist, err := util.CheckConfigMap(cli, common.StorageNamespace, global.ConfigMapName)
 	if !exist || err != nil {
 		log.Debugf("Deploy configmap %s", global.ConfigMapName)
-		yaml, err = confYaml(uuid, networks, adminkey, monkey)
+		yaml, err = confYaml(uuid, networks, adminkey, monkey, number)
 		if err != nil {
 			return err
 		}
@@ -48,7 +48,7 @@ func Start(cli client.Client, uuid, networks, adminkey, monkey string) error {
 	return nil
 }
 
-func Stop(cli client.Client, uuid, networks, adminkey, monkey string) error {
+func Stop(cli client.Client, uuid, networks, adminkey, monkey string, number int) error {
 	log.Debugf("Undeploy service %s", global.MonSvc)
 	yaml, err := svcYaml()
 	if err != nil {
@@ -59,7 +59,7 @@ func Stop(cli client.Client, uuid, networks, adminkey, monkey string) error {
 	}
 
 	log.Debugf("Undeploy configmap %s", global.ConfigMapName)
-	yaml, err = confYaml(uuid, networks, adminkey, monkey)
+	yaml, err = confYaml(uuid, networks, adminkey, monkey, number)
 	if err != nil {
 		return err
 	}

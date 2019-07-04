@@ -3,7 +3,7 @@ package controller
 import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/cache"
-	k8scli "github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/gok8s/client"
 	k8scfg "github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gok8s/controller"
 	"github.com/zdnscloud/gok8s/event"
@@ -36,7 +36,11 @@ func New(config *rest.Config) (*Controller, error) {
 	if err != nil {
 		return nil, err
 	}
-	cli, err := k8scli.New(cfg, k8scli.Options{})
+	var options client.Options
+	options.Scheme = client.GetDefaultScheme()
+	storagev1.AddToScheme(options.Scheme)
+
+	cli, err := client.New(cfg, options)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +74,7 @@ func logCluster(cluster *storagev1.Cluster) {
 func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	log.Debugf("create event")
 	cluster := e.Object.(*storagev1.Cluster)
+	logCluster(cluster)
 	if err := d.handlermgr.Create(cluster); err != nil {
 		log.Warnf("Create failed:%s", err.Error())
 	}
@@ -89,6 +94,7 @@ func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 func (d *Controller) OnDelete(e event.DeleteEvent) (handler.Result, error) {
 	log.Debugf("delete event")
 	cluster := e.Object.(*storagev1.Cluster)
+	logCluster(cluster)
 	if err := d.handlermgr.Delete(cluster); err != nil {
 		log.Warnf("Delete failed:%s", err.Error())
 	}

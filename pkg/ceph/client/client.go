@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
+	"os"
 	"path"
 	"strings"
 )
@@ -109,6 +110,22 @@ func CheckMonStat(num int) (bool, error) {
 	return false, errors.New("Can not check mon status")
 }
 
+func GetFSDF(pool string) (string, error) {
+	args := []string{"df", "--connect-timeout", "15"}
+	out, err := util.ExecCMDWithOutput("ceph", args)
+	if err != nil {
+		return "", err
+	}
+	lines := strings.Split(string(out), "\n")
+	for _, l := range lines {
+		if !strings.Contains(l, pool) {
+			continue
+		}
+		return l, nil
+	}
+	return "", nil
+}
+
 func RemoveConf(cli client.Client) error {
 	for _, f := range files {
 		file := path.Join(root, f)
@@ -134,4 +151,13 @@ func SaveConf(cli client.Client) error {
 		}
 	}
 	return nil
+}
+
+func CheckConf() bool {
+	file := path.Join(root, "ceph.conf")
+	_, err := os.Stat(file)
+	if err != nil {
+		return false
+	}
+	return true
 }

@@ -17,6 +17,7 @@ import (
 
 func delete(cli client.Client, cluster *storagev1.Cluster) error {
 	var networks, uuid, adminkey, monkey string
+	var copies int
 	if err := fscsi.Stop(cli); err != nil {
 		return err
 	}
@@ -40,7 +41,7 @@ func delete(cli client.Client, cluster *storagev1.Cluster) error {
 	if err := mon.Stop(cli, networks); err != nil {
 		return err
 	}
-	if err := config.Stop(cli, uuid, networks, adminkey, monkey); err != nil {
+	if err := config.Stop(cli, uuid, networks, adminkey, monkey, copies); err != nil {
 		return err
 	}
 	if err := cephclient.RemoveConf(cli); err != nil {

@@ -13,8 +13,7 @@ import (
 )
 
 type Ceph struct {
-	cli    client.Client
-	stopCh chan struct{}
+	cli client.Client
 }
 
 func New(c client.Client) (*Ceph, error) {
@@ -35,7 +34,6 @@ func New(c client.Client) (*Ceph, error) {
 	ctrl := controller.New("ceph", ca, scheme.Scheme)
 	ctrl.Watch(&corev1.Endpoints{})
 	go ctrl.Start(stopCh, cephCtrl, predicate.NewIgnoreUnchangedUpdate())
-
 	return cephCtrl, nil
 }
 

@@ -82,6 +82,10 @@ func checkHealth() error {
 func Watch() {
 	log.Debugf("[osd-watcher] Start")
 	for {
+		if !cephclient.CheckConf() {
+			log.Debugf("[osd-watcher] Stop")
+			return
+		}
 		time.Sleep(40 * time.Second)
 		downandin, err := cephclient.GetDownOsdIDs("in")
 		if err != nil {

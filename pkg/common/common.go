@@ -28,12 +28,12 @@ var ctx = context.TODO()
 
 func CreateNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluster) error {
 	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("[%s]Add Annotations and Labels for host:%s", cluster.Spec.StorageType, host.NodeName)
+		log.Debugf("[%s] Add Annotations and Labels for host:%s", cluster.Spec.StorageType, host.NodeName)
 		node := corev1.Node{}
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
-			return err
+			log.Warnf("[%s] Add Annotations and Labels for host:%s failed", cluster.Spec.StorageType, host.NodeName, err.Error())
+			continue
 		}
-		//node.Labels[StorageHostLabels] = nodelabelvalue
 		node.Labels[StorageHostRole] = "true"
 		node.Annotations[StorageBlocksAnnotations] = strings.Replace(strings.Trim(fmt.Sprint(host.BlockDevices), "[]"), " ", ",", -1)
 		if cluster.Spec.StorageType == "lvm" {
@@ -43,7 +43,8 @@ func CreateNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluste
 			node.Labels[StorageHostLabels] = CephLabelsValue
 		}
 		if err := cli.Update(ctx, &node); err != nil {
-			return err
+			log.Warnf("[%s] Add Annotations and Labels for host:%s failed", cluster.Spec.StorageType, host.NodeName, err.Error())
+			continue
 		}
 	}
 	return nil
@@ -51,13 +52,17 @@ func CreateNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluste
 
 func UpdateNodeAnnotations(cli client.Client, cluster *storagev1.Cluster) error {
 	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("[%s]Update Annotations for host:%s", cluster.Spec.StorageType, host.NodeName)
+		log.Debugf("[%s] Update Annotations for host:%s", cluster.Spec.StorageType, host.NodeName)
 		node := corev1.Node{}
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
-			return err
+			log.Warnf("[%s] Update Annotations and Labels for host:%s failed", cluster.Spec.StorageType, host.NodeName, err.Error())
+			continue
 		}
 		node.Annotations[StorageBlocksAnnotations] = strings.Replace(strings.Trim(fmt.Sprint(host.BlockDevices), "[]"), " ", ",", -1)
-		return cli.Update(ctx, &node)
+		if err := cli.Update(ctx, &node); err != nil {
+			log.Warnf("[%s] Update Annotations and Labels for host:%s failed", cluster.Spec.StorageType, host.NodeName, err.Error())
+			continue
+		}
 	}
 	return nil
 }
@@ -73,17 +78,18 @@ func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error)
 
 func DeleteNodeAnnotationsAndLabels(cli client.Client, cluster *storagev1.Cluster) error {
 	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("[%s]Del Annotations and Labels for host:%s", cluster.Spec.StorageType, host.NodeName)
+		log.Debugf("[%s] Del Annotations and Labels for host:%s", cluster.Spec.StorageType, host.NodeName)
 		node := corev1.Node{}
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
-			return err
+			log.Warnf("[%s] Del Annotations and Labels for host:%s failed", cluster.Spec.StorageType, host.NodeName, err.Error())
+			continue
 		}
-		//delete(node.Labels, StorageHostLabels)
 		delete(node.Labels, StorageHostRole)
 		delete(node.Annotations, StorageBlocksAnnotations)
 		delete(node.Labels, StorageHostLabels)
 		if err := cli.Update(ctx, &node); err != nil {
-			return err
+			log.Warnf("[%s] Del Annotations and Labels for host:%s failed", cluster.Spec.StorageType, host.NodeName, err.Error())
+			continue
 		}
 	}
 	return nil
