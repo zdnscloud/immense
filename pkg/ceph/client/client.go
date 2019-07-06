@@ -1,7 +1,8 @@
-package ceph
+package client
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
@@ -108,6 +109,36 @@ func CheckMonStat(num int) (bool, error) {
 		}
 	}
 	return false, errors.New("Can not check mon status")
+}
+
+func GetDF() (Df, error) {
+	var res Df
+	args := []string{"osd", "df", "-f", "json", "--connect-timeout", "15"}
+	out, err := util.ExecCMDWithOutput("ceph", args)
+	if err != nil {
+		return res, err
+	}
+	json.Unmarshal([]byte(out), &res)
+	return res, nil
+}
+
+func GetIDToHost(id string) (string, error) {
+	args := []string{"osd", "status", "--connect-timeout", "15"}
+	out, err := util.ExecCMDWithOutput("ceph", args)
+	if err != nil {
+		return "", err
+	}
+	lines := strings.Split(string(out), "\n")
+	for _, l := range lines {
+		if !strings.Contains(l, "ceph-osd-") {
+			continue
+		}
+		tmp := strings.Fields(l)
+		if tmp[1] == id {
+			return tmp[3], nil
+		}
+	}
+	return "", nil
 }
 
 func GetFSDF(pool string) (string, error) {

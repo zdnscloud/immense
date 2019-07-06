@@ -37,7 +37,11 @@ func (s *Lvm) Create(cluster *storagev1.Cluster) error {
 	if err := initBlocks(s.cli, cluster); err != nil {
 		return err
 	}
-	return deployLvmCSI(s.cli, cluster)
+	if err := deployLvmCSI(s.cli, cluster); err != nil {
+		return err
+	}
+	go StatusControl(s.cli, cluster.Name)
+	return nil
 }
 
 func (s *Lvm) Update(oldcfg, newcfg *storagev1.Cluster) error {
