@@ -3,6 +3,8 @@
 ## Global Notice
 * 存储节点必须是k8s集群节点
 * 块设备将会强制格式化（请谨慎选择空闲磁盘）！
+* 目前storageType只支持lvm、ceph两种，且每一种只能有一个cluster
+* lvm类型存储的storageclass为lvm;ceph类型存的storgeclass为cephfs
 
 ## Lvm
 ### Example

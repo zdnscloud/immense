@@ -11,7 +11,7 @@ import (
 
 func undeployLvmCSI(cli client.Client, cluster *storagev1.Cluster) error {
 	log.Debugf("Undeploy CSI for storage cluster:%s", cluster.Spec.StorageType)
-	yaml, err := csiyaml("keepns")
+	yaml, err := csiyaml()
 	if err != nil {
 		return err
 	}
@@ -20,7 +20,7 @@ func undeployLvmCSI(cli client.Client, cluster *storagev1.Cluster) error {
 
 func undeployLvmd(cli client.Client, cluster *storagev1.Cluster) error {
 	log.Debugf("Undeploy Lvmd for storage cluster:%s", cluster.Spec.StorageType)
-	yaml, err := lvmdyaml("keepns")
+	yaml, err := lvmdyaml()
 	if err != nil {
 		return err
 	}

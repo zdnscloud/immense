@@ -21,13 +21,13 @@ func StatusControl(cli client.Client, name string) {
 		storagecluster := storagev1.Cluster{}
 		err := cli.Get(context.TODO(), k8stypes.NamespacedName{common.StorageNamespace, name}, &storagecluster)
 		if err != nil {
-			log.Warnf("[lvm-status-controller] Get storage cluster %s failed, err:%s", name, err.Error())
+			log.Warnf("[lvm-status-controller] Get storage cluster %s failed. Err: %s", name, err.Error())
 			log.Debugf("[lvm-status-controller] Stop")
 			return
 		}
 		state, message, capacity, err := getInfo(cli, storagecluster)
 		if err != nil {
-			log.Warnf("[lvm-status-controller] Get lvm status failed, err:%s", err.Error())
+			log.Warnf("[lvm-status-controller] Get lvm status failed. Err: %s", err.Error())
 			continue
 		}
 		storagecluster.Status.State = state
@@ -36,7 +36,7 @@ func StatusControl(cli client.Client, name string) {
 		log.Debugf("[lvm-status-controller] Update storage cluster %s", name)
 		err = cli.Update(context.TODO(), &storagecluster)
 		if err != nil {
-			log.Warnf("[lvm-status-controller] Update storage cluster %s failed, err:%s", name, err.Error())
+			log.Warnf("[lvm-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
 			continue
 		}
 	}
@@ -54,23 +54,25 @@ func getInfo(cli client.Client, storagecluster storagev1.Cluster) (string, strin
 		instance.Dev = strings.Replace(strings.Trim(fmt.Sprint(host.BlockDevices), "[]"), " ", ",", -1)
 		lvmdcli, err := common.CreateLvmdClient(ctx, cli, host.NodeName)
 		if err != nil {
-			state = "HEALTH_WARN"
-			message = host.NodeName + ":" + err.Error() + "\n"
+			state = "Warnning"
+			message = message + host.NodeName + ":" + err.Error() + "\n"
 			instances = append(instances, instance)
-			log.Warnf("[lvm-status-controller] Connect to %s lvmd faield. err:%s", host.NodeName, err.Error())
+			log.Warnf("[lvm-status-controller] Connect to %s lvmd faield. Err: %s", host.NodeName, err.Error())
 			continue
 		}
 		instance.Stat = true
 		vgsreq := pb.ListVGRequest{}
 		vgsout, err := lvmdcli.ListVG(ctx, &vgsreq)
 		if err != nil {
-			state = "HEALTH_WARN"
-			message = host.NodeName + ":" + err.Error() + "\n"
+			state = "Warnning"
+			message = message + host.NodeName + ":" + err.Error() + "\n"
 			instances = append(instances, instance)
-			log.Warnf("[lvm-status-controller] List volume group faield for host %s. err:%s", host.NodeName, err.Error())
+			log.Warnf("[lvm-status-controller] List volume group faield for host %s. Err: %s", host.NodeName, err.Error())
 			continue
 		}
-		state = "HEALTH_OK"
+		if len(state) == 0 {
+			state = "Success"
+		}
 		for _, v := range vgsout.VolumeGroups {
 			if v.Name != "k8s" {
 				continue
@@ -85,6 +87,9 @@ func getInfo(cli client.Client, storagecluster storagev1.Cluster) (string, strin
 			used += v.Size - v.FreeSize
 			free += v.FreeSize
 		}
+	}
+	if len(instances) == 0 {
+		state = "Error"
 	}
 	capacity.Instances = instances
 	capacity.Total = storagev1.Size{

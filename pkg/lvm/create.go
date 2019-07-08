@@ -11,7 +11,7 @@ import (
 
 func deployLvmCSI(cli client.Client, cluster *storagev1.Cluster) error {
 	log.Debugf("Deploy CSI for storage cluster: %s", cluster.Spec.StorageType)
-	yaml, err := csiyaml("createns")
+	yaml, err := csiyaml()
 	if err != nil {
 		return err
 	}
@@ -20,7 +20,7 @@ func deployLvmCSI(cli client.Client, cluster *storagev1.Cluster) error {
 
 func deployLvmd(cli client.Client, cluster *storagev1.Cluster) error {
 	log.Debugf("Deploy Lvmd for storage cluster: %s", cluster.Spec.StorageType)
-	yaml, err := lvmdyaml("createns")
+	yaml, err := lvmdyaml()
 	if err != nil {
 		return err
 	}
@@ -32,8 +32,8 @@ func initBlocks(cli client.Client, cluster *storagev1.Cluster) error {
 	for _, host := range cluster.Spec.Hosts {
 		lvmdcli, err := common.CreateLvmdClient(ctx, cli, host.NodeName)
 		if err != nil {
-			log.Warnf("[%s] Create Lvmd client failed:%s", host.NodeName, err.Error())
-			return err
+			log.Warnf("[%s] Create Lvmd client failed. Err: %s. Skip it", host.NodeName, err.Error())
+			continue
 		}
 		defer lvmdcli.Close()
 		for _, block := range host.BlockDevices {
