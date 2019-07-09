@@ -8,11 +8,11 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/config"
 	"github.com/zdnscloud/immense/pkg/ceph/fscsi"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
-	cephhandle "github.com/zdnscloud/immense/pkg/ceph/handle"
 	"github.com/zdnscloud/immense/pkg/ceph/mds"
 	"github.com/zdnscloud/immense/pkg/ceph/mgr"
 	"github.com/zdnscloud/immense/pkg/ceph/mon"
 	"github.com/zdnscloud/immense/pkg/ceph/osd"
+	"github.com/zdnscloud/immense/pkg/ceph/status"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"strings"
 )
@@ -59,7 +59,8 @@ func create(cli client.Client, cluster *storagev1.Cluster) error {
 		return err
 	}
 	go osd.Watch()
-	go cephhandle.StatusControl(cli, cluster.Name)
+	go mon.Watch(cli)
+	go status.Watch(cli, cluster.Name)
 	return nil
 }
 

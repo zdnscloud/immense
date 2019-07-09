@@ -20,21 +20,13 @@ type HandlerManager struct {
 	handlers []Handler
 }
 
-func New(cli client.Client) (*HandlerManager, error) {
-	lvmHandler, err := lvm.New(cli)
-	if err != nil {
-		return nil, err
-	}
-	cephHandler, err := ceph.New(cli)
-	if err != nil {
-		return nil, err
-	}
+func New(cli client.Client) *HandlerManager {
 	return &HandlerManager{
 		handlers: []Handler{
-			lvmHandler,
-			cephHandler,
+			lvm.New(cli),
+			ceph.New(cli),
 		},
-	}, nil
+	}
 }
 
 func (h *HandlerManager) Create(cluster *storagev1.Cluster) error {

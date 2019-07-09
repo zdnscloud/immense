@@ -1,4 +1,4 @@
-package handle
+package status
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func StatusControl(cli client.Client, name string) {
+func Watch(cli client.Client, name string) {
 	log.Debugf("[ceph-status-controller] Start")
 	for {
 		time.Sleep(60 * time.Second)
@@ -74,11 +74,15 @@ func getInfo(storagecluster storagev1.Cluster) (string, string, storagev1.Capaci
 		if err != nil {
 			continue
 		}
+		stat := true
+		if n.Total == 0 {
+			stat = false
+		}
 		host, dev := osdSplit(storagecluster, name)
 		info := storagev1.Instance{
 			Host: host,
 			Dev:  dev,
-			Stat: true,
+			Stat: stat,
 			Info: storagev1.Size{
 				Total: strconv.FormatInt(n.Total*unit, 10),
 				Used:  strconv.FormatInt(n.Used*unit, 10),

@@ -1,13 +1,14 @@
 package mon
 
 const MonTemp = `
-apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
+apiVersion: apps/v1beta2
 metadata:
   name: ceph-mon
   namespace: {{.Namespace}}
 spec:
   replicas: {{.MonNum}}
+  serviceName: ceph-mon
   selector:
     matchLabels:
       app: ceph-mon
@@ -32,10 +33,6 @@ spec:
         args:
           - "mon"
         env:
-          - name: MON_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: spec.nodeName
           - name: MON_IP
             valueFrom:
               fieldRef:

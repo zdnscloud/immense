@@ -45,10 +45,7 @@ func New(config *rest.Config) (*Controller, error) {
 		return nil, err
 	}
 
-	hm, err := eventhandler.New(cli)
-	if err != nil {
-		return nil, err
-	}
+	hm := eventhandler.New(cli)
 
 	stopCh := make(chan struct{})
 	go c.Start(stopCh)

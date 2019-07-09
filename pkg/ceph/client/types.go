@@ -33,3 +33,24 @@ type Sum struct {
 	MaxVar float64 `json:"max_var"`
 	dev    float64 `json:"dev"`
 }
+
+type MonDump struct {
+	Epoch    int    `json:"epoch"`
+	FSID     string `json:"fsid"`
+	Modified string `json:"modified"`
+	Created  string `json:"created"`
+	Features `json:"features"`
+	Mons     []Mon `json:"mons"`
+	Quorum   []int `json:"quorum"`
+}
+
+type Features struct {
+	Persistent []string `json:"persistent"`
+	Optional   []string `json:"optional"`
+}
+type Mon struct {
+	Rank       int    `json:"rank"`
+	Name       string `json:"name"`
+	Addr       string `json:"addr"`
+	PublicAddr string `json:"public_addr"`
+}

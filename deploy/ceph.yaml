@@ -2,7 +2,6 @@ apiVersion: storage.zcloud.cn/v1
 kind: Cluster
 metadata:
   name: ceph-cluster
-  namespace: zcloud
 spec:
   storageType: "ceph"
   hosts: 

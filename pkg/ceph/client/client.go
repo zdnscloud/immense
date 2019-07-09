@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	//"errors"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
@@ -95,20 +95,15 @@ func CheckHealth() (string, error) {
 	return util.ExecCMDWithOutput("ceph", args)
 }
 
-func CheckMonStat(num int) (bool, error) {
-	args := []string{"mon", "stat", "--connect-timeout", "15"}
+func GetMon() (MonDump, error) {
+	var res MonDump
+	args := []string{"mon", "dump", "-f", "json", "--connect-timeout", "15"}
 	out, err := util.ExecCMDWithOutput("ceph", args)
 	if err != nil {
-		return false, err
+		return res, err
 	}
-	if strings.Contains(out, "{") && strings.Contains(out, "}") {
-		start := strings.IndexAny(out, "{")
-		end := strings.IndexAny(out, "}")
-		if len(strings.Split(out[start+1:end], ",")) == num {
-			return true, nil
-		}
-	}
-	return false, errors.New("Can not check mon status")
+	json.Unmarshal([]byte(out), &res)
+	return res, nil
 }
 
 func GetDF() (Df, error) {

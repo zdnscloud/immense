@@ -18,10 +18,10 @@ const (
 	StorageClassName = "lvm"
 )
 
-func New(c client.Client) (*Lvm, error) {
+func New(c client.Client) *Lvm {
 	return &Lvm{
 		cli: c,
-	}, nil
+	}
 }
 
 func (s *Lvm) GetType() string {
