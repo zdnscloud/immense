@@ -10,7 +10,7 @@
 ### Example
 `kubectl apply -f deploy/lvm.conf`
 ### Notice
-* 替换/删除磁盘的前提是该存储节点没有使用本地存储的Pod在运行，否则删除失败
+* 替换/删除磁盘的时如果有Pod在使用该节点的本地存储，会导致这个Pod异常。
 
 ## Ceph
 ### Example
