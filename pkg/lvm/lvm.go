@@ -47,28 +47,6 @@ func (s *Lvm) Create(cluster *storagev1.Cluster) error {
 
 func (s *Lvm) Update(oldcfg, newcfg *storagev1.Cluster) error {
 	delcfg, addcfg, changetodel, changetoadd := common.Diff(oldcfg, newcfg)
-	var usedHost string
-	for node := range changetodel {
-		used, err := CheckUsed(s.cli, node)
-		if err != nil {
-			return err
-		}
-		if used {
-			usedHost = usedHost + node + ","
-		}
-	}
-	for node := range delcfg {
-		used, err := CheckUsed(s.cli, node)
-		if err != nil {
-			return err
-		}
-		if used {
-			usedHost = usedHost + node + ","
-		}
-	}
-	if len(usedHost) > 0 {
-		return errors.New(fmt.Sprintf("Host %v block device is used by pod, can not to be remove", usedHost))
-	}
 	if err := doAddhost(s.cli, addcfg); err != nil {
 		return err
 	}
@@ -85,19 +63,6 @@ func (s *Lvm) Update(oldcfg, newcfg *storagev1.Cluster) error {
 }
 
 func (s *Lvm) Delete(cluster *storagev1.Cluster) error {
-	var usedHost string
-	for _, node := range cluster.Spec.Hosts {
-		used, err := CheckUsed(s.cli, node.NodeName)
-		if err != nil {
-			return err
-		}
-		if used {
-			usedHost = usedHost + node.NodeName + ","
-		}
-	}
-	if len(usedHost) > 0 {
-		return errors.New(fmt.Sprintf("Host %v block device is used by pod, can not to be remove", usedHost))
-	}
 	if err := undeployLvmCSI(s.cli, cluster); err != nil {
 		return err
 	}
