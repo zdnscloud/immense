@@ -19,7 +19,7 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: {{.NodeName}}
       initContainers:
-      - name: ceph-init
+      - name: ceph-init-conf
         image: {{.CephInitImage}}
         volumeMounts:
         - name: cephconf
@@ -27,6 +27,12 @@ spec:
         - name: shared-data
           mountPath: /ceph
         command: ["/bin/sh", "-c", "cp /tmp/ceph/* /ceph"]
+      - name: ceph-init-health
+        image: {{.CephImage}}
+        command: ["/bin/sh", "-c", "until ceph health --connect-timeout 10|grep HEALTH_OK; do echo waiting for ceph cluster to health; sleep 2; done;"]
+        volumeMounts:
+        - name: shared-data
+          mountPath: /etc/ceph
       containers:
       - name: ceph-osd
         image: {{.CephImage}}

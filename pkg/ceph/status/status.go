@@ -79,6 +79,9 @@ func getInfo(storagecluster storagev1.Cluster) (string, string, storagev1.Capaci
 			stat = false
 		}
 		host, dev := osdSplit(storagecluster, name)
+		if host == "" && dev == "" {
+			continue
+		}
 		info := storagev1.Instance{
 			Host: host,
 			Dev:  dev,
