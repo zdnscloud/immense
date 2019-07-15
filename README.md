@@ -5,12 +5,13 @@
 * 块设备将会强制格式化（请谨慎选择空闲磁盘）！
 * 目前storageType只支持lvm、ceph两种，且每一种只能有一个cluster
 * lvm类型存储的storageclass为lvm;ceph类型存的storgeclass为cephfs
+* 创建存储时如果有异常不会提示，需要查看存储cluster的status（每60秒更新一次）
 
 ## Lvm
 ### Example
 `kubectl apply -f deploy/lvm.conf`
 ### Notice
-* 替换/删除磁盘的时如果有Pod在使用该节点的本地存储，会导致这个Pod异常。
+* 替换/删除磁盘的时如果有Pod在使用该节点的本地存储，会导致磁盘清理失败
 
 ## Ceph
 ### Example
