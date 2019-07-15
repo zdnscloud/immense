@@ -25,7 +25,7 @@ type HostSpec struct {
 // ClusterStatus defines the observed state of Cluster
 // +k8s:openapi-gen=true
 type ClusterStatus struct {
-	State    string `json:"state,omitempty"`
+	Phase    string `json:"phase,omitempty"`
 	Message  string `json:"message,omitempty"`
 	Capacity `json:"capacity,omitempty"`
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster

@@ -39,6 +39,7 @@ data:
     rbd_default_features      = 3
     fatal_signal_handlers     = false
     mon_allow_pool_delete     = true
+    mon_data_avail_warn       = 10
     mon_max_pg_per_osd        = 1000
     osd_pg_bits               = 11
     osd_pgp_bits              = 11

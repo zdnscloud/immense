@@ -25,24 +25,29 @@ func StatusControl(cli client.Client, name string) {
 			log.Debugf("[lvm-status-controller] Stop")
 			return
 		}
-		state, message, capacity, err := getInfo(cli, storagecluster)
-		if err != nil {
-			log.Warnf("[lvm-status-controller] Get lvm status failed. Err: %s", err.Error())
-			continue
-		}
-		storagecluster.Status.State = state
-		storagecluster.Status.Message = message
-		storagecluster.Status.Capacity = capacity
-		log.Debugf("[lvm-status-controller] Update storage cluster %s", name)
-		err = cli.Update(context.TODO(), &storagecluster)
-		if err != nil {
+		status := getInfo(cli, storagecluster)
+		if err := common.UpdateStatus(cli, name, status); err != nil {
 			log.Warnf("[lvm-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
-			continue
 		}
+		/*
+			state, message, capacity, err := getInfo(cli, storagecluster)
+			if err != nil {
+				log.Warnf("[lvm-status-controller] Get lvm status failed. Err: %s", err.Error())
+				continue
+			}
+			storagecluster.Status.Phase = state
+			storagecluster.Status.Message = message
+			storagecluster.Status.Capacity = capacity
+			log.Debugf("[lvm-status-controller] Update storage cluster %s", name)
+			err = cli.Update(context.TODO(), &storagecluster)
+			if err != nil {
+				log.Warnf("[lvm-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
+				continue
+			}*/
 	}
 }
 
-func getInfo(cli client.Client, storagecluster storagev1.Cluster) (string, string, storagev1.Capacity, error) {
+func getInfo(cli client.Client, storagecluster storagev1.Cluster) storagev1.ClusterStatus {
 	ctx := context.TODO()
 	var state, message string
 	var capacity storagev1.Capacity
@@ -97,5 +102,10 @@ func getInfo(cli client.Client, storagecluster storagev1.Cluster) (string, strin
 		Used:  string(strconv.Itoa(int(used))),
 		Free:  string(strconv.Itoa(int(free))),
 	}
-	return state, message, capacity, nil
+	//return state, message, capacity, nil
+	return storagev1.ClusterStatus{
+		Phase:    state,
+		Message:  message,
+		Capacity: capacity,
+	}
 }

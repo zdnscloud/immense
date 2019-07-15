@@ -2,6 +2,7 @@ package ceph
 
 import (
 	"github.com/zdnscloud/cement/errgroup"
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
@@ -14,6 +15,7 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/osd"
 	"github.com/zdnscloud/immense/pkg/ceph/status"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
+	"github.com/zdnscloud/immense/pkg/common"
 	"strings"
 )
 
@@ -29,6 +31,11 @@ func create(cli client.Client, cluster *storagev1.Cluster) error {
 		return err
 	}
 	copiers := getReplication(cluster)
+	s := storagev1.ClusterStatus{
+		Phase: "Creating"}
+	if err := common.UpdateStatus(cli, cluster.Name, s); err != nil {
+		log.Warnf("Update storage cluster %s status failed. Err: %s", cluster.Name, err.Error())
+	}
 	if err := config.Start(cli, uuid, networks, adminkey, monkey, copiers); err != nil {
 		return err
 	}
@@ -61,6 +68,11 @@ func create(cli client.Client, cluster *storagev1.Cluster) error {
 	go osd.Watch()
 	go mon.Watch(cli)
 	go status.Watch(cli, cluster.Name)
+	s = storagev1.ClusterStatus{
+		Phase: "Running"}
+	if err := common.UpdateStatus(cli, cluster.Name, s); err != nil {
+		log.Warnf("Update storage cluster %s status failed. Err: %s", cluster.Name, err.Error())
+	}
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package lvm
 
 import (
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
@@ -27,6 +28,11 @@ func (s *Lvm) GetType() string {
 }
 
 func (s *Lvm) Create(cluster *storagev1.Cluster) error {
+	status := storagev1.ClusterStatus{
+		Phase: "Creating"}
+	if err := common.UpdateStatus(s.cli, cluster.Name, status); err != nil {
+		log.Warnf("Update storage cluster %s status failed. Err: %s", cluster.Name, err.Error())
+	}
 	if err := common.CreateNodeAnnotationsAndLabels(s.cli, cluster); err != nil {
 		return err
 	}
@@ -40,10 +46,20 @@ func (s *Lvm) Create(cluster *storagev1.Cluster) error {
 		return err
 	}
 	go StatusControl(s.cli, cluster.Name)
+	status = storagev1.ClusterStatus{
+		Phase: "Running"}
+	if err := common.UpdateStatus(s.cli, cluster.Name, status); err != nil {
+		log.Warnf("Update storage cluster %s status failed. Err: %s", cluster.Name, err.Error())
+	}
 	return nil
 }
 
 func (s *Lvm) Update(oldcfg, newcfg *storagev1.Cluster) error {
+	status := storagev1.ClusterStatus{
+		Phase: "Updating"}
+	if err := common.UpdateStatus(s.cli, newcfg.Name, status); err != nil {
+		log.Warnf("Update storage cluster %s status failed. Err: %s", newcfg.Name, err.Error())
+	}
 	delcfg, addcfg, changetodel, changetoadd := common.Diff(oldcfg, newcfg)
 	if err := doAddhost(s.cli, addcfg); err != nil {
 		return err

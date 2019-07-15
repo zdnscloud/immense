@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"fmt"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
@@ -35,6 +36,7 @@ func CheckConfigMap(cli client.Client, namespace, name string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	fmt.Println(cm)
 	return true, nil
 }
 

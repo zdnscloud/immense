@@ -119,3 +119,13 @@ func MakeClusterCfg(cfg map[string][]string, nodeLabelValue string) *storagev1.C
 		},
 	}
 }
+
+func UpdateStatus(cli client.Client, name string, status storagev1.ClusterStatus) error {
+	storagecluster := storagev1.Cluster{}
+	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &storagecluster)
+	if err != nil {
+		return err
+	}
+	storagecluster.Status = status
+	return cli.Update(context.TODO(), &storagecluster)
+}

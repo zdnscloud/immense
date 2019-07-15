@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/base64"
+	"fmt"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
@@ -27,6 +28,7 @@ func Start(cli client.Client, uuid, networks, adminkey, monkey string, number in
 		if err != nil {
 			return err
 		}
+		fmt.Println(yaml)
 		if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 			return err
 		}

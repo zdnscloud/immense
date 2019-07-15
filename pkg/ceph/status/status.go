@@ -24,29 +24,39 @@ func Watch(cli client.Client, name string) {
 			log.Debugf("[ceph-status-controller] Stop")
 			return
 		}
-		state, message, capacity, err := getInfo(storagecluster)
+		status, err := getInfo(storagecluster)
 		if err != nil {
 			log.Warnf("[ceph-status-controller] Get ceph status failed. Err: %s", err.Error())
 			continue
 		}
-		storagecluster.Status.State = state
-		storagecluster.Status.Message = message
-		storagecluster.Status.Capacity = capacity
-		log.Debugf("[ceph-status-controller] Update storage cluster %s", name)
-		err = cli.Update(context.TODO(), &storagecluster)
-		if err != nil {
+		if err := common.UpdateStatus(cli, name, status); err != nil {
 			log.Warnf("[ceph-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
-			continue
 		}
+		/*
+			state, message, capacity, err := getInfo(storagecluster)
+			if err != nil {
+				log.Warnf("[ceph-status-controller] Get ceph status failed. Err: %s", err.Error())
+				continue
+			}
+			storagecluster.Status.Phase = state
+			storagecluster.Status.Message = message
+			storagecluster.Status.Capacity = capacity
+			log.Debugf("[ceph-status-controller] Update storage cluster %s", name)
+			err = cli.Update(context.TODO(), &storagecluster)
+			if err != nil {
+				log.Warnf("[ceph-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
+				continue
+			}*/
 	}
 }
 
-func getInfo(storagecluster storagev1.Cluster) (string, string, storagev1.Capacity, error) {
+func getInfo(storagecluster storagev1.Cluster) (storagev1.ClusterStatus, error) {
+	var status storagev1.ClusterStatus
 	var state, message string
 	var capacity storagev1.Capacity
 	out, err := cephclient.CheckHealth()
 	if err != nil {
-		return state, message, capacity, err
+		return status, err
 	}
 	if strings.Contains(out, "HEALTH_OK") {
 		state = "Success"
@@ -58,7 +68,7 @@ func getInfo(storagecluster storagev1.Cluster) (string, string, storagev1.Capaci
 	message = out
 	infos, err := cephclient.GetDF()
 	if err != nil {
-		return state, message, capacity, err
+		return status, err
 	}
 	summary := infos.Summary
 	unit := int64(1024)
@@ -99,7 +109,12 @@ func getInfo(storagecluster storagev1.Cluster) (string, string, storagev1.Capaci
 		state = "Warnning"
 	}
 	capacity.Instances = newinstances
-	return state, message, capacity, nil
+	//return state, message, capacity, nil
+	return storagev1.ClusterStatus{
+		Phase:    state,
+		Message:  message,
+		Capacity: capacity,
+	}, nil
 }
 
 func comparsion(storagecluster storagev1.Cluster, instances []storagev1.Instance) ([]storagev1.Instance, bool) {
