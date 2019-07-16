@@ -3,7 +3,6 @@ package ceph
 import (
 	"github.com/zdnscloud/cement/errgroup"
 	"github.com/zdnscloud/gok8s/client"
-	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
 	"github.com/zdnscloud/immense/pkg/ceph/config"
 	"github.com/zdnscloud/immense/pkg/ceph/fscsi"
@@ -12,10 +11,11 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/mon"
 	"github.com/zdnscloud/immense/pkg/ceph/osd"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
+	"github.com/zdnscloud/immense/pkg/common"
 	"strings"
 )
 
-func delete(cli client.Client, cluster *storagev1.Cluster) error {
+func delete(cli client.Client, cluster common.Storage) error {
 	var networks, uuid, adminkey, monkey string
 	var copies int
 	if err := fscsi.Stop(cli); err != nil {

@@ -19,12 +19,7 @@ import (
 	"strings"
 )
 
-func create(cli client.Client, cluster *storagev1.Cluster) error {
-	/*
-		networks, err := util.GetCIDRs(cli, cluster)
-		if err != nil {
-			return err
-		}*/
+func create(cli client.Client, cluster common.Storage) error {
 	networks := "10.42.0.0/16"
 	uuid, adminkey, monkey, err := initconf()
 	if err != nil {
@@ -93,7 +88,7 @@ func initconf() (string, string, string, error) {
 	return uuid, adminkey, monkey, nil
 }
 
-func getReplication(cluster *storagev1.Cluster) int {
+func getReplication(cluster common.Storage) int {
 	var num, Replication int
 	for _, host := range cluster.Spec.Hosts {
 		num += len(host.BlockDevices)

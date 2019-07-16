@@ -97,7 +97,6 @@ func Watch(cli client.Client) {
 			}
 		}
 		if len(unnormal) == 0 {
-			log.Debugf("[ceph-mon-watcher] All mon ok!")
 			continue
 		}
 		log.Debugf("[ceph-mon-watcher] Watch mon %s has unnormal, remove it now", unnormal)

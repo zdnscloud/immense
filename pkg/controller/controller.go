@@ -61,17 +61,8 @@ func New(config *rest.Config) (*Controller, error) {
 	return storageCtrl, nil
 }
 
-func logCluster(cluster *storagev1.Cluster) {
-	log.Debugf("name:%s, type:%s", cluster.Name, cluster.Spec.StorageType)
-	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("node:%s, devices:%s", host.NodeName, host.BlockDevices)
-	}
-}
-
 func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
-	log.Debugf("create event")
 	cluster := e.Object.(*storagev1.Cluster)
-	logCluster(cluster)
 	if err := d.handlermgr.Create(cluster); err != nil {
 		log.Warnf("Create failed:%s", err.Error())
 	}
@@ -79,7 +70,6 @@ func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
 }
 
 func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
-	log.Debugf("update event")
 	oldc := e.ObjectOld.(*storagev1.Cluster)
 	newc := e.ObjectNew.(*storagev1.Cluster)
 	if err := d.handlermgr.Update(oldc, newc); err != nil {
@@ -89,9 +79,7 @@ func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 }
 
 func (d *Controller) OnDelete(e event.DeleteEvent) (handler.Result, error) {
-	log.Debugf("delete event")
 	cluster := e.Object.(*storagev1.Cluster)
-	logCluster(cluster)
 	if err := d.handlermgr.Delete(cluster); err != nil {
 		log.Warnf("Delete failed:%s", err.Error())
 	}

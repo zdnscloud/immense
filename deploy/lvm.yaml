@@ -4,8 +4,4 @@ metadata:
   name: lvm-cluster
 spec:
   storageType: "lvm"
-  hosts: 
-  - nodeName: "k8s-02"
-    blockDevices: ["/dev/vdb"]
-  - nodeName: "k8s-03"
-    blockDevices: ["/dev/vdb"]
+  hosts: ["k8s-02","k8s-03"]
