@@ -9,10 +9,22 @@ func New(cli client.Client) *HandlerManager {
                         lvm.New(cli),
                         ceph.New(cli),
                 },
+                client: cli,
         }
 }
 ```
 ## 逻辑
+### 获取主机可用磁盘列表
+根据event事件的类型分别调用common中AssembleCreateConfig、AssembleDeleteConfig、AssembleUpdateConfig将主机的磁盘补充到配置文件中，再将交由lvm和ceph完成
+
+pkg/common/config.go
+```
+func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (Storage, error) {...}
+func AssembleDeleteConfig(cli client.Client, cluster *storagev1.Cluster) (Storage, error) {...}
+func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (Storage, Storage, error) {...}
+func GetBlocksFromAnnotation(cli client.Client, name string) ([]string, error) {...}
+func GetBlocksFromClusterAgent(cli client.Client, name string) ([]string, error) {...}
+```
 ### lvm说明
 目录结构
 ```
@@ -41,8 +53,8 @@ func New(cli client.Client) *HandlerManager {
   5. gorouting循环检查lvm的运行及磁盘空间并更新cluster状态（频率60秒）   
   
 - 更新  
-  1. 对比更新前后的配置，确定删除的主机、增加的主机、删除的磁盘、增加的磁盘
-  2. 对上面4种配置进行分别处理
+  1. 对比更新前后的配置，确定删除的主机、增加的主机
+  2. 对上面2种配置进行分别处理
   > 
   > 如果删除前只有一块磁盘组成Volume Group，则直接vgremove。如果是有多块磁盘组成Volume Group，则进行vgreduce
   
@@ -96,7 +108,7 @@ func New(cli client.Client) *HandlerManager {
      - 循环检查ceph集群中是否有异常的mon，如果有就remove
      - 循环检查ceph的运行及磁盘空间并更新cluster状态（频率60秒）    
 - 更新  
-  1. 对比更新前后的配置，确定删除的主机、增加的主机、删除的磁盘、增加的磁盘
+  1. 对比更新前后的配置，确定删除的主机、增加的主机
   2. 实际上就是增加/删除osd组件Pod
   3. 删除后增加labels和annotations
 - 删除  
