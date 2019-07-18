@@ -15,12 +15,13 @@ func Watch(cli client.Client, name string) {
 	log.Debugf("[ceph-status-controller] Start")
 	for {
 		time.Sleep(60 * time.Second)
-		storage, err := common.GetStorage(cli, name)
+		storagecluster, err := common.GetStorage(cli, name)
 		if err != nil {
 			log.Warnf("[ceph-status-controller] Get storage %s config with blocks failed. Err: %s", name, err.Error())
+			log.Debugf("[ceph-status-controller] Stop")
 			return
 		}
-		status, err := getInfo(storage)
+		status, err := getStatus(storagecluster)
 		if err != nil {
 			log.Warnf("[ceph-status-controller] Get ceph status failed. Err: %s", err.Error())
 			continue
@@ -31,32 +32,60 @@ func Watch(cli client.Client, name string) {
 	}
 }
 
-func getInfo(storagecluster common.Storage) (storagev1.ClusterStatus, error) {
-	var state, message string
-	var capacity storagev1.Capacity
+func getStatus(storagecluster common.Storage) (storagev1.ClusterStatus, error) {
+	var status storagev1.ClusterStatus
+	phase, message, err := getPhaseAndMsg()
+	if err != nil {
+		return status, err
+	}
+	capacity, err := getCapacity(storagecluster)
+	if err != nil {
+		return status, err
+	}
+	status.Phase = phase
+	status.Message = message
+	status.Capacity = capacity
+	return status, nil
+}
+
+func getPhaseAndMsg() (string, string, error) {
+	var phase, message string
 	message, err := cephclient.CheckHealth()
 	if err != nil {
-		return storagev1.ClusterStatus{}, err
+		return phase, message, err
 	}
 	if strings.Contains(message, "HEALTH_OK") {
-		state = "Success"
+		phase = "Running"
 	} else if strings.Contains(message, "HEALTH_WARN") {
-		state = "Warnning"
+		phase = "Warnning"
 	} else {
-		state = "Error"
+		phase = "Error"
 	}
+	return phase, message, nil
+}
+
+var unit = int64(1024)
+
+func getCapacity(storagecluster common.Storage) (storagev1.Capacity, error) {
+	var capacity storagev1.Capacity
 	infos, err := cephclient.GetDF()
 	if err != nil {
-		return storagev1.ClusterStatus{}, err
+		return capacity, err
 	}
-	unit := int64(1024)
 	capacity.Total = storagev1.Size{
 		Total: strconv.FormatInt(infos.Summary.Total*unit, 10),
 		Used:  strconv.FormatInt(infos.Summary.Used*unit, 10),
 		Free:  strconv.FormatInt(infos.Summary.Avail*unit, 10),
 	}
+	online := getOnlineInstances(storagecluster, infos.Nodes)
+	offline := getOfflineInstances(storagecluster, online)
+	capacity.Instances = append(online, offline...)
+	return capacity, nil
+}
+
+func getOnlineInstances(storagecluster common.Storage, nodes []cephclient.Node) []storagev1.Instance {
 	instances := make([]storagev1.Instance, 0)
-	for _, n := range infos.Nodes {
+	for _, n := range nodes {
 		name, err := cephclient.GetIDToHost(strconv.FormatInt(n.ID, 10))
 		if err != nil {
 			continue
@@ -81,22 +110,13 @@ func getInfo(storagecluster common.Storage) (storagev1.ClusterStatus, error) {
 		}
 		instances = append(instances, info)
 	}
-	newinstances, deficient := comparsion(storagecluster, instances)
-	if deficient && state == "Success" {
-		state = "Warnning"
-	}
-	capacity.Instances = newinstances
-	return storagev1.ClusterStatus{
-		Phase:    state,
-		Message:  message,
-		Capacity: capacity,
-	}, nil
+	return instances
 }
 
-func comparsion(storagecluster common.Storage, instances []storagev1.Instance) ([]storagev1.Instance, bool) {
-	var deficient bool
+func getOfflineInstances(storagecluster common.Storage, onlineinstances []storagev1.Instance) []storagev1.Instance {
+	instances := make([]storagev1.Instance, 0)
 	online := make(map[string][]string)
-	for _, i := range instances {
+	for _, i := range onlineinstances {
 		if len(online[i.Host]) == 0 {
 			online[i.Host] = make([]string, 0)
 		}
@@ -105,7 +125,6 @@ func comparsion(storagecluster common.Storage, instances []storagev1.Instance) (
 	onlinecluster := common.MakeClusterCfg(online, "ceph")
 	delcfg, _, _, _ := common.Diff(storagecluster, onlinecluster)
 	for host, devs := range delcfg {
-		deficient = true
 		if len(devs) == 0 {
 			instance := storagev1.Instance{
 				Host: host,
@@ -123,7 +142,7 @@ func comparsion(storagecluster common.Storage, instances []storagev1.Instance) (
 			instances = append(instances, instance)
 		}
 	}
-	return instances, deficient
+	return instances
 }
 
 func osdSplit(storagecluster common.Storage, podname string) (string, string) {

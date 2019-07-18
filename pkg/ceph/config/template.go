@@ -6,6 +6,8 @@ kind: Service
 metadata:
   name: {{.SvcName}}
   namespace: {{.Namespace}}
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
   labels:
     app: ceph-mon
 spec:

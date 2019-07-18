@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/common"
 	corev1 "k8s.io/api/core/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -23,6 +24,21 @@ func GetMonIPs(cli client.Client) ([]string, error) {
 		if strings.Contains(p.Name, "ceph-mon-") && p.Status.Phase == "Running" {
 			ip := p.Status.PodIP + ":6789"
 			ips = append(ips, ip)
+		}
+	}
+	return ips, nil
+}
+
+func GetMonSvc(cli client.Client) ([]string, error) {
+	ips := make([]string, 0)
+	ep := corev1.Endpoints{}
+	err := cli.Get(ctx, k8stypes.NamespacedName{common.StorageNamespace, global.MonSvc}, &ep)
+	if err != nil {
+		return ips, err
+	}
+	for _, sub := range ep.Subsets {
+		for _, ads := range sub.Addresses {
+			ips = append(ips, ads.IP)
 		}
 	}
 	return ips, nil

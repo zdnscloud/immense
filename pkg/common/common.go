@@ -84,7 +84,7 @@ func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error)
 	return out.String(), nil
 }
 
-func GetHostAddr(cli client.Client, name string) (string, error) {
+func getHostAddr(cli client.Client, name string) (string, error) {
 	node := corev1.Node{}
 	if err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &node); err != nil {
 		return "", err
@@ -111,10 +111,20 @@ func MakeClusterCfg(cfg map[string][]string, nodeLabelValue string) Storage {
 
 func UpdateStatus(cli client.Client, name string, status storagev1.ClusterStatus) error {
 	storagecluster := storagev1.Cluster{}
-	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &storagecluster)
+	err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &storagecluster)
 	if err != nil {
 		return err
 	}
 	storagecluster.Status = status
-	return cli.Update(context.TODO(), &storagecluster)
+	return cli.Update(ctx, &storagecluster)
+}
+
+func UpdateStatusPhase(cli client.Client, name, phase string) error {
+	storagecluster := storagev1.Cluster{}
+	err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &storagecluster)
+	if err != nil {
+		return err
+	}
+	storagecluster.Status.Phase = phase
+	return cli.Update(ctx, &storagecluster)
 }

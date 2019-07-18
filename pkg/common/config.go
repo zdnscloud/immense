@@ -147,7 +147,7 @@ func GetBlocksFromClusterAgent(cli client.Client, name string) ([]string, error)
 
 func GetStorage(cli client.Client, name string) (Storage, error) {
 	storagecluster := storagev1.Cluster{}
-	err := cli.Get(context.TODO(), k8stypes.NamespacedName{StorageNamespace, name}, &storagecluster)
+	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &storagecluster)
 	if err != nil {
 		return Storage{}, err
 	}

@@ -209,8 +209,6 @@ spec:
       labels:
         app: csi-lvmplugin
     spec:
-      nodeSelector: 
-        {{.LabelKey}}: {{.LabelValue}}
       serviceAccount: csi-lvmplugin
       hostNetwork: true
       containers:
@@ -321,8 +319,6 @@ spec:
       labels:
         app: csi-lvmplugin-attacher
     spec:
-      nodeSelector: 
-        {{.LabelKey}}: {{.LabelValue}}
       serviceAccount: csi-lvmplugin-attacher
       hostNetwork: true
       containers:
@@ -375,8 +371,6 @@ spec:
       labels:
         app: csi-lvmplugin-provisioner
     spec:
-      nodeSelector: 
-        {{.LabelKey}}: {{.LabelValue}}
       serviceAccount: csi-lvmplugin-provisioner
       hostNetwork: true
       containers:

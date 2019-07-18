@@ -20,6 +20,7 @@ func StatusControl(cli client.Client, name string) {
 		storage, err := common.GetStorage(cli, name)
 		if err != nil {
 			log.Warnf("[lvm-status-controller] Get storage %s config with blocks failed. Err: %s", name, err.Error())
+			log.Debugf("[lvm-status-controller] Stop")
 			return
 		}
 		status := getInfo(cli, storage)
@@ -43,6 +44,7 @@ func getInfo(cli client.Client, storagecluster common.Storage) storagev1.Cluster
 		if len(instance.Dev) == 0 {
 			state = "Warnning"
 			message = message + host.NodeName + ":" + "No block devices can be used\n"
+			instance.Stat = false
 			instances = append(instances, instance)
 			log.Warnf("[lvm-status-controller] Hosts %s have no block devices can used", host.NodeName)
 			continue
@@ -51,27 +53,30 @@ func getInfo(cli client.Client, storagecluster common.Storage) storagev1.Cluster
 		if err != nil {
 			state = "Warnning"
 			message = message + host.NodeName + ":" + err.Error() + "\n"
+			instance.Stat = false
 			instances = append(instances, instance)
 			log.Warnf("[lvm-status-controller] Connect to %s lvmd faield. Err: %s", host.NodeName, err.Error())
 			continue
 		}
-		instance.Stat = true
+		//instance.Stat = true
 		vgsreq := pb.ListVGRequest{}
 		vgsout, err := lvmdcli.ListVG(ctx, &vgsreq)
 		if err != nil {
 			state = "Warnning"
 			message = message + host.NodeName + ":" + err.Error() + "\n"
+			instance.Stat = false
 			instances = append(instances, instance)
 			log.Warnf("[lvm-status-controller] List volume group faield for host %s. Err: %s", host.NodeName, err.Error())
 			continue
 		}
 		if len(state) == 0 {
-			state = "Success"
+			state = "Running"
 		}
 		for _, v := range vgsout.VolumeGroups {
 			if v.Name != "k8s" {
 				continue
 			}
+			instance.Stat = true
 			instance.Info = storagev1.Size{
 				Total: string(strconv.Itoa(int(v.Size))),
 				Used:  string(strconv.Itoa(int(v.Size - v.FreeSize))),
