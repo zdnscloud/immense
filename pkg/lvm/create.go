@@ -52,15 +52,18 @@ func initBlocks(cli client.Client, cluster common.Storage) error {
 			}
 			log.Debugf("[%s] Validate block %s", host.NodeName, block)
 			if err := common.Validate(ctx, lvmdcli, block); err != nil {
-				return err
+				log.Warnf("[%s] Validate block %s failed:%s", host.NodeName, block, err.Error())
+				continue
 			}
 			log.Debugf("[%s] Create pv with %s", host.NodeName, block)
 			if err := common.CreatePV(ctx, lvmdcli, block); err != nil {
-				return err
+				log.Warnf("[%s] Create pv with %s failed:%s", host.NodeName, block, err.Error())
+				continue
 			}
 			log.Debugf("[%s] Create vg with %s", host.NodeName, block)
 			if err := common.CreateVG(ctx, lvmdcli, block, VGName); err != nil {
-				return err
+				log.Warnf("[%s] Create vg with %s failed:%s", host.NodeName, block, err.Error())
+				continue
 			}
 		}
 	}
