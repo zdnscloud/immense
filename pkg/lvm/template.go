@@ -240,7 +240,6 @@ spec:
           args :
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--v=5"
             - "--vgname=$(VG_NAME)"
             - "--drivername=csi-lvmplugin"
           env:
