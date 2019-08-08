@@ -114,7 +114,7 @@ func GetBlocksFromClusterAgent(cli client.Client, name string) ([]string, error)
 	if err != nil {
 		return res, err
 	}
-	url := "/apis/agent.zcloud.cn/v1/blockinfos"
+	url := "/apis/agent.zcloud.cn/v1/blockdevices"
 	newurl := "http://" + service.Spec.ClusterIP + url
 	req, err := http.NewRequest("GET", newurl, nil)
 	if err != nil {
@@ -129,17 +129,15 @@ func GetBlocksFromClusterAgent(cli client.Client, name string) ([]string, error)
 	body, _ := ioutil.ReadAll(resp.Body)
 	var info Data
 	json.Unmarshal(body, &info)
-	for _, v := range info.Data {
-		for _, h := range v.Hosts {
-			if h.NodeName != name {
+	for _, h := range info.Data {
+		if h.NodeName != name {
+			continue
+		}
+		for _, dev := range h.BlockDevices {
+			if dev.Parted || dev.Filesystem || dev.Mount {
 				continue
 			}
-			for _, dev := range h.BlockDevices {
-				if dev.Parted || dev.Filesystem || dev.Mount {
-					continue
-				}
-				res = append(res, dev.Name)
-			}
+			res = append(res, dev.Name)
 		}
 	}
 	return res, nil
@@ -166,5 +164,6 @@ func GetStorage(cli client.Client, name string) (Storage, error) {
 			StorageType: storagecluster.Spec.StorageType,
 			Hosts:       hosts,
 		},
+		Status: storagecluster.Status.Phase,
 	}, nil
 }

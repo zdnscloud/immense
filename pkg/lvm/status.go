@@ -23,6 +23,9 @@ func StatusControl(cli client.Client, name string) {
 			log.Debugf("[lvm-status-controller] Stop")
 			return
 		}
+		if storage.Status == "Updating" || storage.Status == "Creating" {
+			continue
+		}
 		status := getInfo(cli, storage)
 		if err := common.UpdateStatus(cli, name, status); err != nil {
 			log.Warnf("[lvm-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())

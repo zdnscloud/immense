@@ -21,6 +21,9 @@ func Watch(cli client.Client, name string) {
 			log.Debugf("[ceph-status-controller] Stop")
 			return
 		}
+		if storagecluster.Status == "Updating" || storagecluster.Status == "Creating" {
+			continue
+		}
 		status, err := getStatus(storagecluster)
 		if err != nil {
 			log.Warnf("[ceph-status-controller] Get ceph status failed. Err: %s", err.Error())
