@@ -17,6 +17,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
+	"net"
 	"strings"
 	"time"
 )
@@ -37,6 +38,7 @@ func Start(cli client.Client, networks string) error {
 	if !ready {
 		return errors.New("Timeout. Ceph cluster has not ready")
 	}
+	//time.Sleep(60 * time.Second)
 	return nil
 }
 
@@ -52,16 +54,30 @@ func Stop(cli client.Client, networks string) error {
 func check(cli client.Client) (bool, error) {
 	log.Debugf("Wait all mon running")
 	for i := 0; i < 60; i++ {
-		mons, err := util.GetMonIPs(cli)
+		//mons, err := util.GetMonIPs(cli)
+		mons, err := util.GetMonSvc(cli)
 		if err != nil {
 			return false, err
 		}
 		if len(mons) == global.MonNum {
-			return true, nil
+			if checkMonConnect(mons) {
+				return true, nil
+			}
 		}
 		time.Sleep(5 * time.Second)
 	}
 	return false, errors.New("Timeout. Mon has not ready")
+}
+
+func checkMonConnect(ips []string) bool {
+	for _, ip := range ips {
+		addr := ip + ":6789"
+		_, err := net.Dial("tcp", addr)
+		if err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func Watch(cli client.Client) {
@@ -97,7 +113,6 @@ func Watch(cli client.Client) {
 			}
 		}
 		if len(unnormal) == 0 {
-			log.Debugf("[ceph-mon-watcher] All mon ok!")
 			continue
 		}
 		log.Debugf("[ceph-mon-watcher] Watch mon %s has unnormal, remove it now", unnormal)

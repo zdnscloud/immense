@@ -2,9 +2,8 @@ package util
 
 import (
 	"context"
-	"fmt"
 	"github.com/zdnscloud/gok8s/client"
-	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/common"
 	corev1 "k8s.io/api/core/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -30,13 +29,27 @@ func GetMonIPs(cli client.Client) ([]string, error) {
 	return ips, nil
 }
 
+func GetMonSvc(cli client.Client) ([]string, error) {
+	ips := make([]string, 0)
+	ep := corev1.Endpoints{}
+	err := cli.Get(ctx, k8stypes.NamespacedName{common.StorageNamespace, global.MonSvc}, &ep)
+	if err != nil {
+		return ips, err
+	}
+	for _, sub := range ep.Subsets {
+		for _, ads := range sub.Addresses {
+			ips = append(ips, ads.IP)
+		}
+	}
+	return ips, nil
+}
+
 func CheckConfigMap(cli client.Client, namespace, name string) (bool, error) {
 	cm := corev1.ConfigMap{}
 	err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &cm)
 	if err != nil {
 		return false, err
 	}
-	fmt.Println(cm)
 	return true, nil
 }
 
@@ -49,6 +62,7 @@ func CheckSecret(cli client.Client, namespace, name string) (bool, error) {
 	return true, nil
 }
 
+/*
 func GetCIDRs(cli client.Client, cluster *storagev1.Cluster) (string, error) {
 	var cidrs string
 	for _, host := range cluster.Spec.Hosts {
@@ -59,7 +73,7 @@ func GetCIDRs(cli client.Client, cluster *storagev1.Cluster) (string, error) {
 		cidrs = cidrs + cidr + ","
 	}
 	return strings.TrimRight(cidrs, ","), nil
-}
+}*/
 
 func GetPodIp(cli client.Client, name string) (string, error) {
 	pods := corev1.PodList{}
@@ -118,7 +132,7 @@ func getHostpodCIDR(cli client.Client, name string) (string, error) {
 	return node.Spec.PodCIDR, nil
 }
 
-func ToSlice(cluster *storagev1.Cluster) []string {
+func ToSlice(cluster common.Storage) []string {
 	infos := make([]string, 0)
 	for _, host := range cluster.Spec.Hosts {
 		for _, dev := range host.BlockDevices {

@@ -2,9 +2,7 @@ package ceph
 
 import (
 	"github.com/zdnscloud/cement/errgroup"
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
 	"github.com/zdnscloud/immense/pkg/ceph/config"
 	"github.com/zdnscloud/immense/pkg/ceph/fscsi"
@@ -19,23 +17,13 @@ import (
 	"strings"
 )
 
-func create(cli client.Client, cluster *storagev1.Cluster) error {
-	/*
-		networks, err := util.GetCIDRs(cli, cluster)
-		if err != nil {
-			return err
-		}*/
+func create(cli client.Client, cluster common.Storage) error {
 	networks := "10.42.0.0/16"
 	uuid, adminkey, monkey, err := initconf()
 	if err != nil {
 		return err
 	}
 	copiers := getReplication(cluster)
-	s := storagev1.ClusterStatus{
-		Phase: "Creating"}
-	if err := common.UpdateStatus(cli, cluster.Name, s); err != nil {
-		log.Warnf("Update storage cluster %s status failed. Err: %s", cluster.Name, err.Error())
-	}
 	if err := config.Start(cli, uuid, networks, adminkey, monkey, copiers); err != nil {
 		return err
 	}
@@ -68,11 +56,6 @@ func create(cli client.Client, cluster *storagev1.Cluster) error {
 	go osd.Watch()
 	go mon.Watch(cli)
 	go status.Watch(cli, cluster.Name)
-	s = storagev1.ClusterStatus{
-		Phase: "Running"}
-	if err := common.UpdateStatus(cli, cluster.Name, s); err != nil {
-		log.Warnf("Update storage cluster %s status failed. Err: %s", cluster.Name, err.Error())
-	}
 	return nil
 }
 
@@ -93,7 +76,7 @@ func initconf() (string, string, string, error) {
 	return uuid, adminkey, monkey, nil
 }
 
-func getReplication(cluster *storagev1.Cluster) int {
+func getReplication(cluster common.Storage) int {
 	var num, Replication int
 	for _, host := range cluster.Spec.Hosts {
 		num += len(host.BlockDevices)

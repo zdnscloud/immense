@@ -209,8 +209,6 @@ spec:
       labels:
         app: csi-lvmplugin
     spec:
-      nodeSelector: 
-        {{.LabelKey}}: {{.LabelValue}}
       serviceAccount: csi-lvmplugin
       hostNetwork: true
       containers:
@@ -242,7 +240,6 @@ spec:
           args :
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--v=5"
             - "--vgname=$(VG_NAME)"
             - "--drivername=csi-lvmplugin"
           env:
@@ -321,8 +318,6 @@ spec:
       labels:
         app: csi-lvmplugin-attacher
     spec:
-      nodeSelector: 
-        {{.LabelKey}}: {{.LabelValue}}
       serviceAccount: csi-lvmplugin-attacher
       hostNetwork: true
       containers:
@@ -375,8 +370,6 @@ spec:
       labels:
         app: csi-lvmplugin-provisioner
     spec:
-      nodeSelector: 
-        {{.LabelKey}}: {{.LabelValue}}
       serviceAccount: csi-lvmplugin-provisioner
       hostNetwork: true
       containers:

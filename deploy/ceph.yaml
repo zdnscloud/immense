@@ -4,8 +4,4 @@ metadata:
   name: ceph-cluster
 spec:
   storageType: "ceph"
-  hosts: 
-  - nodeName: "k8s-04"
-    blockDevices: ["/dev/vdb"]
-  - nodeName: "k8s-05"
-    blockDevices: ["/dev/vdb"]
+  hosts: ["k8s-06"]

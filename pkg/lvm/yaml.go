@@ -13,7 +13,7 @@ func csiyaml() (string, error) {
 		"StorageLvmAttacherImage":        "quay.io/k8scsi/csi-attacher:v1.0.1",
 		"StorageLvmProvisionerImage":     "quay.io/k8scsi/csi-provisioner:v1.0.1",
 		"StorageLvmDriverRegistrarImage": "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2",
-		"StorageLvmCSIImage":             "zdnscloud/lvmcsi:v0.5",
+		"StorageLvmCSIImage":             "zdnscloud/lvmcsi:v0.6",
 		"StorageClassName":               StorageClassName,
 	}
 	return common.CompileTemplateFromMap(LvmCSITemplate, cfg)
