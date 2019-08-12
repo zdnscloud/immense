@@ -2,9 +2,11 @@ package util
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/common"
+	zketypes "github.com/zdnscloud/zke/types"
 	corev1 "k8s.io/api/core/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	"os/exec"
@@ -141,4 +143,16 @@ func ToSlice(cluster common.Storage) []string {
 		}
 	}
 	return infos
+}
+
+func GetClusterCIDR(cli client.Client, namespace, name string) (string, error) {
+	cm := corev1.ConfigMap{}
+	err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &cm)
+	if err != nil {
+		return "", err
+	}
+	var res zketypes.ZKEConfig
+	json.Unmarshal([]byte(cm.Data["cluster-config"]), &res)
+	return res.Option.ClusterCidr, nil
+
 }

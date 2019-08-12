@@ -22,6 +22,8 @@ const (
 	StorageHostRole          = "node-role.kubernetes.io/storage"
 	LvmLabelsValue           = "Lvm"
 	CephLabelsValue          = "Ceph"
+	CIDRconfigMap            = "cluster-config"
+	CIDRconfigMapNamespace   = "kube-system"
 )
 
 var ctx = context.TODO()
