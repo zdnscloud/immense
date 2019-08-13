@@ -38,10 +38,6 @@ spec:
         args:
           - "mds"
         env:
-          - name: MDS_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: spec.nodeName
           - name: CEPHFS_CREATE
             value: "1"
           - name: CEPHFS_NAME

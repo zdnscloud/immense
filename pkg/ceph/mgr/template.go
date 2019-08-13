@@ -32,10 +32,6 @@ spec:
         args:
           - "mgr"
         env:
-          - name: MGR_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: spec.nodeName
         volumeMounts:
         - name: shared-data
           mountPath: /etc/ceph

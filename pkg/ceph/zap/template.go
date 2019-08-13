@@ -13,7 +13,7 @@ spec:
       name: ceph-job-zap-{{.NodeName}}-{{.OsdID}}
     spec:
       restartPolicy: Never
-      nodeName: {{.NodeName}}
+      nodeName: "{{.NodeName}}"
       containers:
       - name: ceph-zap
         image: {{.CephImage}}

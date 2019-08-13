@@ -17,7 +17,7 @@ spec:
         app: ceph-osd-{{.NodeName}}-{{.OsdID}}
     spec:
       nodeSelector:
-        kubernetes.io/hostname: {{.NodeName}}
+        kubernetes.io/hostname: "{{.NodeName}}"
       initContainers:
       - name: ceph-init-conf
         image: {{.CephInitImage}}

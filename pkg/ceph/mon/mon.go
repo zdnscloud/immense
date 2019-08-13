@@ -38,7 +38,7 @@ func Start(cli client.Client, networks string) error {
 	if !ready {
 		return errors.New("Timeout. Ceph cluster has not ready")
 	}
-	//time.Sleep(60 * time.Second)
+	time.Sleep(60 * time.Second)
 	return nil
 }
 
