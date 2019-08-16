@@ -2,18 +2,26 @@ package common
 
 import (
 	"github.com/zdnscloud/cement/set"
+	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"reflect"
 )
 
-func tomap(cfgs Storage) map[string][]string {
+func tomap(infos []storagev1.HostInfo) map[string][]string {
 	res := make(map[string][]string)
-	for _, v := range cfgs.Spec.Hosts {
-		res[v.NodeName] = v.BlockDevices
+	for _, info := range infos {
+		devs := make([]string, 0)
+		for _, d := range info.BlockDevices {
+			devs = append(devs, d.Name)
+		}
+		res[info.NodeName] = devs
 	}
 	return res
 }
 
-func Diff(oldcfg, newcfg Storage) (map[string][]string, map[string][]string, map[string][]string, map[string][]string) {
+//func Diff(oldcfg, newcfg storagev1.Cluster) (map[string][]string, map[string][]string, map[string][]string, map[string][]string) {
+func Diff(oldcfg, newcfg []storagev1.HostInfo) (map[string][]string, map[string][]string, map[string][]string, map[string][]string) {
+	//oldmap := tomap(oldcfg.Status.Config)
+	//newmap := tomap(newcfg.Status.Config)
 	oldmap := tomap(oldcfg)
 	newmap := tomap(newcfg)
 	addcfg := make(map[string][]string)

@@ -3,6 +3,7 @@ package ceph
 import (
 	"github.com/zdnscloud/cement/errgroup"
 	"github.com/zdnscloud/gok8s/client"
+	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
 	"github.com/zdnscloud/immense/pkg/ceph/config"
 	"github.com/zdnscloud/immense/pkg/ceph/fscsi"
@@ -17,7 +18,7 @@ import (
 	"strings"
 )
 
-func create(cli client.Client, cluster common.Storage) error {
+func create(cli client.Client, cluster storagev1.Cluster) error {
 	//networks := "10.42.0.0/16"
 	networks, err := util.GetClusterCIDR(cli, common.CIDRconfigMapNamespace, common.CIDRconfigMap)
 	if err != nil {
@@ -81,9 +82,9 @@ func initconf() (string, string, string, error) {
 	return uuid, adminkey, monkey, nil
 }
 
-func getReplication(cluster common.Storage) int {
+func getReplication(cluster storagev1.Cluster) int {
 	var num, Replication int
-	for _, host := range cluster.Spec.Hosts {
+	for _, host := range cluster.Status.Config {
 		num += len(host.BlockDevices)
 	}
 	if num > 2 {

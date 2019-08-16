@@ -3,13 +3,11 @@ package common
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
-	"strings"
 	"text/template"
 )
 
@@ -28,19 +26,16 @@ const (
 
 var ctx = context.TODO()
 
-func CreateNodeAnnotationsAndLabels(cli client.Client, cluster Storage) error {
+func CreateNodeAnnotationsAndLabels(cli client.Client, cluster storagev1.Cluster) error {
 	for _, host := range cluster.Spec.Hosts {
-		if len(host.BlockDevices) == 0 {
-			continue
-		}
-		log.Debugf("[%s] Add Annotations and Labels for host:%s, devs: %s", cluster.Spec.StorageType, host.NodeName, host.BlockDevices)
+		log.Debugf("[%s] Add Labels for host:%s", cluster.Spec.StorageType, host)
 		node := corev1.Node{}
-		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
-			log.Warnf("[%s] Add Annotations and Labels for host %s. Err: %s", cluster.Spec.StorageType, host.NodeName, err.Error())
+		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host}, &node); err != nil {
+			log.Warnf("[%s] Add Labels for host %s. Err: %s", cluster.Spec.StorageType, host, err.Error())
 			continue
 		}
 		node.Labels[StorageHostRole] = "true"
-		node.Annotations[StorageBlocksAnnotations] = strings.Replace(strings.Trim(fmt.Sprint(host.BlockDevices), "[]"), " ", ",", -1)
+		//	node.Annotations[StorageBlocksAnnotations] = strings.Replace(strings.Trim(fmt.Sprint(host.BlockDevices), "[]"), " ", ",", -1)
 		if cluster.Spec.StorageType == "lvm" {
 			node.Labels[StorageHostLabels] = LvmLabelsValue
 		}
@@ -48,29 +43,26 @@ func CreateNodeAnnotationsAndLabels(cli client.Client, cluster Storage) error {
 			node.Labels[StorageHostLabels] = CephLabelsValue
 		}
 		if err := cli.Update(ctx, &node); err != nil {
-			log.Warnf("[%s] Add Annotations and Labels for host %s. Err: %s", cluster.Spec.StorageType, host.NodeName, err.Error())
+			log.Warnf("[%s] Add Annotations and Labels for host %s. Err: %s", cluster.Spec.StorageType, host, err.Error())
 			continue
 		}
 	}
 	return nil
 }
 
-func DeleteNodeAnnotationsAndLabels(cli client.Client, cluster Storage) error {
+func DeleteNodeAnnotationsAndLabels(cli client.Client, cluster storagev1.Cluster) error {
 	for _, host := range cluster.Spec.Hosts {
-		if len(host.BlockDevices) == 0 {
-			continue
-		}
-		log.Debugf("[%s] Del Annotations and Labels for host:%s, devs: %s", cluster.Spec.StorageType, host.NodeName, host.BlockDevices)
+		log.Debugf("[%s] Del Labels for host:%s", cluster.Spec.StorageType, host)
 		node := corev1.Node{}
-		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host.NodeName}, &node); err != nil {
-			log.Warnf("[%s] Del Annotations and Labels for host %s. Err: %s", cluster.Spec.StorageType, host.NodeName, err.Error())
+		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host}, &node); err != nil {
+			log.Warnf("[%s] Del Labels for host %s. Err: %s", cluster.Spec.StorageType, host, err.Error())
 			continue
 		}
 		delete(node.Labels, StorageHostRole)
-		delete(node.Annotations, StorageBlocksAnnotations)
+		//delete(node.Annotations, StorageBlocksAnnotations)
 		delete(node.Labels, StorageHostLabels)
 		if err := cli.Update(ctx, &node); err != nil {
-			log.Warnf("[%s] Del Annotations and Labels for host %s. Err: %s", cluster.Spec.StorageType, host.NodeName, err.Error())
+			log.Warnf("[%s] Del Labels for host %s. Err: %s", cluster.Spec.StorageType, host, err.Error())
 			continue
 		}
 	}
@@ -86,38 +78,57 @@ func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error)
 	return out.String(), nil
 }
 
+/*
 func getHostAddr(cli client.Client, name string) (string, error) {
 	node := corev1.Node{}
 	if err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &node); err != nil {
 		return "", err
 	}
 	return node.Annotations[NodeIPLabels], nil
-}
+}*/
 
-func MakeClusterCfg(cfg map[string][]string, nodeLabelValue string) Storage {
-	hosts := make([]Host, 0)
+/*
+func MakeClusterCfg(cfg map[string][]string, nodeLabelValue string) storagev1.Cluster {
+	hosts := make([]storagev1.HostInfo, 0)
 	for k, v := range cfg {
-		host := Host{
+		devs := make([]storagev1.Dev, 0)
+		for _, d := range v {
+			dev := storagev1.Dev{
+				Name: d,
+			}
+			devs = append(devs, dev)
+		}
+		host := storagev1.HostInfo{
 			NodeName:     k,
-			BlockDevices: v,
+			BlockDevices: devs,
 		}
 		hosts = append(hosts, host)
 	}
-	return Storage{
-		Spec: StorageSpec{
+	return storagev1.Cluster{
+		Spec: storagev1.ClusterSpec{
 			StorageType: nodeLabelValue,
-			Hosts:       hosts,
+		},
+		Status: storagev1.ClusterStatus{
+			Config: hosts,
 		},
 	}
-}
+}*/
 
-func UpdateStatus(cli client.Client, name string, status storagev1.ClusterStatus) error {
+func UpdateStatus(cli client.Client, name string, phase string, message string, capacity storagev1.Capacity) error {
 	storagecluster := storagev1.Cluster{}
 	err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &storagecluster)
 	if err != nil {
 		return err
 	}
-	storagecluster.Status = status
+	if phase != "" {
+		storagecluster.Status.Phase = phase
+	}
+	if message != "" {
+		storagecluster.Status.Message = message
+	}
+	if len(capacity.Instances) > 0 {
+		storagecluster.Status.Capacity = capacity
+	}
 	return cli.Update(ctx, &storagecluster)
 }
 
@@ -129,4 +140,13 @@ func UpdateStatusPhase(cli client.Client, name, phase string) error {
 	}
 	storagecluster.Status.Phase = phase
 	return cli.Update(ctx, &storagecluster)
+}
+
+func GetStorage(cli client.Client, name string) (storagev1.Cluster, error) {
+	storagecluster := storagev1.Cluster{}
+	err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &storagecluster)
+	if err != nil {
+		return storagecluster, err
+	}
+	return storagecluster, nil
 }

@@ -3,6 +3,7 @@ package ceph
 import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
+	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
@@ -20,7 +21,7 @@ func (s *Ceph) GetType() string {
 	return "ceph"
 }
 
-func (s *Ceph) Create(cluster common.Storage) error {
+func (s *Ceph) Create(cluster storagev1.Cluster) error {
 	if err := common.UpdateStatusPhase(s.cli, cluster.Name, "Creating"); err != nil {
 		log.Warnf("Update storage cluster %s status failed. Err: %s", cluster.Name, err.Error())
 	}
@@ -36,7 +37,7 @@ func (s *Ceph) Create(cluster common.Storage) error {
 	return nil
 }
 
-func (s *Ceph) Update(dels, adds common.Storage) error {
+func (s *Ceph) Update(dels, adds storagev1.Cluster) error {
 	if err := common.UpdateStatusPhase(s.cli, adds.Name, "Updating"); err != nil {
 		log.Warnf("Update storage cluster %s status failed. Err: %s", adds.Name, err.Error())
 	}
@@ -58,7 +59,7 @@ func (s *Ceph) Update(dels, adds common.Storage) error {
 	return nil
 }
 
-func (s *Ceph) Delete(cluster common.Storage) error {
+func (s *Ceph) Delete(cluster storagev1.Cluster) error {
 	if err := delete(s.cli, cluster); err != nil {
 		return err
 	}

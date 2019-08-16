@@ -13,9 +13,9 @@ import (
 
 type Handler interface {
 	GetType() string
-	Create(cluster common.Storage) error
-	Delete(cluster common.Storage) error
-	Update(oldc, newc common.Storage) error
+	Create(cluster storagev1.Cluster) error
+	Delete(cluster storagev1.Cluster) error
+	Update(oldc, newc storagev1.Cluster) error
 }
 
 type HandlerManager struct {
@@ -52,12 +52,13 @@ func (h *HandlerManager) Delete(cluster *storagev1.Cluster) error {
 	for _, s := range h.handlers {
 		if s.GetType() == cluster.Spec.StorageType {
 			log.Debugf("[%s] delete event", cluster.Spec.StorageType)
-			newcluster, err := common.AssembleDeleteConfig(h.client, cluster)
-			if err != nil {
-				return err
-			}
-			logCluster(newcluster, "delete")
-			return s.Delete(newcluster)
+			/*
+				newcluster, err := common.AssembleDeleteConfig(h.client, cluster)
+				if err != nil {
+					return err
+				}*/
+			logCluster(*cluster, "delete")
+			return s.Delete(*cluster)
 		}
 	}
 	return nil
@@ -89,9 +90,13 @@ func (h *HandlerManager) Update(oldc *storagev1.Cluster, newc *storagev1.Cluster
 	return nil
 }
 
-func logCluster(cluster common.Storage, action string) {
+func logCluster(cluster storagev1.Cluster, action string) {
 	log.Debugf("name:%s, type:%s, action:%s", cluster.Name, cluster.Spec.StorageType, action)
-	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("node:%s, devs:%s", host.NodeName, host.BlockDevices)
+	for _, host := range cluster.Status.Config {
+		devs := make([]string, 0)
+		for _, dev := range host.BlockDevices {
+			devs = append(devs, dev.Name)
+		}
+		log.Debugf("node:%s, devs:%s", host.NodeName, devs)
 	}
 }

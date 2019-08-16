@@ -22,10 +22,10 @@ func csiyaml() (string, error) {
 func lvmdyaml() (string, error) {
 	cfg := map[string]interface{}{
 		"RBACConfig":       common.RBACConfig,
-		"LabelKey":         common.StorageHostLabels,
 		"LabelValue":       common.LvmLabelsValue,
-		"StorageNamespace": common.StorageNamespace,
+		"LabelKey":         common.StorageHostLabels,
 		"StorageLvmdImage": "zdnscloud/lvmd:v0.5",
+		"StorageNamespace": common.StorageNamespace,
 	}
 	return common.CompileTemplateFromMap(LvmdTemplate, cfg)
 }

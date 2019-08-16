@@ -3,10 +3,11 @@ package lvm
 import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
+	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
-func doDelhost(cli client.Client, cluster common.Storage) error {
+func doDelhost(cli client.Client, cluster storagev1.Cluster) error {
 	if len(cluster.Spec.Hosts) == 0 {
 		return nil
 	}
@@ -17,7 +18,7 @@ func doDelhost(cli client.Client, cluster common.Storage) error {
 	return common.DeleteNodeAnnotationsAndLabels(cli, cluster)
 }
 
-func doAddhost(cli client.Client, cluster common.Storage) error {
+func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 	if len(cluster.Spec.Hosts) == 0 {
 		return nil
 	}

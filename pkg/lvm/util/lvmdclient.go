@@ -1,18 +1,29 @@
-package common
+package util
 
 import (
 	"context"
 	"errors"
 	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/immense/pkg/common"
 	lvmdclient "github.com/zdnscloud/lvmd/client"
 	pb "github.com/zdnscloud/lvmd/proto"
+	corev1 "k8s.io/api/core/v1"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 	"net"
 	"strconv"
 	"time"
 )
 
+func getHostAddr(ctx context.Context, cli client.Client, name string) (string, error) {
+	node := corev1.Node{}
+	if err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &node); err != nil {
+		return "", err
+	}
+	return node.Annotations[common.NodeIPLabels], nil
+}
+
 func CreateLvmdClient(ctx context.Context, cli client.Client, hostname string) (*lvmdclient.Client, error) {
-	hostip, err := getHostAddr(cli, hostname)
+	hostip, err := getHostAddr(ctx, cli, hostname)
 	if err != nil {
 		return nil, errors.New("Get host address failed!" + err.Error())
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
+	"github.com/zdnscloud/immense/pkg/lvm/util"
 	pb "github.com/zdnscloud/lvmd/proto"
 	"strconv"
 	"strings"
@@ -17,33 +18,38 @@ func StatusControl(cli client.Client, name string) {
 	log.Debugf("[lvm-status-controller] Start")
 	for {
 		time.Sleep(60 * time.Second)
-		storage, err := common.GetStorage(cli, name)
+		storagecluster, err := common.GetStorage(cli, name)
 		if err != nil {
 			log.Warnf("[lvm-status-controller] Get storage %s config with blocks failed. Err: %s", name, err.Error())
 			log.Debugf("[lvm-status-controller] Stop")
 			return
 		}
-		if storage.Status == "Updating" || storage.Status == "Creating" {
+		if storagecluster.Status.Phase == "Updating" || storagecluster.Status.Phase == "Creating" {
 			continue
 		}
-		status := getInfo(cli, storage)
-		if err := common.UpdateStatus(cli, name, status); err != nil {
+		phase, message, capacity := getStatus(cli, storagecluster)
+		//status := getInfo(cli, storage)
+		if err := common.UpdateStatus(cli, name, phase, message, capacity); err != nil {
 			log.Warnf("[lvm-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
 			continue
 		}
 	}
 }
 
-func getInfo(cli client.Client, storagecluster common.Storage) storagev1.ClusterStatus {
+func getStatus(cli client.Client, storagecluster storagev1.Cluster) (string, string, storagev1.Capacity) {
 	ctx := context.TODO()
 	var state, message string
 	var capacity storagev1.Capacity
 	instances := make([]storagev1.Instance, 0)
 	var total, used, free uint64
-	for _, host := range storagecluster.Spec.Hosts {
+	for _, host := range storagecluster.Status.Config {
 		var instance storagev1.Instance
 		instance.Host = host.NodeName
-		instance.Dev = strings.Replace(strings.Trim(fmt.Sprint(host.BlockDevices), "[]"), " ", ",", -1)
+		devs := make([]string, 0)
+		for _, d := range host.BlockDevices {
+			devs = append(devs, d.Name)
+		}
+		instance.Dev = strings.Replace(strings.Trim(fmt.Sprint(devs), "[]"), " ", ",", -1)
 		if len(instance.Dev) == 0 {
 			state = "Warnning"
 			message = message + host.NodeName + ":" + "No block devices can be used\n"
@@ -52,7 +58,7 @@ func getInfo(cli client.Client, storagecluster common.Storage) storagev1.Cluster
 			log.Warnf("[lvm-status-controller] Hosts %s have no block devices can used", host.NodeName)
 			continue
 		}
-		lvmdcli, err := common.CreateLvmdClient(ctx, cli, host.NodeName)
+		lvmdcli, err := util.CreateLvmdClient(ctx, cli, host.NodeName)
 		if err != nil {
 			state = "Warnning"
 			message = message + host.NodeName + ":" + err.Error() + "\n"
@@ -100,9 +106,12 @@ func getInfo(cli client.Client, storagecluster common.Storage) storagev1.Cluster
 		Used:  string(strconv.Itoa(int(used))),
 		Free:  string(strconv.Itoa(int(free))),
 	}
-	return storagev1.ClusterStatus{
-		Phase:    state,
-		Message:  message,
-		Capacity: capacity,
-	}
+	return state, message, capacity
+	/*
+		return storagev1.ClusterStatus{
+			Phase:    state,
+			Message:  message,
+			Capacity: capacity,
+			Config:   storagecluster.Status.Config,
+		}*/
 }

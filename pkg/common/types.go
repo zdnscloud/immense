@@ -1,5 +1,6 @@
 package common
 
+/*
 type Storage struct {
 	Name   string
 	Spec   StorageSpec
@@ -13,9 +14,14 @@ type StorageSpec struct {
 
 type Host struct {
 	NodeName     string
-	BlockDevices []string
+	BlockDevices []Dev
 }
 
+type Dev struct {
+	Name string
+	Size string
+}
+*/
 /////////////////////////////////
 type Data struct {
 	Type         string            `json:"type"`
@@ -25,11 +31,11 @@ type Data struct {
 }
 
 type HostTmp struct {
-	NodeName     string `json:"nodeName"`
-	BlockDevices []Dev  `json:"blockDevices"`
+	NodeName     string   `json:"nodeName"`
+	BlockDevices []DevTmp `json:"blockDevices"`
 }
 
-type Dev struct {
+type DevTmp struct {
 	Name       string `json:"name"`
 	Size       string `json:"size"`
 	Parted     bool   `json:"parted"`

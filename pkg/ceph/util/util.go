@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/zdnscloud/gok8s/client"
+	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/common"
 	zketypes "github.com/zdnscloud/zke/types"
@@ -134,11 +135,11 @@ func getHostpodCIDR(cli client.Client, name string) (string, error) {
 	return node.Spec.PodCIDR, nil
 }
 
-func ToSlice(cluster common.Storage) []string {
+func ToSlice(cluster storagev1.Cluster) []string {
 	infos := make([]string, 0)
-	for _, host := range cluster.Spec.Hosts {
+	for _, host := range cluster.Status.Config {
 		for _, dev := range host.BlockDevices {
-			info := host.NodeName + ":" + dev
+			info := host.NodeName + ":" + dev.Name
 			infos = append(infos, info)
 		}
 	}

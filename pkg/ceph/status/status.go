@@ -21,34 +21,42 @@ func Watch(cli client.Client, name string) {
 			log.Debugf("[ceph-status-controller] Stop")
 			return
 		}
-		if storagecluster.Status == "Updating" || storagecluster.Status == "Creating" {
+		if storagecluster.Status.Phase == "Updating" || storagecluster.Status.Phase == "Creating" {
 			continue
 		}
-		status, err := getStatus(storagecluster)
+		phase, message, capacity, err := getStatus(storagecluster)
+		//status, err := getStatus(storagecluster)
 		if err != nil {
 			log.Warnf("[ceph-status-controller] Get ceph status failed. Err: %s", err.Error())
 			continue
 		}
-		if err := common.UpdateStatus(cli, name, status); err != nil {
+		if err := common.UpdateStatus(cli, name, phase, message, capacity); err != nil {
 			log.Warnf("[ceph-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
 		}
 	}
 }
 
-func getStatus(storagecluster common.Storage) (storagev1.ClusterStatus, error) {
-	var status storagev1.ClusterStatus
+func getStatus(storagecluster storagev1.Cluster) (string, string, storagev1.Capacity, error) {
+	var phase, message string
+	var capacity storagev1.Capacity
+
+	//var status storagev1.ClusterStatus
 	phase, message, err := getPhaseAndMsg()
 	if err != nil {
-		return status, err
+		return phase, message, capacity, err
 	}
-	capacity, err := getCapacity(storagecluster)
+	capacity, err = getCapacity(storagecluster)
 	if err != nil {
-		return status, err
+		return phase, message, capacity, err
 	}
-	status.Phase = phase
-	status.Message = message
-	status.Capacity = capacity
-	return status, nil
+	return phase, message, capacity, nil
+	/*
+		status.Phase = phase
+		status.Message = message
+		status.Capacity = capacity
+		status.Config = storagecluster.Status.Config
+		return status, nil
+	*/
 }
 
 func getPhaseAndMsg() (string, string, error) {
@@ -69,7 +77,7 @@ func getPhaseAndMsg() (string, string, error) {
 
 var unit = int64(1024)
 
-func getCapacity(storagecluster common.Storage) (storagev1.Capacity, error) {
+func getCapacity(storagecluster storagev1.Cluster) (storagev1.Capacity, error) {
 	var capacity storagev1.Capacity
 	infos, err := cephclient.GetDF()
 	if err != nil {
@@ -86,7 +94,7 @@ func getCapacity(storagecluster common.Storage) (storagev1.Capacity, error) {
 	return capacity, nil
 }
 
-func getOnlineInstances(storagecluster common.Storage, nodes []cephclient.Node) []storagev1.Instance {
+func getOnlineInstances(storagecluster storagev1.Cluster, nodes []cephclient.Node) []storagev1.Instance {
 	instances := make([]storagev1.Instance, 0)
 	for _, n := range nodes {
 		name, err := cephclient.GetIDToHost(strconv.FormatInt(n.ID, 10))
@@ -116,7 +124,7 @@ func getOnlineInstances(storagecluster common.Storage, nodes []cephclient.Node) 
 	return instances
 }
 
-func getOfflineInstances(storagecluster common.Storage, onlineinstances []storagev1.Instance) []storagev1.Instance {
+func getOfflineInstances(storagecluster storagev1.Cluster, onlineinstances []storagev1.Instance) []storagev1.Instance {
 	instances := make([]storagev1.Instance, 0)
 	online := make(map[string][]string)
 	for _, i := range onlineinstances {
@@ -125,8 +133,10 @@ func getOfflineInstances(storagecluster common.Storage, onlineinstances []storag
 		}
 		online[i.Host] = append(online[i.Host], i.Dev)
 	}
-	onlinecluster := common.MakeClusterCfg(online, "ceph")
-	delcfg, _, _, _ := common.Diff(storagecluster, onlinecluster)
+	//onlinecluster := common.MakeClusterCfg(online, "ceph")
+	onlinecluster := mapToInfos(online)
+	//delcfg, _, _, _ := common.Diff(storagecluster, onlinecluster)
+	delcfg, _, _, _ := common.Diff(storagecluster.Status.Config, onlinecluster)
 	for host, devs := range delcfg {
 		if len(devs) == 0 {
 			instance := storagev1.Instance{
@@ -148,13 +158,34 @@ func getOfflineInstances(storagecluster common.Storage, onlineinstances []storag
 	return instances
 }
 
-func osdSplit(storagecluster common.Storage, podname string) (string, string) {
-	for _, h := range storagecluster.Spec.Hosts {
+func osdSplit(storagecluster storagev1.Cluster, podname string) (string, string) {
+	for _, h := range storagecluster.Status.Config {
 		for _, d := range h.BlockDevices {
-			if strings.Contains(podname, h.NodeName) && strings.Contains(podname, d[5:]) {
-				return h.NodeName, d
+			str1 := "-" + h.NodeName + "-"
+			str2 := "-" + d.Name[5:] + "-"
+			if strings.Contains(podname, str1) && strings.Contains(podname, str2) {
+				return h.NodeName, d.Name
 			}
 		}
 	}
 	return "", ""
+}
+
+func mapToInfos(online map[string][]string) []storagev1.HostInfo {
+	hosts := make([]storagev1.HostInfo, 0)
+	for k, v := range online {
+		devs := make([]storagev1.Dev, 0)
+		for _, d := range v {
+			dev := storagev1.Dev{
+				Name: d,
+			}
+			devs = append(devs, dev)
+		}
+		host := storagev1.HostInfo{
+			NodeName:     k,
+			BlockDevices: devs,
+		}
+		hosts = append(hosts, host)
+	}
+	return hosts
 }
