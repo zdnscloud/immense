@@ -19,7 +19,6 @@ import (
 )
 
 func create(cli client.Client, cluster storagev1.Cluster) error {
-	//networks := "10.42.0.0/16"
 	networks, err := util.GetClusterCIDR(cli, common.CIDRconfigMapNamespace, common.CIDRconfigMap)
 	if err != nil {
 		return err

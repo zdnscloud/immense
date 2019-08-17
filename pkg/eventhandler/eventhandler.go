@@ -52,11 +52,6 @@ func (h *HandlerManager) Delete(cluster *storagev1.Cluster) error {
 	for _, s := range h.handlers {
 		if s.GetType() == cluster.Spec.StorageType {
 			log.Debugf("[%s] delete event", cluster.Spec.StorageType)
-			/*
-				newcluster, err := common.AssembleDeleteConfig(h.client, cluster)
-				if err != nil {
-					return err
-				}*/
 			logCluster(*cluster, "delete")
 			return s.Delete(*cluster)
 		}

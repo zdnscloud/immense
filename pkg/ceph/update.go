@@ -1,7 +1,6 @@
 package ceph
 
 import (
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/ceph/osd"
@@ -11,7 +10,6 @@ func doDelhost(cli client.Client, cluster storagev1.Cluster) error {
 	if len(cluster.Spec.Hosts) == 0 {
 		return nil
 	}
-	log.Debugf("Delete device for storage, Cfg: %s", cluster.Status.Config)
 	for _, host := range cluster.Status.Config {
 		for _, d := range host.BlockDevices {
 			dev := d.Name[5:]
@@ -27,7 +25,6 @@ func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 	if len(cluster.Spec.Hosts) == 0 {
 		return nil
 	}
-	log.Debugf("Add device for storage, Cfg: %s", cluster.Status.Config)
 	for _, host := range cluster.Status.Config {
 		for _, d := range host.BlockDevices {
 			dev := d.Name[5:]

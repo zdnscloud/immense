@@ -25,7 +25,6 @@ func Watch(cli client.Client, name string) {
 			continue
 		}
 		phase, message, capacity, err := getStatus(storagecluster)
-		//status, err := getStatus(storagecluster)
 		if err != nil {
 			log.Warnf("[ceph-status-controller] Get ceph status failed. Err: %s", err.Error())
 			continue
@@ -40,7 +39,6 @@ func getStatus(storagecluster storagev1.Cluster) (string, string, storagev1.Capa
 	var phase, message string
 	var capacity storagev1.Capacity
 
-	//var status storagev1.ClusterStatus
 	phase, message, err := getPhaseAndMsg()
 	if err != nil {
 		return phase, message, capacity, err
@@ -50,13 +48,6 @@ func getStatus(storagecluster storagev1.Cluster) (string, string, storagev1.Capa
 		return phase, message, capacity, err
 	}
 	return phase, message, capacity, nil
-	/*
-		status.Phase = phase
-		status.Message = message
-		status.Capacity = capacity
-		status.Config = storagecluster.Status.Config
-		return status, nil
-	*/
 }
 
 func getPhaseAndMsg() (string, string, error) {
@@ -133,9 +124,7 @@ func getOfflineInstances(storagecluster storagev1.Cluster, onlineinstances []sto
 		}
 		online[i.Host] = append(online[i.Host], i.Dev)
 	}
-	//onlinecluster := common.MakeClusterCfg(online, "ceph")
 	onlinecluster := mapToInfos(online)
-	//delcfg, _, _, _ := common.Diff(storagecluster, onlinecluster)
 	delcfg, _, _, _ := common.Diff(storagecluster.Status.Config, onlinecluster)
 	for host, devs := range delcfg {
 		if len(devs) == 0 {

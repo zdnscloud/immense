@@ -1,28 +1,5 @@
 package common
 
-/*
-type Storage struct {
-	Name   string
-	Spec   StorageSpec
-	Status string
-}
-
-type StorageSpec struct {
-	StorageType string
-	Hosts       []Host
-}
-
-type Host struct {
-	NodeName     string
-	BlockDevices []Dev
-}
-
-type Dev struct {
-	Name string
-	Size string
-}
-*/
-/////////////////////////////////
 type Data struct {
 	Type         string            `json:"type"`
 	ResourceType string            `json:"resourceType"`

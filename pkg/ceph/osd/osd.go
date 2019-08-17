@@ -2,14 +2,12 @@ package osd
 
 import (
 	"errors"
-	"fmt"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"github.com/zdnscloud/immense/pkg/ceph/zap"
-	"strings"
 	"time"
 )
 
@@ -68,17 +66,6 @@ func check(cli client.Client, host, dev string) (bool, error) {
 	return false, nil
 }
 
-func checkHealth() error {
-	out, err := cephclient.CheckHealth()
-	if err != nil {
-		return errors.New(fmt.Sprintf("Ceph check health failed: %v", err.Error()))
-	}
-	if strings.Contains(out, "HEALTH_OK") {
-		return nil
-	}
-	return errors.New(out)
-}
-
 func Watch() {
 	log.Debugf("[ceph-osd-watcher] Start")
 	for {
@@ -100,11 +87,6 @@ func Watch() {
 			}
 		}
 		time.Sleep(20 * time.Second)
-		if err := checkHealth(); err != nil {
-			log.Warnf("[ceph-osd-watcher] Ceph health unnormal. Status: %s. Will rechecked after 60 seconds", err.Error())
-			continue
-		}
-		log.Debugf("[ceph-osd-watcher] Ceph cluster HEALTH_OK")
 		downandout, err := cephclient.GetDownOsdIDs("out")
 		if err != nil {
 			log.Warnf("[ceph-osd-watcher] Get osd down and out failed , err:%s", err.Error())

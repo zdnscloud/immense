@@ -52,28 +52,31 @@ func Stop(cli client.Client, networks string) error {
 }
 
 func check(cli client.Client) (bool, error) {
-	log.Debugf("Wait all mon running")
+	log.Debugf("Wait all mon running, this will take some time")
+	var mons []string
 	for i := 0; i < 60; i++ {
-		//mons, err := util.GetMonIPs(cli)
-		mons, err := util.GetMonSvc(cli)
-		if err != nil {
-			return false, err
-		}
-		if len(mons) == global.MonNum {
-			if checkMonConnect(mons) {
-				return true, nil
-			}
-		}
 		time.Sleep(5 * time.Second)
+		if len(mons) < global.MonNum {
+			svc, err := util.GetMonSvc(cli)
+			if err != nil {
+				return false, err
+			}
+			mons = append(mons, svc...)
+		}
+		if checkMonConnect(mons) {
+			return true, nil
+		}
 	}
-	return false, errors.New("Timeout. Mon has not ready")
+	return false, errors.New("Timeout. Mons has not ready")
 }
 
 func checkMonConnect(ips []string) bool {
+	connTimeout := 5 * time.Second
 	for _, ip := range ips {
 		addr := ip + ":6789"
-		_, err := net.Dial("tcp", addr)
+		_, err := net.DialTimeout("tcp", addr, connTimeout)
 		if err != nil {
+			log.Warnf("Mon %s 6789 port can not connection, try again later")
 			return false
 		}
 	}
@@ -88,55 +91,41 @@ func Watch(cli client.Client) {
 			log.Debugf("[ceph-mon-watcher] Stop")
 			return
 		}
-		ep := corev1.Endpoints{}
-		err := cli.Get(context.TODO(), k8stypes.NamespacedName{common.StorageNamespace, global.MonSvc}, &ep)
+		svc, err := getMonEp(cli)
 		if err != nil {
-			log.Warnf("[ceph-mon-watcher] Get endpoints %s failed. Err:%s", global.MonSvc, err.Error())
+			log.Warnf("[ceph-mon-watcher] Get endpoints %s failed. Err: %s", global.MonSvc, err.Error())
 			continue
 		}
-		svc := make(map[string]string)
-		for _, sub := range ep.Subsets {
-			for _, ads := range sub.Addresses {
-				svc[ads.Hostname] = ads.IP
-			}
-		}
-		moninfo, err := cephclient.GetMon()
+		unnormal, err := getUnnormalMon(svc)
 		if err != nil {
-			log.Warnf("[ceph-mon-watcher] Get mon dump failed. Err:%s", err.Error())
+			log.Warnf("[ceph-mon-watcher] Get mon dump failed. Err: %s", err.Error())
 			continue
-		}
-		unnormal := make([]string, 0)
-		for _, mon := range moninfo.Mons {
-			v, ok := svc[mon.Name]
-			if !ok || v != strings.Split(mon.Addr, ":")[0] {
-				unnormal = append(unnormal, mon.Name)
-			}
 		}
 		if len(unnormal) == 0 {
 			continue
 		}
 		log.Debugf("[ceph-mon-watcher] Watch mon %s has unnormal, remove it now", unnormal)
 		for _, name := range unnormal {
-			err := cephclient.Rmmon(name)
-			if err != nil {
+			if err := cephclient.Rmmon(name); err != nil {
 				log.Warnf("[ceph-mon-watcher] Remove mon %s failed. Err:%s", name, err.Error())
 				continue
 			}
 		}
-		var mons []string
-		for _, v := range svc {
-			mons = append(mons, v+":6789")
-		}
 		log.Debugf("[ceph-mon-watcher] Watch mons has changed, redeploy storageclass now")
-		monitors := strings.Replace(strings.Trim(fmt.Sprint(mons), "[]"), " ", ",", -1)
-		if err := redeployStorageclass(cli, monitors); err != nil {
+		if err := redeployStorageclass(cli, svc); err != nil {
 			log.Warnf("[ceph-mon-watcher] Redeploy storageclass %s failed. Err:%s", global.StorageClassName, err.Error())
 			continue
 		}
 	}
 }
 
-func redeployStorageclass(cli client.Client, monitors string) error {
+func redeployStorageclass(cli client.Client, svc map[string]string) error {
+	var mons []string
+	for _, v := range svc {
+		mons = append(mons, v+":6789")
+	}
+	monitors := strings.Replace(strings.Trim(fmt.Sprint(mons), "[]"), " ", ",", -1)
+
 	sc := storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{Name: global.StorageClassName, Namespace: ""},
 	}
@@ -147,8 +136,34 @@ func redeployStorageclass(cli client.Client, monitors string) error {
 	if err != nil {
 		return err
 	}
-	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
-		return err
+	return helper.CreateResourceFromYaml(cli, yaml)
+}
+
+func getMonEp(cli client.Client) (map[string]string, error) {
+	svc := make(map[string]string)
+	ep := corev1.Endpoints{}
+	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{common.StorageNamespace, global.MonSvc}, &ep); err != nil {
+		return svc, err
 	}
-	return nil
+	for _, sub := range ep.Subsets {
+		for _, ads := range sub.Addresses {
+			svc[ads.Hostname] = ads.IP
+		}
+	}
+	return svc, nil
+}
+
+func getUnnormalMon(svc map[string]string) ([]string, error) {
+	unnormal := make([]string, 0)
+	moninfo, err := cephclient.GetMon()
+	if err != nil {
+		return unnormal, err
+	}
+	for _, mon := range moninfo.Mons {
+		v, ok := svc[mon.Name]
+		if !ok || v != strings.Split(mon.Addr, ":")[0] {
+			unnormal = append(unnormal, mon.Name)
+		}
+	}
+	return unnormal, nil
 }

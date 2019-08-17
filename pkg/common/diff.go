@@ -18,10 +18,7 @@ func tomap(infos []storagev1.HostInfo) map[string][]string {
 	return res
 }
 
-//func Diff(oldcfg, newcfg storagev1.Cluster) (map[string][]string, map[string][]string, map[string][]string, map[string][]string) {
 func Diff(oldcfg, newcfg []storagev1.HostInfo) (map[string][]string, map[string][]string, map[string][]string, map[string][]string) {
-	//oldmap := tomap(oldcfg.Status.Config)
-	//newmap := tomap(newcfg.Status.Config)
 	oldmap := tomap(oldcfg)
 	newmap := tomap(newcfg)
 	addcfg := make(map[string][]string)

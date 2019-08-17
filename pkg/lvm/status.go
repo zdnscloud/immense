@@ -28,7 +28,6 @@ func StatusControl(cli client.Client, name string) {
 			continue
 		}
 		phase, message, capacity := getStatus(cli, storagecluster)
-		//status := getInfo(cli, storage)
 		if err := common.UpdateStatus(cli, name, phase, message, capacity); err != nil {
 			log.Warnf("[lvm-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
 			continue
@@ -107,11 +106,4 @@ func getStatus(cli client.Client, storagecluster storagev1.Cluster) (string, str
 		Free:  string(strconv.Itoa(int(free))),
 	}
 	return state, message, capacity
-	/*
-		return storagev1.ClusterStatus{
-			Phase:    state,
-			Message:  message,
-			Capacity: capacity,
-			Config:   storagecluster.Status.Config,
-		}*/
 }

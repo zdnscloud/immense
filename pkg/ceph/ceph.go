@@ -1,7 +1,6 @@
 package ceph
 
 import (
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
@@ -22,46 +21,30 @@ func (s *Ceph) GetType() string {
 }
 
 func (s *Ceph) Create(cluster storagev1.Cluster) error {
-	if err := common.UpdateStatusPhase(s.cli, cluster.Name, "Creating"); err != nil {
-		log.Warnf("Update storage cluster %s status failed. Err: %s", cluster.Name, err.Error())
-	}
-	if err := common.CreateNodeAnnotationsAndLabels(s.cli, cluster); err != nil {
-		return err
-	}
+	common.UpdateStatusPhase(s.cli, cluster.Name, "Creating")
+	common.CreateNodeAnnotationsAndLabels(s.cli, cluster)
 	if err := create(s.cli, cluster); err != nil {
 		return err
 	}
-	if err := common.UpdateStatusPhase(s.cli, cluster.Name, "Running"); err != nil {
-		log.Warnf("Update storage cluster %s status failed. Err: %s", cluster.Name, err.Error())
-	}
+	common.UpdateStatusPhase(s.cli, cluster.Name, "Running")
 	return nil
 }
 
 func (s *Ceph) Update(dels, adds storagev1.Cluster) error {
-	if err := common.UpdateStatusPhase(s.cli, adds.Name, "Updating"); err != nil {
-		log.Warnf("Update storage cluster %s status failed. Err: %s", adds.Name, err.Error())
-	}
-	if err := common.DeleteNodeAnnotationsAndLabels(s.cli, dels); err != nil {
-		return err
-	}
-	if err := common.CreateNodeAnnotationsAndLabels(s.cli, adds); err != nil {
-		return err
-	}
+	common.UpdateStatusPhase(s.cli, adds.Name, "Updating")
+	common.DeleteNodeAnnotationsAndLabels(s.cli, dels)
+	common.CreateNodeAnnotationsAndLabels(s.cli, adds)
 	if err := doAddhost(s.cli, adds); err != nil {
 		return err
 	}
 	if err := doDelhost(s.cli, dels); err != nil {
 		return err
 	}
-	if err := common.UpdateStatusPhase(s.cli, adds.Name, "Running"); err != nil {
-		log.Warnf("Update storage cluster %s status failed. Err: %s", adds.Name, err.Error())
-	}
+	common.UpdateStatusPhase(s.cli, adds.Name, "Running")
 	return nil
 }
 
 func (s *Ceph) Delete(cluster storagev1.Cluster) error {
-	if err := delete(s.cli, cluster); err != nil {
-		return err
-	}
-	return common.DeleteNodeAnnotationsAndLabels(s.cli, cluster)
+	common.DeleteNodeAnnotationsAndLabels(s.cli, cluster)
+	return delete(s.cli, cluster)
 }

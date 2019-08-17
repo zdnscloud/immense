@@ -1,7 +1,6 @@
 package common
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
@@ -13,7 +12,6 @@ import (
 )
 
 func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (storagev1.Cluster, error) {
-	//hosts, err := GetInfosFromStoragecluster(cli, cluster.Name)
 	storagecluster, err := GetStorage(cli, cluster.Name)
 	if err != nil {
 		return *cluster, err
@@ -45,99 +43,27 @@ func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (storag
 	return *cluster, nil
 }
 
-func isExist(h string, infos []storagev1.HostInfo) (bool, []storagev1.Dev) {
-	for _, info := range infos {
-		if info.NodeName == h {
-			return true, info.BlockDevices
-		}
-	}
-	return false, []storagev1.Dev{}
-}
-
-func UpdateStorageclusterConfig(cli client.Client, name, action string, infos []storagev1.HostInfo) error {
-	//ctx := context.TODO()
-	storagecluster, err := GetStorage(cli, name)
-	/*
-		storagecluster := storagev1.Cluster{}
-		err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &storagecluster)
-	*/
-	if err != nil {
-		return err
-	}
-	oldinfos := storagecluster.Status.Config
-	newinfos := make([]storagev1.HostInfo, 0)
-	hosts := make([]string, 0)
-	for _, host := range infos {
-		hosts = append(hosts, host.NodeName)
-	}
-	if action == "add" {
-		for _, h := range infos {
-			var exist bool
-			for _, v := range oldinfos {
-				if h.NodeName == v.NodeName {
-					exist = true
-				}
-			}
-			if !exist {
-				newinfos = append(newinfos, h)
-			}
-		}
-
-		newinfos = append(newinfos, oldinfos...)
-	}
-	if action == "del" {
-		for _, h := range infos {
-			for i, v := range oldinfos {
-				if h.NodeName != v.NodeName {
-					continue
-				}
-				oldinfos = append(oldinfos[:i], oldinfos[i+1:]...)
-			}
-		}
-		newinfos = append(newinfos, oldinfos...)
-	}
-	storagecluster.Status.Config = newinfos
-	return cli.Update(ctx, &storagecluster)
-}
-
 func AssembleDeleteConfig(cli client.Client, cluster *storagev1.Cluster) (storagev1.Cluster, error) {
-	hosts := make([]storagev1.HostInfo, 0)
+	storagecluster, err := GetStorage(cli, cluster.Name)
+	if err != nil {
+		return *cluster, err
+	}
+	infos := make([]storagev1.HostInfo, 0)
 	for _, h := range cluster.Spec.Hosts {
-		/*
-			var host Host
-			host.NodeName = h
-			devs, err := GetBlocksFromAnnotation(cli, h)
-		*/
-		//infos, err := GetInfosFromStoragecluster(cli, cluster.Name)
-		storagecluster, err := GetStorage(cli, cluster.Name)
-		if err != nil {
-			return *cluster, err
-		}
 		for _, info := range storagecluster.Status.Config {
 			if info.NodeName != h {
 				continue
 			}
-			hosts = append(hosts, info)
+			infos = append(infos, info)
+			break
 		}
 	}
-	if err := UpdateStorageclusterConfig(cli, cluster.Name, "del", hosts); err != nil {
+	if err := UpdateStorageclusterConfig(cli, cluster.Name, "del", infos); err != nil {
 		return *cluster, err
 	}
-	cluster.Status.Config = hosts
+	cluster.Status.Config = infos
 	return *cluster, nil
 }
-
-/*
-func GetInfosFromStoragecluster(cli client.Client, name string) ([]storagev1.HostInfo, error) {
-	GetStorage(cli, name)
-	infos := make([]storagev1.HostInfo, 0)
-	storagecluster := storagev1.Cluster{}
-	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &storagecluster)
-	if err != nil {
-		return infos, err
-	}
-	return storagecluster.Status.Config, nil
-}*/
 
 func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (storagev1.Cluster, storagev1.Cluster, error) {
 	del, add := HostsDiff(oldc.Spec.Hosts, newc.Spec.Hosts)
@@ -170,23 +96,10 @@ func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (sto
 	return dels, adds, nil
 }
 
-/*
-func GetBlocksFromAnnotation(cli client.Client, name string) ([]string, error) {
-	node := corev1.Node{}
-	if err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &node); err != nil {
-		return []string{}, err
-	}
-	blocks, ok := node.Annotations[StorageBlocksAnnotations]
-	if ok {
-		return strings.Split(blocks, ","), nil
-	}
-	return []string{}, nil
-}*/
-
 func GetBlocksFromClusterAgent(cli client.Client, name string) ([]storagev1.Dev, error) {
 	devs := make([]storagev1.Dev, 0)
 	service := corev1.Service{}
-	err := cli.Get(context.TODO(), k8stypes.NamespacedName{StorageNamespace, "cluster-agent"}, &service)
+	err := cli.Get(ctx, k8stypes.NamespacedName{StorageNamespace, "cluster-agent"}, &service)
 	if err != nil {
 		return devs, err
 	}
@@ -223,12 +136,48 @@ func GetBlocksFromClusterAgent(cli client.Client, name string) ([]storagev1.Dev,
 	return devs, nil
 }
 
-/*
-func GetStorage(cli client.Client, name string) (storagev1.Cluster, error) {
-	storagecluster := storagev1.Cluster{}
-	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &storagecluster)
-	if err != nil {
-		return storagecluster, err
+func isExist(h string, infos []storagev1.HostInfo) (bool, []storagev1.Dev) {
+	for _, info := range infos {
+		if info.NodeName == h {
+			return true, info.BlockDevices
+		}
 	}
-	return storagecluster, nil
-}*/
+	return false, []storagev1.Dev{}
+}
+
+func UpdateStorageclusterConfig(cli client.Client, name, action string, infos []storagev1.HostInfo) error {
+	storagecluster, err := GetStorage(cli, name)
+	if err != nil {
+		return err
+	}
+	oldinfos := storagecluster.Status.Config
+	newinfos := make([]storagev1.HostInfo, 0)
+	if action == "add" {
+		for _, h := range infos {
+			var exist bool
+			for _, v := range oldinfos {
+				if h.NodeName == v.NodeName {
+					exist = true
+					break
+				}
+			}
+			if !exist {
+				newinfos = append(newinfos, h)
+			}
+		}
+	}
+	if action == "del" {
+		for _, h := range infos {
+			for i, v := range oldinfos {
+				if h.NodeName != v.NodeName {
+					continue
+				}
+				oldinfos = append(oldinfos[:i], oldinfos[i+1:]...)
+				break
+			}
+		}
+	}
+	newinfos = append(newinfos, oldinfos...)
+	storagecluster.Status.Config = newinfos
+	return cli.Update(ctx, &storagecluster)
+}
