@@ -32,6 +32,8 @@ spec:
         image: {{.CephImage}}
         args:
           - "mon"
+        ports:
+          - containerPort: 6789
         env:
           - name: MON_IP
             valueFrom:
@@ -43,6 +45,15 @@ spec:
         volumeMounts:
         - name: shared-data
           mountPath: /etc/ceph
+        livenessProbe:
+            tcpSocket:
+              port: 6789
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+        readinessProbe:
+            tcpSocket:
+              port: 6789
+            timeoutSeconds: 5
       volumes:
        - name: cephconf
          configMap:

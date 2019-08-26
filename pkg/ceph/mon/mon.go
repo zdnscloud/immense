@@ -39,6 +39,13 @@ func Start(cli client.Client, networks string) error {
 		return errors.New("Timeout. Ceph cluster has not ready")
 	}
 	time.Sleep(60 * time.Second)
+	message, err := cephclient.CheckHealth()
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(message, "HEALTH_OK") {
+		return errors.New("Ceph cluster not health")
+	}
 	return nil
 }
 
@@ -76,7 +83,7 @@ func checkMonConnect(ips []string) bool {
 		addr := ip + ":6789"
 		_, err := net.DialTimeout("tcp", addr, connTimeout)
 		if err != nil {
-			log.Warnf("Mon %s 6789 port can not connection, try again later")
+			log.Warnf("Mon %s 6789 port can not connection, try again later", ip)
 			return false
 		}
 	}

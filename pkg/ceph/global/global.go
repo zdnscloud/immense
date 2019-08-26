@@ -8,7 +8,7 @@ const (
 	MonNum                  = 3
 	MgrNum                  = 2
 	MdsNum                  = 2
-	StorageClassName        = "cephfs"
+	StorageClassName        = "ceph"
 	PoolDefaultSize         = 2
 	CephFsName              = "myfs"
 	CephFsDate              = "myfs_data"
