@@ -3,10 +3,13 @@ package common
 import (
 	"bytes"
 	"context"
+	"errors"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8sstorage "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	"text/template"
 )
@@ -105,4 +108,44 @@ func GetStorage(cli client.Client, name string) (storagev1.Cluster, error) {
 		return storagecluster, err
 	}
 	return storagecluster, nil
+}
+
+func GetClusterFromVolumeAttachment(cli client.Client, va *k8sstorage.VolumeAttachment) (runtime.Object, error) {
+	var storageType string
+	attacher := va.Spec.Attacher
+	switch attacher {
+	case "csi-lvmplugin":
+		storageType = "lvm"
+	case "cephfs.csi.ceph.com":
+		storageType = "ceph"
+	}
+	storageclusters := storagev1.ClusterList{}
+	err := cli.List(ctx, nil, &storageclusters)
+	if err != nil {
+		return nil, err
+	}
+	for _, storage := range storageclusters.Items {
+		if storage.Spec.StorageType != storageType {
+			continue
+		}
+		var obj runtime.Object
+		obj = &storage
+		return obj, nil
+	}
+	return nil, errors.New("can not found storagecluster for volumeattachment: " + va.Name)
+}
+
+func IsLastOne(cli client.Client, va *k8sstorage.VolumeAttachment) (bool, error) {
+	volumeattachments := k8sstorage.VolumeAttachmentList{}
+	err := cli.List(ctx, nil, &volumeattachments)
+	if err != nil {
+		return false, err
+	}
+	for _, v := range volumeattachments.Items {
+		if v.Spec.Attacher != va.Spec.Attacher {
+			continue
+		}
+		return false, nil
+	}
+	return true, nil
 }
