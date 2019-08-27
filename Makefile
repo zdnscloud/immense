@@ -1,6 +1,6 @@
 REGISTRY_NAME = zdnscloud
 IMAGE_Name = storage-operator
-IMAGE_VERSION = v1.9
+IMAGE_VERSION = v2.0
 
 .PHONY: all container
 
