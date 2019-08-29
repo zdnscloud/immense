@@ -142,10 +142,9 @@ func IsLastOne(cli client.Client, va *k8sstorage.VolumeAttachment) (bool, error)
 		return false, err
 	}
 	for _, v := range volumeattachments.Items {
-		if v.Spec.Attacher != va.Spec.Attacher {
-			continue
+		if v.Spec.Attacher == va.Spec.Attacher && v.Spec.NodeName == va.Spec.NodeName {
+			return false, nil
 		}
-		return false, nil
 	}
 	return true, nil
 }

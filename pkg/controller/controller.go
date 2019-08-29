@@ -132,12 +132,13 @@ func (d *Controller) CreateFinalizer(va *k8sstorage.VolumeAttachment) error {
 	if err != nil {
 		return err
 	}
+	fr := ClusterFinalizer + "-" + va.Spec.NodeName
 	metaObj := obj.(metav1.Object)
-	if helper.HasFinalizer(metaObj, ClusterFinalizer) {
+	if helper.HasFinalizer(metaObj, fr) {
 		return nil
 	}
-	helper.AddFinalizer(metaObj, ClusterFinalizer)
-	log.Debugf("Add finalizer for storagecluster: %s", metaObj.GetName())
+	helper.AddFinalizer(metaObj, fr)
+	log.Debugf("Add finalizer %s for storagecluster: %s", fr, metaObj.GetName())
 	if err := d.client.Update(ctx, obj); err != nil {
 		return err
 	}
@@ -155,12 +156,13 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 	if err != nil {
 		return err
 	}
+	fr := ClusterFinalizer + "-" + va.Spec.NodeName
 	metaObj := obj.(metav1.Object)
-	if !helper.HasFinalizer(metaObj, ClusterFinalizer) {
+	if !helper.HasFinalizer(metaObj, fr) {
 		return nil
 	}
-	helper.RemoveFinalizer(metaObj, ClusterFinalizer)
-	log.Debugf("Remove finalizer for storagecluster: %s", metaObj.GetName())
+	helper.RemoveFinalizer(metaObj, fr)
+	log.Debugf("Remove finalizer %s for storagecluster: %s", fr, metaObj.GetName())
 	if err := d.client.Update(ctx, obj); err != nil {
 		return err
 	}
