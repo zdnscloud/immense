@@ -1,63 +1,92 @@
 package mon
 
 const MonTemp = `
-kind: StatefulSet
-apiVersion: apps/v1beta2
+kind: Deployment
+apiVersion: apps/v1
 metadata:
+  labels:
+    app: ceph
+    daemon: mon
   name: ceph-mon
   namespace: {{.Namespace}}
 spec:
   replicas: {{.MonNum}}
-  serviceName: ceph-mon
   selector:
     matchLabels:
-      app: ceph-mon
+      app: ceph
+      daemon: mon
   template:
     metadata:
       name: ceph-mon
+      namespace: {{.Namespace}}
       labels:
-        app: ceph-mon
+        app: ceph
+        daemon: mon
     spec:
+      serviceAccount: {{.ServiceAccountName}}
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values: ["ceph"]
+              - key: daemon
+                operator: In
+                values: ["mon"]
+            topologyKey: kubernetes.io/hostname
+      volumes:
+        - name: ceph-configmap
+          configMap:
+            name: {{.CephConfName}}
+        - name: ceph-conf
+          emptyDir: {}
       initContainers:
       - name: ceph-init
         image: {{.CephInitImage}}
+        imagePullPolicy: Always
         volumeMounts:
-        - name: cephconf
-          mountPath: /tmp/ceph
-        - name: shared-data
-          mountPath: /ceph
-        command: ["/bin/sh", "-c", "cp /tmp/ceph/* /ceph"]
+        - name: ceph-configmap
+          mountPath: /host/ceph
+        - name: ceph-conf
+          mountPath: /host/etc/ceph
+        command: ["/bin/sh", "-c", "sh /copy.sh"]
       containers:
-      - name: ceph-mon
-        image: {{.CephImage}}
-        args:
-          - "mon"
-        ports:
-          - containerPort: 6789
-        env:
-          - name: MON_IP
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: status.podIP
-          - name: CEPH_PUBLIC_NETWORK
-            value: {{.Network}}
-        volumeMounts:
-        - name: shared-data
-          mountPath: /etc/ceph
-        livenessProbe:
-            tcpSocket:
-              port: 6789
-            initialDelaySeconds: 60
-            timeoutSeconds: 5
-        readinessProbe:
-            tcpSocket:
-              port: 6789
-            timeoutSeconds: 5
-      volumes:
-       - name: cephconf
-         configMap:
-           name: ceph-conf
-       - name: shared-data
-         emptyDir: {}
+        - name: ceph-mon
+          image: {{.CephImage}}
+          lifecycle:
+            preStop:
+                exec:
+                  # remove the mon on Pod stop.
+                  command:
+                    - "/remove-mon.sh"
+          ports:
+            - containerPort: {{.MonPort}}
+          env:
+            - name: CEPH_DAEMON
+              value: MON
+            - name: KV_TYPE
+              value: k8s
+            - name: NETWORK_AUTO_DETECT
+              value: "4"
+            - name: CLUSTER
+              value: ceph
+          volumeMounts:
+            - name: ceph-conf
+              mountPath: /etc/ceph
+          livenessProbe:
+              tcpSocket:
+                port: {{.MonPort}}
+              initialDelaySeconds: 60
+              timeoutSeconds: 5
+          readinessProbe:
+              tcpSocket:
+                port: {{.MonPort}}
+              timeoutSeconds: 5
 `

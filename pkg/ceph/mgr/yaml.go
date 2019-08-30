@@ -10,6 +10,7 @@ func mgrYaml() (string, error) {
 		"Namespace":     common.StorageNamespace,
 		"CephInitImage": global.CephInitImage,
 		"CephImage":     global.CephImage,
+		"CephConfName":  global.ConfigMapName,
 		"MgrNum":        global.MgrNum,
 	}
 	return common.CompileTemplateFromMap(MgrTemp, cfg)

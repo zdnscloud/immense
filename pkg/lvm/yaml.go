@@ -4,7 +4,7 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
-func csiyaml() (string, error) {
+func csiyaml(name string) (string, error) {
 	cfg := map[string]interface{}{
 		"RBACConfig":                     common.RBACConfig,
 		"LabelKey":                       common.StorageHostLabels,
@@ -14,7 +14,7 @@ func csiyaml() (string, error) {
 		"StorageLvmProvisionerImage":     "quay.io/k8scsi/csi-provisioner:v1.0.1",
 		"StorageLvmDriverRegistrarImage": "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2",
 		"StorageLvmCSIImage":             "zdnscloud/lvmcsi:v0.6",
-		"StorageClassName":               StorageClassName,
+		"StorageClassName":               name,
 	}
 	return common.CompileTemplateFromMap(LvmCSITemplate, cfg)
 }

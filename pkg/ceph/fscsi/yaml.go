@@ -5,6 +5,16 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
+func CSICfgYaml(id, mons string) (string, error) {
+	cfg := map[string]interface{}{
+		"CSIConfigmapName": global.CSIConfigmapName,
+		"CephMons":         mons,
+		"CephClusterID":    id,
+		"StorageNamespace": common.StorageNamespace,
+	}
+	return common.CompileTemplateFromMap(FSconfigmapTemp, cfg)
+}
+
 func fscsiYaml() (string, error) {
 	cfg := map[string]interface{}{
 		"RBACConfig":                      global.RBAC,
@@ -13,17 +23,19 @@ func fscsiYaml() (string, error) {
 		"StorageCephDriverRegistrarImage": global.CSIDriverRegistrarImage,
 		"StorageCephFsCSIImage":           global.CephFsCSIImage,
 		"StorageNamespace":                common.StorageNamespace,
+		"CSIConfigmapName":                global.CSIConfigmapName,
 	}
 	return common.CompileTemplateFromMap(FScsiTemp, cfg)
 }
 
-func StorageClassYaml(monitors string) (string, error) {
+func StorageClassYaml(id, name string) (string, error) {
 	cfg := map[string]interface{}{
-		"CephClusterMonitors": monitors,
-		"CephSecretName":      global.SecretName,
-		"CephFsPool":          global.CephFsDate,
-		"StorageNamespace":    common.StorageNamespace,
-		"StorageClassName":    global.StorageClassName,
+		"CephSecretName":   global.SecretName,
+		"CephFsPool":       global.CephFsDate,
+		"CephFsName":       global.CephFsName,
+		"CephClusterID":    id,
+		"StorageNamespace": common.StorageNamespace,
+		"StorageClassName": name,
 	}
 	return common.CompileTemplateFromMap(StorageClassTemp, cfg)
 }

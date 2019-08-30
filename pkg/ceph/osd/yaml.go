@@ -10,6 +10,7 @@ func osdYaml(host, dev string) (string, error) {
 		"Namespace":     common.StorageNamespace,
 		"CephInitImage": global.CephInitImage,
 		"CephImage":     global.CephImage,
+		"CephConfName":  global.ConfigMapName,
 		"NodeName":      host,
 		"OsdID":         dev,
 	}

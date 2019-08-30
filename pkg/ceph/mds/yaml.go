@@ -10,6 +10,7 @@ func mdsYaml() (string, error) {
 		"Namespace":            common.StorageNamespace,
 		"CephInitImage":        global.CephInitImage,
 		"CephImage":            global.CephImage,
+		"CephConfName":         global.ConfigMapName,
 		"CEPHFS_NAME":          global.CephFsName,
 		"CEPHFS_DATA_POOL":     global.CephFsDate,
 		"CEPHFS_METADATA_POOL": global.CephFsMetadata,

@@ -4,4 +4,4 @@ metadata:
   name: lvm-cluster
 spec:
   storageType: "lvm"
-  hosts: ["4"]
+  hosts: ["3","4"]

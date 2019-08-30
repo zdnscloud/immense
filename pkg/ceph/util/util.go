@@ -9,28 +9,13 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 	zketypes "github.com/zdnscloud/zke/types"
 	corev1 "k8s.io/api/core/v1"
+	k8sstoragev1 "k8s.io/api/storage/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	"os/exec"
 	"strings"
 )
 
 var ctx = context.TODO()
-
-func GetMonIPs(cli client.Client) ([]string, error) {
-	ips := make([]string, 0)
-	pods := corev1.PodList{}
-	err := cli.List(ctx, &client.ListOptions{Namespace: common.StorageNamespace}, &pods)
-	if err != nil {
-		return ips, err
-	}
-	for _, p := range pods.Items {
-		if strings.Contains(p.Name, "ceph-mon-") && p.Status.Phase == "Running" {
-			ip := p.Status.PodIP + ":6789"
-			ips = append(ips, ip)
-		}
-	}
-	return ips, nil
-}
 
 func GetMonSvc(cli client.Client) ([]string, error) {
 	ips := make([]string, 0)
@@ -49,7 +34,7 @@ func GetMonSvc(cli client.Client) ([]string, error) {
 
 func CheckConfigMap(cli client.Client, namespace, name string) (bool, error) {
 	cm := corev1.ConfigMap{}
-	err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &cm)
+	err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &cm)
 	if err != nil {
 		return false, err
 	}
@@ -58,25 +43,21 @@ func CheckConfigMap(cli client.Client, namespace, name string) (bool, error) {
 
 func CheckSecret(cli client.Client, namespace, name string) (bool, error) {
 	secret := corev1.Secret{}
-	err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &secret)
+	err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &secret)
 	if err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-/*
-func GetCIDRs(cli client.Client, cluster *storagev1.Cluster) (string, error) {
-	var cidrs string
-	for _, host := range cluster.Spec.Hosts {
-		cidr, err := getHostpodCIDR(cli, host.NodeName)
-		if err != nil {
-			return cidrs, err
-		}
-		cidrs = cidrs + cidr + ","
+func CheckStorageclass(cli client.Client, name string) (bool, error) {
+	sc := k8sstoragev1.StorageClass{}
+	err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &sc)
+	if err != nil {
+		return false, err
 	}
-	return strings.TrimRight(cidrs, ","), nil
-}*/
+	return true, nil
+}
 
 func GetPodIp(cli client.Client, name string) (string, error) {
 	pods := corev1.PodList{}
@@ -156,4 +137,13 @@ func GetClusterCIDR(cli client.Client, namespace, name string) (string, error) {
 	json.Unmarshal([]byte(cm.Data["cluster-config"]), &res)
 	return res.Option.ClusterCidr, nil
 
+}
+
+func GetUUID(cli client.Client, cluster storagev1.Cluster) (string, error) {
+	storagecluster, err := common.GetStorage(cli, cluster.Name)
+	if err != nil {
+		return "", err
+	}
+	uuid := string(storagecluster.UID)
+	return uuid, nil
 }

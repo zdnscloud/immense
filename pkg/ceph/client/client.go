@@ -20,7 +20,7 @@ var root = "/etc/ceph"
 var files = []string{"ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"}
 
 func Rmmon(name string) error {
-	args := []string{"mon", "rm", name, "--connect-timeout", "15"}
+	args := []string{"mon", "remove", name, "--connect-timeout", "15"}
 	_, err := util.ExecCMDWithOutput("ceph", args)
 	if err != nil {
 		return err
@@ -39,6 +39,15 @@ func ReweigtOsd(id string) error {
 
 func OutOsd(id string) error {
 	args := []string{"osd", "out", id, "--connect-timeout", "15"}
+	_, err := util.ExecCMDWithOutput("ceph", args)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func InOsd(id string) error {
+	args := []string{"osd", "in", id, "--connect-timeout", "15"}
 	_, err := util.ExecCMDWithOutput("ceph", args)
 	if err != nil {
 		return err
@@ -84,6 +93,23 @@ func GetDownOsdIDs(stat string) ([]string, error) {
 	for _, l := range lines {
 		tmp := strings.Fields(l)
 		if strings.HasPrefix(tmp[0], "osd") && tmp[1] == "down" && !strings.Contains(tmp[len(tmp)-2], "new") && tmp[2] == stat {
+			ids = append(ids, strings.Split(tmp[0], ".")[1])
+		}
+	}
+	return ids, nil
+}
+
+func GetUpAndOutOsdIDs() ([]string, error) {
+	ids := make([]string, 0)
+	args := []string{"osd", "dump", "--connect-timeout", "15"}
+	out, err := util.ExecCMDWithOutput("ceph", args)
+	if err != nil {
+		return ids, err
+	}
+	lines := strings.Split(string(out), "\n")
+	for _, l := range lines {
+		tmp := strings.Fields(l)
+		if strings.HasPrefix(tmp[0], "osd") && tmp[1] == "up" && tmp[2] == "out" {
 			ids = append(ids, strings.Split(tmp[0], ".")[1])
 		}
 	}

@@ -1,44 +1,80 @@
 package mgr
 
 const MgrTemp = `
-apiVersion: apps/v1
 kind: Deployment
+apiVersion: apps/v1
 metadata:
+  labels:
+    app: ceph
+    daemon: mgr
   name: ceph-mgr
   namespace: {{.Namespace}}
 spec:
   replicas: {{.MgrNum}}
   selector:
     matchLabels:
-      app: ceph-mgr
+      app: ceph
+      daemon: mgr
   template:
     metadata:
       name: ceph-mgr
+      namespace: {{.Namespace}}
       labels:
-        app: ceph-mgr
+        app: ceph
+        daemon: mgr
     spec:
-      initContainers:
-      - name: ceph-init-conf
-        image: {{.CephInitImage}}
-        volumeMounts:
-        - name: cephconf
-          mountPath: /tmp/ceph
-        - name: shared-data
-          mountPath: /ceph
-        command: ["/bin/sh", "-c", "cp /tmp/ceph/* /ceph"]
-      containers:
-      - name: ceph-mgr
-        image: {{.CephImage}}
-        args:
-          - "mgr"
-        env:
-        volumeMounts:
-        - name: shared-data
-          mountPath: /etc/ceph
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values: ["ceph"]
+              - key: daemon
+                operator: In
+                values: ["mgr"]
+            topologyKey: kubernetes.io/hostname
       volumes:
-       - name: cephconf
-         configMap:
-           name: ceph-conf
-       - name: shared-data
-         emptyDir: {}
+        - name: ceph-configmap
+          configMap:
+            name: {{.CephConfName}}
+        - name: ceph-conf
+          emptyDir: {}
+      initContainers:
+      - name: ceph-init
+        image: {{.CephInitImage}}
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: ceph-configmap
+          mountPath: /host/ceph
+        - name: ceph-conf
+          mountPath: /host/etc/ceph
+        command: ["/bin/sh", "-c", "sh /copy.sh"]
+      containers:
+        - name: ceph-mgr
+          image: {{.CephImage}}
+          ports:
+            - containerPort: 6800
+            - containerPort: 7000
+              name: dashboard
+          env:
+            - name: CEPH_DAEMON
+              value: MGR
+            - name: DEBUG
+              value: stayalive
+            - name: KV_TYPE
+              value: k8s
+            - name: NETWORK_AUTO_DETECT
+              value: "4"
+            - name: CLUSTER
+              value: ceph
+          volumeMounts:
+            - name: ceph-conf
+              mountPath: /etc/ceph
 `

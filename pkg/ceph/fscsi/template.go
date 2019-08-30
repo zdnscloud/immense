@@ -1,46 +1,23 @@
 package fscsi
 
+const FSconfigmapTemp = `
+apiVersion: v1
+kind: ConfigMap
+data:
+  config.json: |-
+    [
+      {
+        "clusterID": "{{.CephClusterID}}",
+        "monitors": [{{.CephMons}}]
+      }
+    ]
+metadata:
+  name: {{.CSIConfigmapName}}
+  namespace: {{.StorageNamespace}}
+`
+
 const FScsiTemp = `
 {{- if eq .RBACConfig "rbac"}}
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: cephfs-csi-attacher
-  namespace: {{.StorageNamespace}}
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: cephfs-external-attacher-runner
-  namespace: {{.StorageNamespace}}
-rules:
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["volumeattachments"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: ["csi.storage.k8s.io"]
-    resources: ["csinodeinfos"]
-    verbs: ["get", "list", "watch"]
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: cephfs-csi-attacher-role
-  namespace: {{.StorageNamespace}}
-subjects:
-  - kind: ServiceAccount
-    name: cephfs-csi-attacher
-    namespace: {{.StorageNamespace}}
-roleRef:
-  kind: ClusterRole
-  name: cephfs-external-attacher-runner
-  apiGroup: rbac.authorization.k8s.io
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -74,6 +51,9 @@ rules:
   - apiGroups: ["csi.storage.k8s.io"]
     resources: ["csinodeinfos"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
 
 ---
 kind: ClusterRoleBinding
@@ -89,12 +69,13 @@ roleRef:
   kind: ClusterRole
   name: cephfs-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
+
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: {{.StorageNamespace}}
   name: cephfs-external-provisioner-cfg
+  namespace: {{.StorageNamespace}}
 rules:
   - apiGroups: [""]
     resources: ["endpoints"]
@@ -102,6 +83,7 @@ rules:
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list", "create", "delete"]
+
 ---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -144,6 +126,7 @@ rules:
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
     verbs: ["get", "list", "watch", "update"]
+
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -163,53 +146,6 @@ roleRef:
 kind: Service
 apiVersion: v1
 metadata:
-  name: csi-cephfsplugin-attacher
-  namespace: {{.StorageNamespace}}
-  labels:
-    app: csi-cephfsplugin-attacher
-spec:
-  selector:
-    app: csi-cephfsplugin-attacher
-  ports:
-    - name: dummy
-      port: 12345
----
-kind: StatefulSet
-apiVersion: apps/v1beta1
-metadata:
-  name: csi-cephfsplugin-attacher
-  namespace: {{.StorageNamespace}}
-spec:
-  serviceName: "csi-cephfsplugin-attacher"
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: csi-cephfsplugin-attacher
-    spec:
-      serviceAccount: cephfs-csi-attacher
-      containers:
-        - name: csi-cephfsplugin-attacher
-          image: {{.StorageCephAttacherImage}}
-          args:
-            - "--v=5"
-            - "--csi-address=$(ADDRESS)"
-          env:
-            - name: ADDRESS
-              value: /var/lib/kubelet/plugins/cephfs.csi.ceph.com/csi.sock
-          imagePullPolicy: "IfNotPresent"
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/cephfs.csi.ceph.com
-      volumes:
-        - name: socket-dir
-          hostPath:
-            path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com
-            type: DirectoryOrCreate
----
-kind: Service
-apiVersion: v1
-metadata:
   name: csi-cephfsplugin-provisioner
   namespace: {{.StorageNamespace}}
   labels:
@@ -220,13 +156,17 @@ spec:
   ports:
     - name: dummy
       port: 12345
+
 ---
 kind: StatefulSet
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 metadata:
   name: csi-cephfsplugin-provisioner
   namespace: {{.StorageNamespace}}
 spec:
+  selector:
+    matchLabels:
+      app: csi-cephfsplugin-provisioner
   serviceName: "csi-cephfsplugin-provisioner"
   replicas: 1
   template:
@@ -248,14 +188,28 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        - name: csi-cephfsplugin-attacher
+          image: {{.StorageCephAttacherImage}}
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
         - name: csi-cephfsplugin
           securityContext:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
+          # for stable functionality replace v1.1.0 with latest release version
           image: {{.StorageCephFsCSIImage}}
           args:
             - "--nodeid=$(NODE_ID)"
+            - "--type=cephfs"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
             - "--drivername=cephfs.csi.ceph.com"
@@ -282,6 +236,8 @@ spec:
               readOnly: true
             - name: host-dev
               mountPath: /dev
+            - name: ceph-csi-config
+              mountPath: /etc/ceph-csi-config/
       volumes:
         - name: socket-dir
           hostPath:
@@ -296,9 +252,12 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
+        - name: ceph-csi-config
+          configMap:
+            name: {{.CSIConfigmapName}}
 ---
 kind: DaemonSet
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 metadata:
   name: csi-cephfsplugin
   namespace: {{.StorageNamespace}}
@@ -348,6 +307,7 @@ spec:
           image: {{.StorageCephFsCSIImage}}
           args:
             - "--nodeid=$(NODE_ID)"
+            - "--type=cephfs"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
             - "--drivername=cephfs.csi.ceph.com"
@@ -383,6 +343,8 @@ spec:
               readOnly: true
             - name: host-dev
               mountPath: /dev
+            - name: ceph-csi-config
+              mountPath: /etc/ceph-csi-config/
       volumes:
         - name: mount-cache-dir
           emptyDir: {}
@@ -411,22 +373,24 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
+        - name: ceph-csi-config
+          configMap:
+            name: {{.CSIConfigmapName}}
 `
-
 const StorageClassTemp = `
----
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: {{.StorageClassName}}
 provisioner: cephfs.csi.ceph.com
 parameters:
-  monitors: {{.CephClusterMonitors}}
-  provisionVolume: "true"
+  clusterID: {{.CephClusterID}}
+  fsName: {{.CephFsName}}
   pool: {{.CephFsPool}}
   csi.storage.k8s.io/provisioner-secret-name: {{.CephSecretName}}
   csi.storage.k8s.io/provisioner-secret-namespace: {{.StorageNamespace}}
   csi.storage.k8s.io/node-stage-secret-name: {{.CephSecretName}}
   csi.storage.k8s.io/node-stage-secret-namespace: {{.StorageNamespace}}
+
 reclaimPolicy: Delete
 `

@@ -9,6 +9,7 @@ func svcYaml() (string, error) {
 	cfg := map[string]interface{}{
 		"Namespace": common.StorageNamespace,
 		"SvcName":   global.MonSvc,
+		"MonPort":   global.MonPort,
 	}
 	return common.CompileTemplateFromMap(MonSvcTemp, cfg)
 }
@@ -29,10 +30,19 @@ func confYaml(uuid, networks, adminkey, monkey string, number int) (string, erro
 
 func secretYaml(user, secret string) (string, error) {
 	cfg := map[string]interface{}{
-		"CephSecretName":      global.SecretName,
-		"CephAdminUserEncode": user,
-		"CephAdminKeyEncode":  secret,
-		"StorageNamespace":    common.StorageNamespace,
+		"CephSecretName":   global.SecretName,
+		"CephAdminUser":    user,
+		"CephAdminKey":     secret,
+		"StorageNamespace": common.StorageNamespace,
 	}
 	return common.CompileTemplateFromMap(SecretTemp, cfg)
+}
+
+func saYaml() (string, error) {
+	cfg := map[string]interface{}{
+		"RBACConfig":       global.RBAC,
+		"CephSAName":       global.ServiceAccountName,
+		"StorageNamespace": common.StorageNamespace,
+	}
+	return common.CompileTemplateFromMap(ServiceAccountTemp, cfg)
 }

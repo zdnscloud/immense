@@ -40,10 +40,10 @@ func create(cli client.Client, host, dev string) error {
 
 func check(cli client.Client, host, dev string) (bool, error) {
 	name := "ceph-job-zap-" + host + "-" + dev
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 60; i++ {
 		suc, err := util.IsPodSucceeded(cli, name)
 		if err != nil {
-			return false, err
+			continue
 		}
 		if suc {
 			return true, nil

@@ -11,7 +11,7 @@ import (
 
 func deployLvmCSI(cli client.Client, cluster storagev1.Cluster) error {
 	log.Debugf("Deploy CSI for storage cluster: %s", cluster.Spec.StorageType)
-	yaml, err := csiyaml()
+	yaml, err := csiyaml(cluster.Name)
 	if err != nil {
 		return err
 	}

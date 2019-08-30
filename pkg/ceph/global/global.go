@@ -2,21 +2,23 @@ package global
 
 const (
 	RBAC                    = "rbac"
+	ServiceAccountName      = "ceph"
 	MonSvc                  = "ceph-mon"
+	MonPort                 = "3300"
 	ConfigMapName           = "ceph-conf"
 	SecretName              = "csi-cephfs-secret"
 	MonNum                  = 3
 	MgrNum                  = 2
 	MdsNum                  = 2
-	StorageClassName        = "ceph"
 	PoolDefaultSize         = 2
 	CephFsName              = "myfs"
 	CephFsDate              = "myfs_data"
 	CephFsMetadata          = "myfs_metadata"
-	CephInitImage           = "busybox:1.31.0"
-	CephImage               = "ceph/daemon:latest-mimic"
+	CephInitImage           = "zdnscloud/ceph-init:v0.3"
+	CephImage               = "ceph/daemon:latest"
+	CSIConfigmapName        = "ceph-csi-config"
 	CSIAttacherImage        = "quay.io/k8scsi/csi-attacher:v1.0.1"
 	CSIProvisionerImage     = "quay.io/k8scsi/csi-provisioner:v1.0.1"
 	CSIDriverRegistrarImage = "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2"
-	CephFsCSIImage          = "quay.io/cephcsi/cephfsplugin:v1.0.0"
+	CephFsCSIImage          = "quay.io/cephcsi/cephcsi:v1.1.0"
 )

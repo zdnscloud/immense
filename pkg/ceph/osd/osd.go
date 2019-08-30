@@ -89,7 +89,7 @@ func Watch() {
 		time.Sleep(20 * time.Second)
 		downandout, err := cephclient.GetDownOsdIDs("out")
 		if err != nil {
-			log.Warnf("[ceph-osd-watcher] Get osd down and out failed , err:%s", err.Error())
+			log.Warnf("[ceph-osd-watcher] Get osd down and out failed , err:%s. skip", err.Error())
 			continue
 		}
 		for _, id := range downandout {
@@ -107,6 +107,18 @@ func Watch() {
 			log.Debugf("[ceph-osd-watcher] Ceph auth del %s", osdName)
 			if err := cephclient.RmOsdAuth(osdName); err != nil {
 				log.Warnf("[ceph-osd-watcher] Ceph auth del osd.%s failed , err:%s", id, err.Error())
+				break
+			}
+		}
+		upandout, err := cephclient.GetUpAndOutOsdIDs()
+		if err != nil {
+			log.Warnf("[ceph-osd-watcher] Get osd in and out failed , err:%s. skip", err.Error())
+			continue
+		}
+		for _, id := range upandout {
+			log.Debugf("[ceph-osd-watcher] Ceph osd in id %s", id)
+			if err := cephclient.InOsd(id); err != nil {
+				log.Warnf("[ceph-osd-watcher] Ceph in osd %s failed , err:%s", id, err.Error())
 				break
 			}
 		}

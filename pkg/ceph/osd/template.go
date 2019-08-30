@@ -1,64 +1,83 @@
 package osd
 
 const OsdTemp = `
-apiVersion: apps/v1
 kind: DaemonSet
+apiVersion: apps/v1
 metadata:
   name: ceph-osd-{{.NodeName}}-{{.OsdID}}
   namespace: {{.Namespace}}
+  labels:
+    app: ceph
+    daemon: osd-{{.NodeName}}-{{.OsdID}}
 spec:
   selector:
     matchLabels:
-      app: ceph-osd-{{.NodeName}}-{{.OsdID}}
+      app: ceph
+      daemon: osd-{{.NodeName}}-{{.OsdID}}
   template:
     metadata:
       name: ceph-osd-{{.NodeName}}-{{.OsdID}}
       labels:
-        app: ceph-osd-{{.NodeName}}-{{.OsdID}}
+        app: ceph
+        daemon: osd-{{.NodeName}}-{{.OsdID}}
     spec:
       nodeSelector:
         kubernetes.io/hostname: "{{.NodeName}}"
-      initContainers:
-      - name: ceph-init-conf
-        image: {{.CephInitImage}}
-        volumeMounts:
-        - name: cephconf
-          mountPath: /tmp/ceph
-        - name: shared-data
-          mountPath: /ceph
-        command: ["/bin/sh", "-c", "cp /tmp/ceph/* /ceph"]
-      containers:
-      - name: ceph-osd
-        image: {{.CephImage}}
-        securityContext:
-          privileged: true
-          capabilities:
-            add: ["SYS_ADMIN"]
-          allowPrivilegeEscalation: true
-        command: ["/bin/sh", "-c", "ceph auth get client.bootstrap-osd -o /var/lib/ceph/bootstrap-osd/ceph.keyring;/opt/ceph-container/bin/entrypoint.sh osd"]
-        env:
-          - name: OSD_FORCE_ZAP
-            value: "1"
-          - name: OSD_TYPE
-            value: "disk"
-          - name: OSD_DEVICE
-            value: "/dev/{{.OsdID}}"
-          - name: OSD_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: spec.nodeName
-        volumeMounts:
-        - name: dev
-          mountPath: /dev
-        - name: shared-data
-          mountPath: /etc/ceph
       volumes:
-       - name: cephconf
-         configMap:
-           name: ceph-conf
-       - name: dev
-         hostPath:
-           path: /dev
-       - name: shared-data
-         emptyDir: {}
+        - name: devices
+          hostPath:
+            path: /dev
+        - name: ceph-configmap
+          configMap:
+            name: {{.CephConfName}}
+        - name: ceph-conf
+          emptyDir: {}
+      initContainers:
+      - name: ceph-init
+        image: {{.CephInitImage}}
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: ceph-configmap
+          mountPath: /host/ceph
+        - name: ceph-conf
+          mountPath: /host/etc/ceph
+        command: ["/bin/sh", "-c", "sh /copy.sh"]
+      containers:
+        - name: osd-pod
+          image: {{.CephImage}}
+          command: ["/bin/sh", "-c", "sh -x /etc/ceph/osd_volume_create.sh"]
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: devices
+              mountPath: /dev
+            - name: ceph-conf
+              mountPath: /etc/ceph
+          securityContext:
+            privileged: true
+          env:
+            - name: OSD_TYPE
+              value: "disk"
+            - name: OSD_DEVICE
+              value: "/dev/{{.OsdID}}"
+            - name: KV_TYPE
+              value: k8s
+            - name: CLUSTER
+              value: ceph
+            - name: CEPH_GET_ADMIN_KEY
+              value: "1"
+            - name: OSD_BLUESTORE
+              value: "1"
+            - name: OSD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          livenessProbe:
+              tcpSocket:
+                port: 6800
+              initialDelaySeconds: 60
+              timeoutSeconds: 5
+          readinessProbe:
+              tcpSocket:
+                port: 6800
+              timeoutSeconds: 5
 `

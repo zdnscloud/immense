@@ -23,8 +23,8 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 	if err != nil {
 		return err
 	}
-
-	uuid, adminkey, monkey, err := initconf()
+	uuid := string(cluster.UID)
+	adminkey, monkey, err := initconf()
 	if err != nil {
 		return err
 	}
@@ -55,30 +55,32 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 	if err := mds.Start(cli); err != nil {
 		return err
 	}
-	if err := fscsi.Start(cli); err != nil {
+	if err := fscsi.Start(cli, uuid, cluster.Name); err != nil {
 		return err
 	}
 	go osd.Watch()
-	go mon.Watch(cli)
+	go mon.Watch(cli, string(cluster.UID))
 	go status.Watch(cli, cluster.Name)
 	return nil
 }
 
-func initconf() (string, string, string, error) {
-	var uuid, adminkey, monkey string
-	uuid, err := util.ExecCMDWithOutput("/usr/bin/uuidgen", []string{})
+func initconf() (string, string, error) {
+	var adminkey, monkey string
+	/*
+		uuid, err := util.ExecCMDWithOutput("/usr/bin/uuidgen", []string{})
+		if err != nil {
+			return adminkey, monkey, err
+		}
+	*/
+	adminkey, err := util.ExecCMDWithOutput("/usr/bin/python", []string{"/ceph-key.py"})
 	if err != nil {
-		return uuid, adminkey, monkey, err
-	}
-	adminkey, err = util.ExecCMDWithOutput("/usr/bin/python", []string{"/ceph-key.py"})
-	if err != nil {
-		return uuid, adminkey, monkey, err
+		return adminkey, monkey, err
 	}
 	monkey, err = util.ExecCMDWithOutput("/usr/bin/python", []string{"/ceph-key.py"})
 	if err != nil {
-		return uuid, adminkey, monkey, err
+		return adminkey, monkey, err
 	}
-	return uuid, adminkey, monkey, nil
+	return adminkey, monkey, nil
 }
 
 func getReplication(cluster storagev1.Cluster) int {

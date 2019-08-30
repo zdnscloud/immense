@@ -3,7 +3,6 @@ package mon
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
@@ -13,9 +12,6 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"github.com/zdnscloud/immense/pkg/common"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	"net"
 	"strings"
@@ -38,14 +34,6 @@ func Start(cli client.Client, networks string) error {
 	if !ready {
 		return errors.New("Timeout. Ceph cluster has not ready")
 	}
-	time.Sleep(60 * time.Second)
-	message, err := cephclient.CheckHealth()
-	if err != nil {
-		return err
-	}
-	if !strings.Contains(message, "HEALTH_OK") {
-		return errors.New("Ceph cluster not health")
-	}
 	return nil
 }
 
@@ -63,34 +51,46 @@ func check(cli client.Client) (bool, error) {
 	var mons []string
 	for i := 0; i < 60; i++ {
 		time.Sleep(5 * time.Second)
-		if len(mons) < global.MonNum {
+		if len(mons) != global.MonNum {
 			svc, err := util.GetMonSvc(cli)
-			if err != nil {
-				return false, err
+			if err != nil || len(svc) != global.MonNum {
+				continue
 			}
 			mons = append(mons, svc...)
 		}
 		if checkMonConnect(mons) {
 			return true, nil
 		}
+		if isHealth() {
+			return true, nil
+		}
 	}
 	return false, errors.New("Timeout. Mons has not ready")
+}
+
+func isHealth() bool {
+	message, err := cephclient.CheckHealth()
+	if err != nil || !strings.Contains(message, "HEALTH_OK") {
+		log.Warnf("Ceph cluster is not yet healthy, try again later")
+		return false
+	}
+	return true
 }
 
 func checkMonConnect(ips []string) bool {
 	connTimeout := 5 * time.Second
 	for _, ip := range ips {
-		addr := ip + ":6789"
+		addr := ip + ":" + global.MonPort
 		_, err := net.DialTimeout("tcp", addr, connTimeout)
 		if err != nil {
-			log.Warnf("Mon %s 6789 port can not connection, try again later", ip)
+			log.Warnf("Mon %s can not connection, try again later", addr)
 			return false
 		}
 	}
 	return true
 }
 
-func Watch(cli client.Client) {
+func Watch(cli client.Client, uuid string) {
 	log.Debugf("[ceph-mon-watcher] Start")
 	for {
 		time.Sleep(60 * time.Second)
@@ -100,12 +100,12 @@ func Watch(cli client.Client) {
 		}
 		svc, err := getMonEp(cli)
 		if err != nil {
-			log.Warnf("[ceph-mon-watcher] Get endpoints %s failed. Err: %s", global.MonSvc, err.Error())
+			log.Warnf("[ceph-mon-watcher] Get endpoints %s failed. Err: %s. skip", global.MonSvc, err.Error())
 			continue
 		}
 		unnormal, err := getUnnormalMon(svc)
 		if err != nil {
-			log.Warnf("[ceph-mon-watcher] Get mon dump failed. Err: %s", err.Error())
+			log.Warnf("[ceph-mon-watcher] Get mon dump failed. Err: %s. skip", err.Error())
 			continue
 		}
 		if len(unnormal) == 0 {
@@ -114,36 +114,33 @@ func Watch(cli client.Client) {
 		log.Debugf("[ceph-mon-watcher] Watch mon %s has unnormal, remove it now", unnormal)
 		for _, name := range unnormal {
 			if err := cephclient.Rmmon(name); err != nil {
-				log.Warnf("[ceph-mon-watcher] Remove mon %s failed. Err:%s", name, err.Error())
+				log.Warnf("[ceph-mon-watcher] Remove mon %s failed. Err:%s. skip", name, err.Error())
 				continue
 			}
 		}
-		log.Debugf("[ceph-mon-watcher] Watch mons has changed, redeploy storageclass now")
-		if err := redeployStorageclass(cli, svc); err != nil {
-			log.Warnf("[ceph-mon-watcher] Redeploy storageclass %s failed. Err:%s", global.StorageClassName, err.Error())
+		log.Debugf("[ceph-mon-watcher] Watch mons has changed, update csi configmap %s now", global.CSIConfigmapName)
+		if err := redeployCSICfg(cli, svc, uuid); err != nil {
+			log.Warnf("[ceph-mon-watcher] Redeploy csi configmap %s failed. Err:%s. skip", global.CSIConfigmapName, err.Error())
 			continue
 		}
 	}
 }
 
-func redeployStorageclass(cli client.Client, svc map[string]string) error {
-	var mons []string
-	for _, v := range svc {
-		mons = append(mons, v+":6789")
+func redeployCSICfg(cli client.Client, svc map[string]string, uuid string) error {
+	var mons string
+	for _, ip := range svc {
+		mon := "\"" + ip + ":" + global.MonPort + "\","
+		mons += mon
 	}
-	monitors := strings.Replace(strings.Trim(fmt.Sprint(mons), "[]"), " ", ",", -1)
-
-	sc := storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{Name: global.StorageClassName, Namespace: ""},
-	}
-	if err := cli.Delete(context.TODO(), &sc); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-	yaml, err := fscsi.StorageClassYaml(monitors)
+	ms := strings.TrimRight(mons, ",")
+	yaml, err := fscsi.CSICfgYaml(uuid, ms)
 	if err != nil {
 		return err
 	}
-	return helper.CreateResourceFromYaml(cli, yaml)
+	if err := helper.UpdateResourceFromYaml(cli, yaml); err != nil {
+		return err
+	}
+	return nil
 }
 
 func getMonEp(cli client.Client) (map[string]string, error) {
@@ -154,7 +151,7 @@ func getMonEp(cli client.Client) (map[string]string, error) {
 	}
 	for _, sub := range ep.Subsets {
 		for _, ads := range sub.Addresses {
-			svc[ads.Hostname] = ads.IP
+			svc[ads.TargetRef.Name] = ads.IP
 		}
 	}
 	return svc, nil
