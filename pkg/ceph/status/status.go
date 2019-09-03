@@ -124,21 +124,20 @@ func getOfflineInstances(storagecluster storagev1.Cluster, onlineinstances []sto
 		}
 		online[i.Host] = append(online[i.Host], i.Dev)
 	}
-	onlinecluster := mapToInfos(online)
-	delcfg, _, _, _ := common.Diff(storagecluster.Status.Config, onlinecluster)
-	for host, devs := range delcfg {
-		if len(devs) == 0 {
+	diff := getDiff(storagecluster.Status.Config, online)
+	for _, info := range diff {
+		if len(info.BlockDevices) == 0 {
 			instance := storagev1.Instance{
-				Host: host,
+				Host: info.NodeName,
 				Dev:  "",
 				Stat: false,
 			}
 			instances = append(instances, instance)
 		}
-		for _, dev := range devs {
+		for _, dev := range info.BlockDevices {
 			instance := storagev1.Instance{
-				Host: host,
-				Dev:  dev,
+				Host: info.NodeName,
+				Dev:  dev.Name,
 				Stat: false,
 			}
 			instances = append(instances, instance)
@@ -160,21 +159,14 @@ func osdSplit(storagecluster storagev1.Cluster, podname string) (string, string)
 	return "", ""
 }
 
-func mapToInfos(online map[string][]string) []storagev1.HostInfo {
-	hosts := make([]storagev1.HostInfo, 0)
-	for k, v := range online {
-		devs := make([]storagev1.Dev, 0)
-		for _, d := range v {
-			dev := storagev1.Dev{
-				Name: d,
-			}
-			devs = append(devs, dev)
+func getDiff(oldcfg []storagev1.HostInfo, online map[string][]string) []storagev1.HostInfo {
+	delcfg := make([]storagev1.HostInfo, 0)
+	for _, info := range oldcfg {
+		_, ok := online[info.NodeName]
+		if ok {
+			continue
 		}
-		host := storagev1.HostInfo{
-			NodeName:     k,
-			BlockDevices: devs,
-		}
-		hosts = append(hosts, host)
+		delcfg = append(delcfg, info)
 	}
-	return hosts
+	return delcfg
 }

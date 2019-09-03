@@ -2,22 +2,9 @@ package common
 
 import (
 	"github.com/zdnscloud/cement/set"
-	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	"reflect"
 )
 
-func tomap(infos []storagev1.HostInfo) map[string][]string {
-	res := make(map[string][]string)
-	for _, info := range infos {
-		devs := make([]string, 0)
-		for _, d := range info.BlockDevices {
-			devs = append(devs, d.Name)
-		}
-		res[info.NodeName] = devs
-	}
-	return res
-}
-
+/*
 func Diff(oldcfg, newcfg []storagev1.HostInfo) (map[string][]string, map[string][]string, map[string][]string, map[string][]string) {
 	oldmap := tomap(oldcfg)
 	newmap := tomap(newcfg)
@@ -58,7 +45,7 @@ func Diff(oldcfg, newcfg []storagev1.HostInfo) (map[string][]string, map[string]
 	}
 	return delcfg, addcfg, changetodel, changetoadd
 }
-
+*/
 func HostsDiff(oldcfg, newcfg []string) ([]string, []string) {
 	oldhosts := set.StringSetFromSlice(oldcfg)
 	newhosts := set.StringSetFromSlice(newcfg)

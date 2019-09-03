@@ -1,7 +1,6 @@
 package zap
 
 import (
-	"errors"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
@@ -14,13 +13,7 @@ func Do(cli client.Client, host, dev string) error {
 	if err := create(cli, host, dev); err != nil {
 		return err
 	}
-	ready, err := check(cli, host, dev)
-	if err != nil {
-		return err
-	}
-	if !ready {
-		return errors.New("Zap device failed!")
-	}
+	check(cli, host, dev)
 	if err := delete(cli, host, dev); err != nil {
 		return err
 	}
@@ -38,19 +31,18 @@ func create(cli client.Client, host, dev string) error {
 	return nil
 }
 
-func check(cli client.Client, host, dev string) (bool, error) {
+func check(cli client.Client, host, dev string) {
+	log.Debugf("Wait zap done %s:%s", host, dev)
 	name := "ceph-job-zap-" + host + "-" + dev
-	for i := 0; i < 60; i++ {
-		suc, err := util.IsPodSucceeded(cli, name)
-		if err != nil {
+	var ready bool
+	for !ready {
+		time.Sleep(10 * time.Second)
+		ok, err := util.CheckPodPhase(cli, name, "Succeeded")
+		if err != nil || !ok {
 			continue
 		}
-		if suc {
-			return true, nil
-		}
-		time.Sleep(5 * time.Second)
+		ready = true
 	}
-	return false, nil
 }
 
 func delete(cli client.Client, host, dev string) error {

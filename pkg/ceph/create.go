@@ -4,7 +4,6 @@ import (
 	"github.com/zdnscloud/cement/errgroup"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
 	"github.com/zdnscloud/immense/pkg/ceph/config"
 	"github.com/zdnscloud/immense/pkg/ceph/fscsi"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
@@ -32,7 +31,7 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 	if err := config.Start(cli, uuid, networks, adminkey, monkey, copiers); err != nil {
 		return err
 	}
-	if err := cephclient.SaveConf(cli); err != nil {
+	if err := util.SaveConf(cli); err != nil {
 		return err
 	}
 	if err := mon.Start(cli, networks); err != nil {
@@ -59,19 +58,12 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 		return err
 	}
 	go osd.Watch()
-	go mon.Watch(cli, string(cluster.UID))
 	go status.Watch(cli, cluster.Name)
 	return nil
 }
 
 func initconf() (string, string, error) {
 	var adminkey, monkey string
-	/*
-		uuid, err := util.ExecCMDWithOutput("/usr/bin/uuidgen", []string{})
-		if err != nil {
-			return adminkey, monkey, err
-		}
-	*/
 	adminkey, err := util.ExecCMDWithOutput("/usr/bin/python", []string{"/ceph-key.py"})
 	if err != nil {
 		return adminkey, monkey, err

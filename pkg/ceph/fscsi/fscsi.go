@@ -7,11 +7,12 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"github.com/zdnscloud/immense/pkg/common"
+	corev1 "k8s.io/api/core/v1"
 	"strings"
 )
 
 func Start(cli client.Client, id, name string) error {
-	ips, err := util.GetMonSvc(cli)
+	ips, err := util.GetMonEp(cli)
 	if err != nil {
 		return err
 	}
@@ -80,6 +81,29 @@ func Stop(cli client.Client, id, name string) error {
 		return err
 	}
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
+		return err
+	}
+	return nil
+}
+
+func UpdateCSICfg(cli client.Client, ep *corev1.Endpoints) error {
+	var mons string
+	for _, sub := range ep.Subsets {
+		for _, ads := range sub.Addresses {
+			mon := "\"" + ads.IP + ":" + global.MonPort + "\","
+			mons += mon
+		}
+	}
+	ms := strings.TrimRight(mons, ",")
+	uuid, err := util.GetCephUUID(cli)
+	if err != nil {
+		return err
+	}
+	yaml, err := CSICfgYaml(uuid, ms)
+	if err != nil {
+		return err
+	}
+	if err := helper.UpdateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
 	return nil

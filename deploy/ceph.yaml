@@ -4,4 +4,4 @@ metadata:
   name: ceph-cluster
 spec:
   storageType: "ceph"
-  hosts: ["79"]
+  hosts: ["79","5"]

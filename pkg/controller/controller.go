@@ -12,12 +12,16 @@ import (
 	"github.com/zdnscloud/gok8s/helper"
 	"github.com/zdnscloud/gok8s/predicate"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"github.com/zdnscloud/immense/pkg/ceph/fscsi"
+	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/common"
 	"github.com/zdnscloud/immense/pkg/eventhandler"
+	corev1 "k8s.io/api/core/v1"
 	k8sstorage "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"reflect"
 	"sync"
 )
 
@@ -73,6 +77,7 @@ func New(config *rest.Config) (*Controller, error) {
 	ctrl := controller.New("zcloudStorage", c, scm)
 	ctrl.Watch(&storagev1.Cluster{})
 	ctrl.Watch(&k8sstorage.VolumeAttachment{})
+	ctrl.Watch(&corev1.Endpoints{})
 	ctrl.Start(stopCh, storageCtrl, predicate.NewIgnoreUnchangedUpdate())
 	return storageCtrl, nil
 }
@@ -104,6 +109,10 @@ func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 		}
 	case *k8sstorage.VolumeAttachment:
 		d.UpdateFinalizer(obj)
+	case *corev1.Endpoints:
+		oldc := e.ObjectOld.(*corev1.Endpoints)
+		newc := e.ObjectNew.(*corev1.Endpoints)
+		d.UpdateCfgMap(oldc, newc)
 	}
 	return handler.Result{}, nil
 }
@@ -170,4 +179,26 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 }
 func (d *Controller) UpdateFinalizer(va *k8sstorage.VolumeAttachment) error {
 	return nil
+}
+
+func (d *Controller) UpdateCfgMap(oldep, newep *corev1.Endpoints) error {
+	if newep.Name != "ceph-mon" {
+		return nil
+	}
+	var oldips, newips []string
+	for _, sub := range oldep.Subsets {
+		for _, ads := range sub.Addresses {
+			oldips = append(oldips, ads.IP)
+		}
+	}
+	for _, sub := range newep.Subsets {
+		for _, ads := range sub.Addresses {
+			newips = append(newips, ads.IP)
+		}
+	}
+	if reflect.DeepEqual(oldips, newips) || len(newips) > len(oldips) {
+		return nil
+	}
+	log.Debugf("Watch endpoint %s has changed, update configmap %s now", newep.Name, global.CSIConfigmapName)
+	return fscsi.UpdateCSICfg(d.client, newep)
 }

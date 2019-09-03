@@ -4,7 +4,6 @@ import (
 	"github.com/zdnscloud/cement/errgroup"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
 	"github.com/zdnscloud/immense/pkg/ceph/config"
 	"github.com/zdnscloud/immense/pkg/ceph/fscsi"
 	"github.com/zdnscloud/immense/pkg/ceph/mds"
@@ -44,7 +43,7 @@ func delete(cli client.Client, cluster storagev1.Cluster) error {
 	if err := config.Stop(cli, uuid, networks, adminkey, monkey, copies); err != nil {
 		return err
 	}
-	if err := cephclient.RemoveConf(cli); err != nil {
+	if err := util.RemoveConf(cli); err != nil {
 		return err
 	}
 	return nil

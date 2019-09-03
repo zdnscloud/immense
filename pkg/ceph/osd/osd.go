@@ -1,7 +1,6 @@
 package osd
 
 import (
-	"errors"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
@@ -12,17 +11,6 @@ import (
 )
 
 func Start(cli client.Client, host, dev string) error {
-	name := "ceph-osd-" + host + "-" + dev
-	ip, err := util.GetPodIp(cli, name)
-	if err != nil {
-		return err
-	}
-	if ip == "" {
-		if err := zap.Do(cli, host, dev); err != nil {
-			return err
-		}
-	}
-
 	log.Debugf("Deploy osd %s:%s", host, dev)
 	yaml, err := osdYaml(host, dev)
 	if err != nil {
@@ -40,36 +28,28 @@ func Stop(cli client.Client, host, dev string) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	del, err := check(cli, host, dev)
-	if err != nil {
-		return err
-	}
-	if !del {
-		return errors.New("Osd process is not clean up!")
-	}
+	check(cli, host, dev)
 	return zap.Do(cli, host, dev)
 }
 
-func check(cli client.Client, host, dev string) (bool, error) {
+func check(cli client.Client, host, dev string) {
 	log.Debugf("Wait osd end %s:%s", host, dev)
 	name := "ceph-osd-" + host + "-" + dev
-	for i := 0; i < 60; i++ {
-		del, err := util.IsPodDel(cli, name)
-		if err != nil {
-			return false, err
+	var ready bool
+	for !ready {
+		time.Sleep(10 * time.Second)
+		del, err := util.CheckPodDel(cli, name)
+		if err != nil || !del {
+			continue
 		}
-		if del {
-			return true, nil
-		}
-		time.Sleep(5 * time.Second)
+		ready = true
 	}
-	return false, nil
 }
 
 func Watch() {
 	log.Debugf("[ceph-osd-watcher] Start")
 	for {
-		if !cephclient.CheckConf() {
+		if !util.CheckConf() {
 			log.Debugf("[ceph-osd-watcher] Stop")
 			return
 		}
@@ -112,7 +92,7 @@ func Watch() {
 		}
 		upandout, err := cephclient.GetUpAndOutOsdIDs()
 		if err != nil {
-			log.Warnf("[ceph-osd-watcher] Get osd in and out failed , err:%s. skip", err.Error())
+			log.Warnf("[ceph-osd-watcher] Get osd up and out failed , err:%s. skip", err.Error())
 			continue
 		}
 		for _, id := range upandout {
