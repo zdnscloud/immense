@@ -7,6 +7,7 @@ import (
 	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"github.com/zdnscloud/immense/pkg/ceph/zap"
+	"github.com/zdnscloud/immense/pkg/common"
 	"time"
 )
 
@@ -16,7 +17,11 @@ func Start(cli client.Client, host, dev string) error {
 	if err != nil {
 		return err
 	}
-	return helper.CreateResourceFromYaml(cli, yaml)
+	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
+		return err
+	}
+	waitDone(cli, host, dev)
+	return nil
 }
 
 func Stop(cli client.Client, host, dev string) error {
@@ -28,11 +33,25 @@ func Stop(cli client.Client, host, dev string) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	check(cli, host, dev)
+	checkDone(cli, host, dev)
 	return zap.Do(cli, host, dev)
 }
 
-func check(cli client.Client, host, dev string) {
+func waitDone(cli client.Client, host, dev string) {
+	log.Debugf("Wait osd running %s:%s, this will take some time", host, dev)
+	name := "ceph-osd-" + host + "-" + dev
+	var ready bool
+	for !ready {
+		time.Sleep(10 * time.Second)
+		num, err := util.GetOsdDsReadyNum(cli, common.StorageNamespace, name)
+		if err != nil || num != 1 {
+			continue
+		}
+		ready = true
+	}
+}
+
+func checkDone(cli client.Client, host, dev string) {
 	log.Debugf("Wait osd end %s:%s", host, dev)
 	name := "ceph-osd-" + host + "-" + dev
 	var ready bool

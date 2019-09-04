@@ -22,6 +22,7 @@ type Node struct {
 	Util        float64            `json:"utilization"`
 	Var         float64            `json:"var"`
 	Pgs         int64              `json:"pgs"`
+	Status      string             `json:"status"`
 }
 
 type Sum struct {

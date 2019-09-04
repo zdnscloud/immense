@@ -119,6 +119,16 @@ func GetMonDpReadyNum(cli client.Client, namespace, name string) (int32, error) 
 	return deploy.Status.ReadyReplicas, nil
 }
 
+func GetOsdDsReadyNum(cli client.Client, namespace, name string) (int32, error) {
+	var num int32
+	daemonSet := appsv1.DaemonSet{}
+	err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &daemonSet)
+	if err != nil {
+		return num, err
+	}
+	return daemonSet.Status.NumberReady, nil
+}
+
 func GetMonEp(cli client.Client) (map[string]string, error) {
 	svc := make(map[string]string)
 	ep := corev1.Endpoints{}

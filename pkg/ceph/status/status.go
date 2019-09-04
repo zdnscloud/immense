@@ -93,7 +93,7 @@ func getOnlineInstances(storagecluster storagev1.Cluster, nodes []cephclient.Nod
 			continue
 		}
 		stat := true
-		if n.Total == 0 {
+		if n.Total == 0 || n.Status != "up" {
 			stat = false
 		}
 		host, dev := osdSplit(storagecluster, name)
