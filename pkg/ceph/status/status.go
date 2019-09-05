@@ -137,7 +137,7 @@ func getOfflineInstances(storagecluster storagev1.Cluster, onlineinstances []sto
 		for _, dev := range info.BlockDevices {
 			instance := storagev1.Instance{
 				Host: info.NodeName,
-				Dev:  dev.Name,
+				Dev:  dev,
 				Stat: false,
 			}
 			instances = append(instances, instance)
@@ -150,9 +150,9 @@ func osdSplit(storagecluster storagev1.Cluster, podname string) (string, string)
 	for _, h := range storagecluster.Status.Config {
 		for _, d := range h.BlockDevices {
 			str1 := "-" + h.NodeName + "-"
-			str2 := "-" + d.Name[5:] + "-"
+			str2 := "-" + d[5:] + "-"
 			if strings.Contains(podname, str1) && strings.Contains(podname, str2) {
-				return h.NodeName, d.Name
+				return h.NodeName, d
 			}
 		}
 	}

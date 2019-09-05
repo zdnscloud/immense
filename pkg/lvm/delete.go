@@ -41,14 +41,14 @@ func unInitBlocks(cli client.Client, cluster storagev1.Cluster) error {
 		}
 		defer lvmdcli.Close()
 		for _, block := range host.BlockDevices {
-			log.Debugf("[%s] Remove vg with %s", host.NodeName, block.Name)
+			log.Debugf("[%s] Remove vg with %s", host.NodeName, block)
 			if err := util.RemoveVG(ctx, lvmdcli, VGName); err != nil {
-				log.Warnf("[%s] Remove vg with %s failed:%s", host.NodeName, block.Name, err.Error())
+				log.Warnf("[%s] Remove vg with %s failed:%s", host.NodeName, block, err.Error())
 				continue
 			}
 			log.Debugf("[%s] Remove pv with %s", host.NodeName, block)
-			if err := util.RemovePV(ctx, lvmdcli, block.Name); err != nil {
-				log.Warnf("[%s] Remove pv with %s failed:%s", host.NodeName, block.Name, err.Error())
+			if err := util.RemovePV(ctx, lvmdcli, block); err != nil {
+				log.Warnf("[%s] Remove pv with %s failed:%s", host.NodeName, block, err.Error())
 				continue
 			}
 		}

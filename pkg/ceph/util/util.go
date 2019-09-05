@@ -90,7 +90,7 @@ func ToSlice(cluster storagev1.Cluster) []string {
 	infos := make([]string, 0)
 	for _, host := range cluster.Status.Config {
 		for _, dev := range host.BlockDevices {
-			info := host.NodeName + ":" + dev.Name
+			info := host.NodeName + ":" + dev
 			infos = append(infos, info)
 		}
 	}

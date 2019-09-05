@@ -90,7 +90,7 @@ func logCluster(cluster storagev1.Cluster, action string) {
 	for _, host := range cluster.Status.Config {
 		devs := make([]string, 0)
 		for _, dev := range host.BlockDevices {
-			devs = append(devs, dev.Name)
+			devs = append(devs, dev)
 		}
 		log.Debugf("node:%s, devs:%s", host.NodeName, devs)
 	}

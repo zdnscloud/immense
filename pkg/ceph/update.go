@@ -12,7 +12,7 @@ func doDelhost(cli client.Client, cluster storagev1.Cluster) error {
 	}
 	for _, host := range cluster.Status.Config {
 		for _, d := range host.BlockDevices {
-			dev := d.Name[5:]
+			dev := d[5:]
 			if err := osd.Stop(cli, host.NodeName, dev); err != nil {
 				return err
 			}
@@ -27,7 +27,7 @@ func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 	}
 	for _, host := range cluster.Status.Config {
 		for _, d := range host.BlockDevices {
-			dev := d.Name[5:]
+			dev := d[5:]
 			if err := osd.Start(cli, host.NodeName, dev); err != nil {
 				return err
 			}

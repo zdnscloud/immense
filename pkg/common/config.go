@@ -18,7 +18,7 @@ func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (storag
 	}
 	infos := make([]storagev1.HostInfo, 0)
 	for _, h := range cluster.Spec.Hosts {
-		devs := make([]storagev1.Dev, 0)
+		devs := make([]string, 0)
 		exist, devstmp := isExist(h, storagecluster.Status.Config)
 		if !exist {
 			devstmp, err := GetBlocksFromClusterAgent(cli, h)
@@ -96,8 +96,8 @@ func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (sto
 	return dels, adds, nil
 }
 
-func GetBlocksFromClusterAgent(cli client.Client, name string) ([]storagev1.Dev, error) {
-	devs := make([]storagev1.Dev, 0)
+func GetBlocksFromClusterAgent(cli client.Client, name string) ([]string, error) {
+	devs := make([]string, 0)
 	service := corev1.Service{}
 	err := cli.Get(ctx, k8stypes.NamespacedName{StorageNamespace, "cluster-agent"}, &service)
 	if err != nil {
@@ -126,23 +126,26 @@ func GetBlocksFromClusterAgent(cli client.Client, name string) ([]storagev1.Dev,
 			if d.Parted || d.Filesystem || d.Mount {
 				continue
 			}
-			dev := storagev1.Dev{
-				Name: d.Name,
-				Size: d.Size,
-			}
-			devs = append(devs, dev)
+			/*
+				dev := storagev1.Dev{
+					Name: d.Name,
+					Size: d.Size,
+				}
+				devs = append(devs, dev)
+			*/
+			devs = append(devs, d.Name)
 		}
 	}
 	return devs, nil
 }
 
-func isExist(h string, infos []storagev1.HostInfo) (bool, []storagev1.Dev) {
+func isExist(h string, infos []storagev1.HostInfo) (bool, []string) {
 	for _, info := range infos {
 		if info.NodeName == h {
 			return true, info.BlockDevices
 		}
 	}
-	return false, []storagev1.Dev{}
+	return false, []string{}
 }
 
 func UpdateStorageclusterConfig(cli client.Client, name, action string, infos []storagev1.HostInfo) error {

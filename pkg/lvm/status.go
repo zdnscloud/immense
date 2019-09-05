@@ -46,7 +46,7 @@ func getStatus(cli client.Client, storagecluster storagev1.Cluster) (string, str
 		instance.Host = host.NodeName
 		devs := make([]string, 0)
 		for _, d := range host.BlockDevices {
-			devs = append(devs, d.Name)
+			devs = append(devs, d)
 		}
 		instance.Dev = strings.Replace(strings.Trim(fmt.Sprint(devs), "[]"), " ", ",", -1)
 		if len(instance.Dev) == 0 {
