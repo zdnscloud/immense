@@ -7,7 +7,6 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
-	"github.com/zdnscloud/immense/pkg/lvm/util"
 	pb "github.com/zdnscloud/lvmd/proto"
 	"strconv"
 	"strings"
@@ -57,7 +56,7 @@ func getStatus(cli client.Client, storagecluster storagev1.Cluster) (string, str
 			log.Warnf("[lvm-status-controller] Hosts %s have no block devices can used", host.NodeName)
 			continue
 		}
-		lvmdcli, err := util.CreateLvmdClient(ctx, cli, host.NodeName)
+		lvmdcli, err := CreateLvmdClient(ctx, cli, host.NodeName)
 		if err != nil {
 			state = "Warnning"
 			message = message + host.NodeName + ":" + err.Error() + "\n"

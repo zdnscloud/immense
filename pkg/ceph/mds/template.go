@@ -7,7 +7,7 @@ metadata:
   labels:
     app: ceph
     daemon: mds
-  name: ceph-mds
+  name: {{.MdsDpName}}
   namespace: {{.Namespace}}
 spec:
   selector:
@@ -32,7 +32,7 @@ spec:
       initContainers:
       - name: ceph-init
         image: {{.CephInitImage}}
-        imagePullPolicy: Always
+        imagePullPolicy: "IfNotPresent"
         volumeMounts:
         - name: ceph-configmap
           mountPath: /host/ceph

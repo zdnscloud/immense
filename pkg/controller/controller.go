@@ -100,7 +100,7 @@ func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
 func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	switch obj := e.ObjectOld.(type) {
+	switch e.ObjectOld.(type) {
 	case *storagev1.Cluster:
 		oldc := e.ObjectOld.(*storagev1.Cluster)
 		newc := e.ObjectNew.(*storagev1.Cluster)
@@ -108,7 +108,11 @@ func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 			log.Warnf("Update failed:%s", err.Error())
 		}
 	case *k8sstorage.VolumeAttachment:
-		d.UpdateFinalizer(obj)
+		oldc := e.ObjectOld.(*k8sstorage.VolumeAttachment)
+		newc := e.ObjectNew.(*k8sstorage.VolumeAttachment)
+		if oldc.Spec.NodeName != newc.Spec.NodeName {
+			d.UpdateFinalizer(oldc, newc)
+		}
 	case *corev1.Endpoints:
 		oldc := e.ObjectOld.(*corev1.Endpoints)
 		newc := e.ObjectNew.(*corev1.Endpoints)
@@ -141,8 +145,8 @@ func (d *Controller) CreateFinalizer(va *k8sstorage.VolumeAttachment) error {
 	if err != nil {
 		return err
 	}
-	fr := ClusterFinalizer + "-" + va.Spec.NodeName
 	metaObj := obj.(metav1.Object)
+	fr := ClusterFinalizer + "-" + va.Spec.NodeName
 	if helper.HasFinalizer(metaObj, fr) {
 		return nil
 	}
@@ -165,8 +169,8 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 	if err != nil {
 		return err
 	}
-	fr := ClusterFinalizer + "-" + va.Spec.NodeName
 	metaObj := obj.(metav1.Object)
+	fr := ClusterFinalizer + "-" + va.Spec.NodeName
 	if !helper.HasFinalizer(metaObj, fr) {
 		return nil
 	}
@@ -177,7 +181,25 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 	}
 	return nil
 }
-func (d *Controller) UpdateFinalizer(va *k8sstorage.VolumeAttachment) error {
+func (d *Controller) UpdateFinalizer(oldva, newva *k8sstorage.VolumeAttachment) error {
+	obj, err := common.GetClusterFromVolumeAttachment(d.client, newva)
+	if err != nil {
+		return err
+	}
+	metaObj := obj.(metav1.Object)
+	newfr := ClusterFinalizer + "-" + newva.Spec.NodeName
+	oldfr := ClusterFinalizer + "-" + oldva.Spec.NodeName
+	if !helper.HasFinalizer(metaObj, newfr) {
+		helper.AddFinalizer(metaObj, newfr)
+		log.Debugf("Add finalizer %s for storagecluster: %s", newfr, metaObj.GetName())
+	}
+	if helper.HasFinalizer(metaObj, oldfr) {
+		helper.RemoveFinalizer(metaObj, oldfr)
+		log.Debugf("Remove finalizer %s for storagecluster: %s", oldfr, metaObj.GetName())
+	}
+	if err := d.client.Update(ctx, obj); err != nil {
+		return err
+	}
 	return nil
 }
 

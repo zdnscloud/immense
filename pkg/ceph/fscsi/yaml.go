@@ -17,6 +17,8 @@ func CSICfgYaml(id, mons string) (string, error) {
 
 func fscsiYaml() (string, error) {
 	cfg := map[string]interface{}{
+		"CSIPluginDsName":                 global.CSIPluginDsName,
+		"CSIProvisionerStsName":           global.CSIProvisionerStsName,
 		"RBACConfig":                      global.RBAC,
 		"StorageCephAttacherImage":        global.CSIAttacherImage,
 		"StorageCephProvisionerImage":     global.CSIProvisionerImage,

@@ -6,7 +6,6 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	"github.com/zdnscloud/immense/pkg/lvm/util"
 )
 
 func undeployLvmCSI(cli client.Client, cluster storagev1.Cluster) error {
@@ -34,7 +33,7 @@ func unInitBlocks(cli client.Client, cluster storagev1.Cluster) error {
 			log.Debugf("[%s] No block device to uninit", host.NodeName)
 			continue
 		}
-		lvmdcli, err := util.CreateLvmdClient(ctx, cli, host.NodeName)
+		lvmdcli, err := CreateLvmdClient(ctx, cli, host.NodeName)
 		if err != nil {
 			log.Warnf("[%s] Create Lvmd client failed:%s", host.NodeName, err.Error())
 			continue
@@ -42,12 +41,12 @@ func unInitBlocks(cli client.Client, cluster storagev1.Cluster) error {
 		defer lvmdcli.Close()
 		for _, block := range host.BlockDevices {
 			log.Debugf("[%s] Remove vg with %s", host.NodeName, block)
-			if err := util.RemoveVG(ctx, lvmdcli, VGName); err != nil {
+			if err := RemoveVG(ctx, lvmdcli, VGName); err != nil {
 				log.Warnf("[%s] Remove vg with %s failed:%s", host.NodeName, block, err.Error())
 				continue
 			}
 			log.Debugf("[%s] Remove pv with %s", host.NodeName, block)
-			if err := util.RemovePV(ctx, lvmdcli, block); err != nil {
+			if err := RemovePV(ctx, lvmdcli, block); err != nil {
 				log.Warnf("[%s] Remove pv with %s failed:%s", host.NodeName, block, err.Error())
 				continue
 			}

@@ -40,14 +40,13 @@ func Stop(cli client.Client, host, dev string) error {
 func waitDone(cli client.Client, host, dev string) {
 	log.Debugf("Wait osd running %s:%s, this will take some time", host, dev)
 	name := "ceph-osd-" + host + "-" + dev
-	var ready bool
-	for !ready {
+	var done bool
+	for !done {
 		time.Sleep(10 * time.Second)
-		num, err := util.GetOsdDsReadyNum(cli, common.StorageNamespace, name)
-		if err != nil || num != 1 {
+		if !common.IsDsReady(cli, common.StorageNamespace, name) {
 			continue
 		}
-		ready = true
+		done = true
 	}
 }
 

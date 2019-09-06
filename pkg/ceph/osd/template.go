@@ -35,7 +35,7 @@ spec:
       initContainers:
       - name: ceph-init
         image: {{.CephInitImage}}
-        imagePullPolicy: Always
+        imagePullPolicy: "IfNotPresent"
         volumeMounts:
         - name: ceph-configmap
           mountPath: /host/ceph
@@ -46,7 +46,7 @@ spec:
         - name: osd-pod
           image: {{.CephImage}}
           command: ["/bin/sh", "-c", "sh -x /etc/ceph/osd_volume_create.sh"]
-          imagePullPolicy: Always
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: devices
               mountPath: /dev

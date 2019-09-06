@@ -6,6 +6,8 @@ import (
 
 func csiyaml(name string) (string, error) {
 	cfg := map[string]interface{}{
+		"CSIProvisionerStsName":          CSIProvisionerStsName,
+		"CSIPluginDsName":                CSIPluginDsName,
 		"RBACConfig":                     common.RBACConfig,
 		"LabelKey":                       common.StorageHostLabels,
 		"LabelValue":                     common.LvmLabelsValue,
@@ -21,6 +23,7 @@ func csiyaml(name string) (string, error) {
 
 func lvmdyaml() (string, error) {
 	cfg := map[string]interface{}{
+		"LvmdDsName":       LvmdDsName,
 		"RBACConfig":       common.RBACConfig,
 		"LabelValue":       common.LvmLabelsValue,
 		"LabelKey":         common.StorageHostLabels,
@@ -28,4 +31,11 @@ func lvmdyaml() (string, error) {
 		"StorageNamespace": common.StorageNamespace,
 	}
 	return common.CompileTemplateFromMap(LvmdTemplate, cfg)
+}
+
+func scyaml(name string) (string, error) {
+	cfg := map[string]interface{}{
+		"StorageClassName": name,
+	}
+	return common.CompileTemplateFromMap(StorageClassTemp, cfg)
 }

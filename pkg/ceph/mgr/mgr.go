@@ -4,6 +4,8 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
+	"github.com/zdnscloud/immense/pkg/ceph/global"
+	"github.com/zdnscloud/immense/pkg/ceph/util"
 )
 
 func Start(cli client.Client) error {
@@ -12,7 +14,11 @@ func Start(cli client.Client) error {
 	if err != nil {
 		return err
 	}
-	return helper.CreateResourceFromYaml(cli, yaml)
+	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
+		return err
+	}
+	util.WaitDpReady(cli, global.MgrDpName)
+	return nil
 }
 
 func Stop(cli client.Client) error {

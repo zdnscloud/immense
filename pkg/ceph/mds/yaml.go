@@ -15,6 +15,7 @@ func mdsYaml() (string, error) {
 		"CEPHFS_DATA_POOL":     global.CephFsDate,
 		"CEPHFS_METADATA_POOL": global.CephFsMetadata,
 		"MdsNum":               global.MdsNum,
+		"MdsDpName":            global.MdsDpName,
 	}
 	return common.CompileTemplateFromMap(MdsTemp, cfg)
 }

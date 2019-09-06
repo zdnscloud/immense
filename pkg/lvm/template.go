@@ -4,7 +4,7 @@ const LvmdTemplate = `
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: storage-agent-lvmd
+  name: {{.LvmdDsName}}
   namespace: {{.StorageNamespace}}
   labels:
     app: storage-agent-lvmd
@@ -47,51 +47,6 @@ const LvmCSITemplate = `
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: csi-lvmplugin-attacher
-  namespace: {{.StorageNamespace}}
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: external-attacher-runner
-  namespace: {{.StorageNamespace}}
-rules:
-  - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["volumeattachments"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: ["extensions"]
-    resourceNames:
-    - privileged 
-    resources: ["podsecuritypolicies"]
-    verbs:
-    - use
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: csi-lvmplugin-attacher-role
-  namespace: {{.StorageNamespace}}
-subjects:
-  - kind: ServiceAccount
-    name: csi-lvmplugin-attacher
-    namespace: {{.StorageNamespace}}
-roleRef:
-  kind: ClusterRole
-  name: external-attacher-runner
-  apiGroup: rbac.authorization.k8s.io
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
   name: csi-lvmplugin-provisioner
   namespace: {{.StorageNamespace}}
 ---
@@ -114,8 +69,8 @@ rules:
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list", "watch", "update"]
   - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses"]
-    verbs: ["get", "list", "watch"]
+    resources: ["storageclasses","volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["list", "watch", "create", "update", "patch"]
@@ -199,7 +154,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   namespace: {{.StorageNamespace}}
-  name: csi-lvmplugin
+  name: {{.CSIPluginDsName}}
 spec:
   selector:
     matchLabels:
@@ -209,6 +164,8 @@ spec:
       labels:
         app: csi-lvmplugin
     spec:
+      nodeSelector: 
+        {{.LabelKey}}: {{.LabelValue}}
       serviceAccount: csi-lvmplugin
       hostNetwork: true
       containers:
@@ -292,57 +249,6 @@ kind: Service
 apiVersion: v1
 metadata:
   namespace: {{.StorageNamespace}}
-  name: csi-lvmplugin-attacher
-  labels:
-    app: csi-lvmplugin-attacher
-spec:
-  selector:
-    app: csi-lvmplugin-attacher
-  ports:
-    - name: dummy
-      port: 12345
----
-kind: StatefulSet
-apiVersion: apps/v1
-metadata:
-  namespace: {{.StorageNamespace}}
-  name: csi-lvmplugin-attacher
-spec:
-  serviceName: csi-lvmplugin-attacher
-  replicas: 1
-  selector:
-    matchLabels:
-      app: csi-lvmplugin-attacher
-  template:
-    metadata:
-      labels:
-        app: csi-lvmplugin-attacher
-    spec:
-      serviceAccount: csi-lvmplugin-attacher
-      hostNetwork: true
-      containers:
-        - name: csi-lvmplugin-attacher
-          image: {{.StorageLvmAttacherImage}}
-          args:
-            - "--v=5"
-            - "--csi-address=$(ADDRESS)"
-          env:
-            - name: ADDRESS
-              value: /csi/csi.sock
-          imagePullPolicy: "IfNotPresent"
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /csi
-      volumes:
-        - name: socket-dir
-          hostPath:
-            path: /var/lib/kubelet/plugins/csi-lvm
-            type: DirectoryOrCreate
----
-kind: Service
-apiVersion: v1
-metadata:
-  namespace: {{.StorageNamespace}}
   name: csi-lvmplugin-provisioner
   labels:
     app: csi-lvmplugin-provisioner
@@ -358,7 +264,7 @@ kind: StatefulSet
 apiVersion: apps/v1
 metadata:
   namespace: {{.StorageNamespace}}
-  name: csi-lvmplugin-provisioner
+  name: {{.CSIProvisionerStsName}}
 spec:
   serviceName: csi-lvmplugin-provisioner
   replicas: 1
@@ -371,8 +277,22 @@ spec:
         app: csi-lvmplugin-provisioner
     spec:
       serviceAccount: csi-lvmplugin-provisioner
+      nodeSelector: 
+        {{.LabelKey}}: {{.LabelValue}}
       hostNetwork: true
       containers:
+        - name: csi-lvmplugin-attacher
+          image: {{.StorageLvmAttacherImage}}
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
         - name: csi-lvmplugin-provisioner
           image: {{.StorageLvmProvisionerImage}}
           args:
@@ -388,11 +308,58 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        - name: csi-lvmplugin
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: {{.StorageLvmCSIImage}}
+          args :
+            - "--nodeid=$(NODE_ID)"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--vgname=$(VG_NAME)"
+            - "--drivername=csi-lvmplugin"
+          env:
+            - name: VG_NAME
+              value: "k8s"
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://csi/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - mountPath: /dev
+              name: host-dev
+            - mountPath: /sys
+              name: host-sys
+            - mountPath: /lib/modules
+              name: lib-modules
+              readOnly: true
       volumes:
         - name: socket-dir
           hostPath:
             path: /var/lib/kubelet/plugins/csi-lvm
             type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: DirectoryOrCreate
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-sys
+          hostPath:
+            path: /sys
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+`
+const StorageClassTemp = `
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass

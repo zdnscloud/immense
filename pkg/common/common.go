@@ -7,11 +7,13 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sstorage "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	"text/template"
+	"time"
 )
 
 const (
@@ -147,4 +149,49 @@ func IsLastOne(cli client.Client, va *k8sstorage.VolumeAttachment) (bool, error)
 		}
 	}
 	return true, nil
+}
+
+func IsDpReady(cli client.Client, namespace, name string) bool {
+	var ready bool
+	deploy := appsv1.Deployment{}
+	err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &deploy)
+	if err != nil {
+		return ready
+	}
+	log.Debugf("Deployment: %s ready:%d, desired: %d", name, deploy.Status.ReadyReplicas, *deploy.Spec.Replicas)
+	return deploy.Status.ReadyReplicas == *deploy.Spec.Replicas
+}
+
+func IsDsReady(cli client.Client, namespace, name string) bool {
+	var ready bool
+	daemonSet := appsv1.DaemonSet{}
+	err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &daemonSet)
+	if err != nil {
+		return ready
+	}
+	log.Debugf("DaemonSet: %s ready:%d, desired: %d", name, daemonSet.Status.NumberReady, daemonSet.Status.DesiredNumberScheduled)
+	return daemonSet.Status.NumberReady == daemonSet.Status.DesiredNumberScheduled
+}
+
+func IsStsReady(cli client.Client, namespace, name string) bool {
+	var ready bool
+	statefulset := appsv1.StatefulSet{}
+	err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &statefulset)
+	if err != nil {
+		return ready
+	}
+	log.Debugf("StatefulSet: %s ready:%d, desired: %d", name, statefulset.Status.ReadyReplicas, *statefulset.Spec.Replicas)
+	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas
+}
+
+func WaitCSIReady(cli client.Client, provisioner, plugin string) {
+	log.Debugf("Wait all csi pod running, this will take some time")
+	var ready bool
+	for !ready {
+		time.Sleep(10 * time.Second)
+		if !IsStsReady(cli, StorageNamespace, provisioner) || !IsDsReady(cli, StorageNamespace, plugin) {
+			continue
+		}
+		ready = true
+	}
 }

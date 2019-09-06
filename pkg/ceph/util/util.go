@@ -3,13 +3,13 @@ package util
 import (
 	"context"
 	"encoding/json"
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/common"
 	zketypes "github.com/zdnscloud/zke/types"
 	"io/ioutil"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sstoragev1 "k8s.io/api/storage/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"time"
 )
 
 var ctx = context.TODO()
@@ -109,26 +110,6 @@ func GetClusterCIDR(cli client.Client, namespace, name string) (string, error) {
 
 }
 
-func GetMonDpReadyNum(cli client.Client, namespace, name string) (int32, error) {
-	var num int32
-	deploy := appsv1.Deployment{}
-	err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &deploy)
-	if err != nil {
-		return num, err
-	}
-	return deploy.Status.ReadyReplicas, nil
-}
-
-func GetOsdDsReadyNum(cli client.Client, namespace, name string) (int32, error) {
-	var num int32
-	daemonSet := appsv1.DaemonSet{}
-	err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &daemonSet)
-	if err != nil {
-		return num, err
-	}
-	return daemonSet.Status.NumberReady, nil
-}
-
 func GetMonEp(cli client.Client) (map[string]string, error) {
 	svc := make(map[string]string)
 	ep := corev1.Endpoints{}
@@ -192,4 +173,16 @@ func CheckConf() bool {
 		return false
 	}
 	return true
+}
+
+func WaitDpReady(cli client.Client, name string) {
+	log.Debugf("Wait all %s running, this will take some time", name)
+	var ready bool
+	for !ready {
+		time.Sleep(10 * time.Second)
+		if !common.IsDpReady(cli, common.StorageNamespace, name) {
+			continue
+		}
+		ready = true
+	}
 }

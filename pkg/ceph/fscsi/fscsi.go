@@ -42,6 +42,7 @@ func Start(cli client.Client, id, name string) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
+	common.WaitCSIReady(cli, global.CSIProvisionerStsName, global.CSIPluginDsName)
 
 	exist, err = util.CheckStorageclass(cli, name)
 	if !exist || err != nil {

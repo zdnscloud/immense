@@ -12,6 +12,7 @@ func mgrYaml() (string, error) {
 		"CephImage":     global.CephImage,
 		"CephConfName":  global.ConfigMapName,
 		"MgrNum":        global.MgrNum,
+		"MgrDpName":     global.MgrDpName,
 	}
 	return common.CompileTemplateFromMap(MgrTemp, cfg)
 }

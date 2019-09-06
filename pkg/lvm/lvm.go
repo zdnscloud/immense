@@ -11,8 +11,11 @@ type Lvm struct {
 }
 
 const (
-	StorageType = "lvm"
-	VGName      = "k8s"
+	StorageType           = "lvm"
+	VGName                = "k8s"
+	LvmdDsName            = "lvmd"
+	CSIPluginDsName       = "csi-lvmplugin"
+	CSIProvisionerStsName = "csi-lvmplugin-provisioner"
 )
 
 func New(c client.Client) *Lvm {
@@ -37,6 +40,7 @@ func (s *Lvm) Create(cluster storagev1.Cluster) error {
 	if err := deployLvmCSI(s.cli, cluster); err != nil {
 		return err
 	}
+
 	common.UpdateStatusPhase(s.cli, cluster.Name, "Running")
 	go StatusControl(s.cli, cluster.Name)
 	return nil

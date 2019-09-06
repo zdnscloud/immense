@@ -161,7 +161,7 @@ spec:
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
-  name: csi-cephfsplugin-provisioner
+  name: {{.CSIProvisionerStsName}}
   namespace: {{.StorageNamespace}}
 spec:
   selector:
@@ -259,7 +259,7 @@ spec:
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: csi-cephfsplugin
+  name: {{.CSIPluginDsName}}
   namespace: {{.StorageNamespace}}
 spec:
   selector:

@@ -7,7 +7,7 @@ metadata:
   labels:
     app: ceph
     daemon: mgr
-  name: ceph-mgr
+  name: {{.MgrDpName}}
   namespace: {{.Namespace}}
 spec:
   replicas: {{.MgrNum}}
@@ -49,7 +49,7 @@ spec:
       initContainers:
       - name: ceph-init
         image: {{.CephInitImage}}
-        imagePullPolicy: Always
+        imagePullPolicy: "IfNotPresent"
         volumeMounts:
         - name: ceph-configmap
           mountPath: /host/ceph

@@ -50,7 +50,7 @@ spec:
       initContainers:
       - name: ceph-init
         image: {{.CephInitImage}}
-        imagePullPolicy: Always
+        imagePullPolicy: "IfNotPresent"
         volumeMounts:
         - name: ceph-configmap
           mountPath: /host/ceph
