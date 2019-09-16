@@ -14,7 +14,15 @@ func undeployLvmCSI(cli client.Client, cluster storagev1.Cluster) error {
 	if err != nil {
 		return err
 	}
-	return helper.DeleteResourceFromYaml(cli, yaml)
+	if err :=  helper.DeleteResourceFromYaml(cli, yaml);err != nil{
+		return err
+	}
+	log.Debugf("Undeploy storageclass %s", cluster.Name)
+        yaml, err = scyaml(cluster.Name)
+        if err != nil {
+                return err
+        }
+        return helper.CreateResourceFromYaml(cli, yaml)
 }
 
 func undeployLvmd(cli client.Client, cluster storagev1.Cluster) error {

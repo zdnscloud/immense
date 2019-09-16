@@ -30,16 +30,18 @@ spec:
           operator: Exists
       affinity:
         podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values: ["ceph"]
-              - key: daemon
-                operator: In
-                values: ["mgr"]
-            topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["ceph"]
+                - key: daemon
+                  operator: In
+                  values: ["mgr"]
+              topologyKey: kubernetes.io/hostname
       volumes:
         - name: ceph-configmap
           configMap:

@@ -12,6 +12,16 @@ import (
 )
 
 func Start(cli client.Client, host, dev string) error {
+	name := "ceph-osd-" + host + "-" + dev
+	ok, err := util.CheckPodPhase(cli, name, "Running")
+	if err != nil{
+		return err
+	}
+	if !ok {
+		if err := zap.Do(cli, host, dev); err != nil {
+			return err
+		}
+	}
 	log.Debugf("Deploy osd %s:%s", host, dev)
 	yaml, err := osdYaml(host, dev)
 	if err != nil {
