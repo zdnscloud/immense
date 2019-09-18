@@ -16,6 +16,7 @@ const (
 	LvmdDsName            = "lvmd"
 	CSIPluginDsName       = "csi-lvmplugin"
 	CSIProvisionerStsName = "csi-lvmplugin-provisioner"
+	StorageDriverName     = "csi-lvmplugin"
 )
 
 func New(c client.Client) *Lvm {

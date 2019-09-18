@@ -11,10 +11,10 @@ import (
 	"net/http"
 )
 
-func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (storagev1.Cluster, error) {
+func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (*storagev1.Cluster, error) {
 	storagecluster, err := GetStorage(cli, cluster.Name)
 	if err != nil {
-		return *cluster, err
+		return cluster, err
 	}
 	infos := make([]storagev1.HostInfo, 0)
 	for _, h := range cluster.Spec.Hosts {
@@ -23,7 +23,7 @@ func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (storag
 		if !exist {
 			devstmp, err := GetBlocksFromClusterAgent(cli, h)
 			if err != nil {
-				return *cluster, err
+				return cluster, err
 			}
 			devs = append(devs, devstmp...)
 		} else {
@@ -37,16 +37,16 @@ func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (storag
 		infos = append(infos, info)
 	}
 	if err := UpdateStorageclusterConfig(cli, cluster.Name, "add", infos); err != nil {
-		return *cluster, err
+		return cluster, err
 	}
 	cluster.Status.Config = infos
-	return *cluster, nil
+	return cluster, nil
 }
 
-func AssembleDeleteConfig(cli client.Client, cluster *storagev1.Cluster) (storagev1.Cluster, error) {
+func AssembleDeleteConfig(cli client.Client, cluster *storagev1.Cluster) (*storagev1.Cluster, error) {
 	storagecluster, err := GetStorage(cli, cluster.Name)
 	if err != nil {
-		return *cluster, err
+		return cluster, err
 	}
 	infos := make([]storagev1.HostInfo, 0)
 	for _, h := range cluster.Spec.Hosts {
@@ -59,13 +59,13 @@ func AssembleDeleteConfig(cli client.Client, cluster *storagev1.Cluster) (storag
 		}
 	}
 	if err := UpdateStorageclusterConfig(cli, cluster.Name, "del", infos); err != nil {
-		return *cluster, err
+		return cluster, err
 	}
 	cluster.Status.Config = infos
-	return *cluster, nil
+	return cluster, nil
 }
 
-func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (storagev1.Cluster, storagev1.Cluster, error) {
+func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (*storagev1.Cluster, *storagev1.Cluster, error) {
 	del, add := HostsDiff(oldc.Spec.Hosts, newc.Spec.Hosts)
 	delc := &storagev1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -87,11 +87,11 @@ func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (sto
 	}
 	dels, err := AssembleDeleteConfig(cli, delc)
 	if err != nil {
-		return *oldc, *newc, err
+		return oldc, newc, err
 	}
 	adds, err := AssembleCreateConfig(cli, addc)
 	if err != nil {
-		return *oldc, *newc, err
+		return oldc, newc, err
 	}
 	return dels, adds, nil
 }

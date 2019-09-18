@@ -41,8 +41,8 @@ func (h *HandlerManager) Create(cluster *storagev1.Cluster) error {
 			if err != nil {
 				return err
 			}
-			logCluster(newcluster, "create")
-			return s.Create(newcluster)
+			logCluster(*newcluster, "create")
+			return s.Create(*newcluster)
 		}
 	}
 	return nil
@@ -74,12 +74,12 @@ func (h *HandlerManager) Update(oldc *storagev1.Cluster, newc *storagev1.Cluster
 				return err
 			}
 			if len(dels.Spec.Hosts) > 0 {
-				logCluster(dels, "delete")
+				logCluster(*dels, "delete")
 			}
 			if len(adds.Spec.Hosts) > 0 {
-				logCluster(adds, "create")
+				logCluster(*adds, "create")
 			}
-			return s.Update(dels, adds)
+			return s.Update(*dels, *adds)
 		}
 	}
 	return nil

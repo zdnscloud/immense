@@ -112,15 +112,7 @@ func GetStorage(cli client.Client, name string) (storagev1.Cluster, error) {
 	return storagecluster, nil
 }
 
-func GetClusterFromVolumeAttachment(cli client.Client, va *k8sstorage.VolumeAttachment) (runtime.Object, error) {
-	var storageType string
-	attacher := va.Spec.Attacher
-	switch attacher {
-	case "csi-lvmplugin":
-		storageType = "lvm"
-	case "cephfs.csi.ceph.com":
-		storageType = "ceph"
-	}
+func GetClusterFromVolumeAttachment(cli client.Client, storageType string) (runtime.Object, error) {
 	storageclusters := storagev1.ClusterList{}
 	err := cli.List(ctx, nil, &storageclusters)
 	if err != nil {
@@ -134,7 +126,7 @@ func GetClusterFromVolumeAttachment(cli client.Client, va *k8sstorage.VolumeAtta
 		obj = &storage
 		return obj, nil
 	}
-	return nil, errors.New("can not found storagecluster for volumeattachment: " + va.Name)
+	return nil, errors.New("can not found storagecluster for type" + storageType)
 }
 
 func IsLastOne(cli client.Client, va *k8sstorage.VolumeAttachment) (bool, error) {

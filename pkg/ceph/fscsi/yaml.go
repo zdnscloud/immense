@@ -26,18 +26,20 @@ func fscsiYaml() (string, error) {
 		"StorageCephFsCSIImage":           global.CephFsCSIImage,
 		"StorageNamespace":                common.StorageNamespace,
 		"CSIConfigmapName":                global.CSIConfigmapName,
+		"StorageDriverName":               global.StorageDriverName,
 	}
 	return common.CompileTemplateFromMap(FScsiTemp, cfg)
 }
 
 func StorageClassYaml(id, name string) (string, error) {
 	cfg := map[string]interface{}{
-		"CephSecretName":   global.SecretName,
-		"CephFsPool":       global.CephFsDate,
-		"CephFsName":       global.CephFsName,
-		"CephClusterID":    id,
-		"StorageNamespace": common.StorageNamespace,
-		"StorageClassName": name,
+		"CephSecretName":   	global.SecretName,
+		"CephFsPool":       	global.CephFsDate,
+		"CephFsName":       	global.CephFsName,
+		"CephClusterID":    	id,
+		"StorageNamespace": 	common.StorageNamespace,
+		"StorageClassName": 	name,
+		"StorageDriverName":	global.StorageDriverName,
 	}
 	return common.CompileTemplateFromMap(StorageClassTemp, cfg)
 }

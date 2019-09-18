@@ -212,7 +212,7 @@ spec:
             - "--type=cephfs"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
-            - "--drivername=cephfs.csi.ceph.com"
+            - "--drivername={{.StorageDriverName}}"
             - "--metadatastorage=k8s_configmap"
           env:
             - name: NODE_ID
@@ -240,9 +240,7 @@ spec:
               mountPath: /etc/ceph-csi-config/
       volumes:
         - name: socket-dir
-          hostPath:
-            path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com
-            type: DirectoryOrCreate
+          emptyDir: {}
         - name: host-sys
           hostPath:
             path: /sys
@@ -279,7 +277,7 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/cephfs.csi.ceph.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/{{.StorageDriverName}}/csi.sock"
           lifecycle:
             preStop:
               exec:
@@ -310,7 +308,7 @@ spec:
             - "--type=cephfs"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
-            - "--drivername=cephfs.csi.ceph.com"
+            - "--drivername={{.StorageDriverName}}"
             - "--metadatastorage=k8s_configmap"
             - "--mountcachedir=/mount-cache-dir"
           env:
@@ -350,7 +348,7 @@ spec:
           emptyDir: {}
         - name: plugin-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com/
+            path: /var/lib/kubelet/plugins/{{.StorageDriverName}}/
             type: DirectoryOrCreate
         - name: csi-plugins-dir
           hostPath:
@@ -382,7 +380,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: {{.StorageClassName}}
-provisioner: cephfs.csi.ceph.com
+provisioner: {{.StorageDriverName}}
 parameters:
   clusterID: {{.CephClusterID}}
   fsName: {{.CephFsName}}

@@ -13,7 +13,8 @@ import (
 	"github.com/zdnscloud/gok8s/predicate"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/ceph/fscsi"
-	"github.com/zdnscloud/immense/pkg/ceph/global"
+	cephGlobal "github.com/zdnscloud/immense/pkg/ceph/global"
+	"github.com/zdnscloud/immense/pkg/lvm"
 	"github.com/zdnscloud/immense/pkg/common"
 	"github.com/zdnscloud/immense/pkg/eventhandler"
 	corev1 "k8s.io/api/core/v1"
@@ -141,7 +142,8 @@ func (d *Controller) OnGeneric(e event.GenericEvent) (handler.Result, error) {
 }
 
 func (d *Controller) CreateFinalizer(va *k8sstorage.VolumeAttachment) error {
-	obj, err := common.GetClusterFromVolumeAttachment(d.client, va)
+	storageType := getStorageType(va.Spec.Attacher)
+	obj, err := common.GetClusterFromVolumeAttachment(d.client, storageType)
 	if err != nil {
 		return err
 	}
@@ -165,7 +167,8 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 	if !lastone {
 		return nil
 	}
-	obj, err := common.GetClusterFromVolumeAttachment(d.client, va)
+	storageType := getStorageType(va.Spec.Attacher)
+	obj, err := common.GetClusterFromVolumeAttachment(d.client, storageType)
 	if err != nil {
 		return err
 	}
@@ -182,7 +185,8 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 	return nil
 }
 func (d *Controller) UpdateFinalizer(oldva, newva *k8sstorage.VolumeAttachment) error {
-	obj, err := common.GetClusterFromVolumeAttachment(d.client, newva)
+	storageType := getStorageType(oldva.Spec.Attacher)
+	obj, err := common.GetClusterFromVolumeAttachment(d.client, storageType)
 	if err != nil {
 		return err
 	}
@@ -204,7 +208,7 @@ func (d *Controller) UpdateFinalizer(oldva, newva *k8sstorage.VolumeAttachment) 
 }
 
 func (d *Controller) UpdateCfgMap(oldep, newep *corev1.Endpoints) error {
-	if newep.Name != "ceph-mon" {
+	if newep.Name != cephGlobal.MonDpName {
 		return nil
 	}
 	var oldips, newips []string
@@ -221,6 +225,17 @@ func (d *Controller) UpdateCfgMap(oldep, newep *corev1.Endpoints) error {
 	if reflect.DeepEqual(oldips, newips) || len(newips) > len(oldips) {
 		return nil
 	}
-	log.Debugf("Watch endpoint %s has changed, update configmap %s now", newep.Name, global.CSIConfigmapName)
+	log.Debugf("Watch endpoint %s has changed, update configmap %s now", newep.Name, cephGlobal.CSIConfigmapName)
 	return fscsi.UpdateCSICfg(d.client, newep)
+}
+
+func getStorageType(attacher string) string {
+	var storageType string
+	switch attacher {
+	case lvm.StorageDriverName:
+	        storageType = lvm.StorageType
+	case cephGlobal.StorageDriverName:
+	        storageType = cephGlobal.StorageType
+	}
+	return storageType
 }

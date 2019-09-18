@@ -4,6 +4,7 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
+	"github.com/zdnscloud/immense/pkg/ceph/global"
 )
 
 type Ceph struct {
@@ -17,7 +18,7 @@ func New(c client.Client) *Ceph {
 }
 
 func (s *Ceph) GetType() string {
-	return "ceph"
+	return global.StorageType
 }
 
 func (s *Ceph) Create(cluster storagev1.Cluster) error {

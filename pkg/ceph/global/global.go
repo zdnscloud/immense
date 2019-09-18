@@ -1,6 +1,8 @@
 package global
 
 const (
+	StorageType             = "cephfs"
+	StorageDriverName       = "cephfs.csi.ceph.com"
 	RBAC                    = "rbac"
 	ServiceAccountName      = "ceph"
 	MonDpName               = "ceph-mon"
@@ -18,7 +20,7 @@ const (
 	CephFsDate              = "myfs_data"
 	CephFsMetadata          = "myfs_metadata"
 	CephInitImage           = "zdnscloud/ceph-init:v0.3"
-	CephImage               = "ceph/daemon:latest"
+	CephImage               = "zdnscloud/ceph-daemon:v14.2.3"
 	CSIProvisionerStsName   = "csi-cephfsplugin-provisioner"
 	CSIPluginDsName         = "csi-cephfsplugin"
 	CSIConfigmapName        = "ceph-csi-config"

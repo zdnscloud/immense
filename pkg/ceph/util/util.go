@@ -132,7 +132,7 @@ func GetCephUUID(cli client.Client) (string, error) {
 		return "", err
 	}
 	for _, sc := range storageclusters.Items {
-		if sc.Spec.StorageType != "ceph" {
+		if sc.Spec.StorageType != global.StorageType {
 			continue
 		}
 		return string(sc.UID), nil

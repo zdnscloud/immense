@@ -60,8 +60,17 @@ rules:
     resources: ["secrets"]
     verbs: ["get", "list"]
   - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["list", "watch"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
     resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "update"]
   - apiGroups: [""]
     resources: ["persistentvolumes"]
     verbs: ["get", "list", "watch", "create", "delete"]
@@ -198,7 +207,7 @@ spec:
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--vgname=$(VG_NAME)"
-            - "--drivername=csi-lvmplugin"
+            - "--drivername={{.StorageDriverName}}"
           env:
             - name: VG_NAME
               value: "k8s"
@@ -296,7 +305,7 @@ spec:
         - name: csi-lvmplugin-provisioner
           image: {{.StorageLvmProvisionerImage}}
           args:
-            - "--provisioner=csi-lvmplugin"
+            - "--provisioner={{.StorageDriverName}}"
             - "--csi-address=$(ADDRESS)"
             - "--v=50"
             - "--logtostderr"
@@ -319,7 +328,7 @@ spec:
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--vgname=$(VG_NAME)"
-            - "--drivername=csi-lvmplugin"
+            - "--drivername={{.StorageDriverName}}"
           env:
             - name: VG_NAME
               value: "k8s"
@@ -342,13 +351,7 @@ spec:
               readOnly: true
       volumes:
         - name: socket-dir
-          hostPath:
-            path: /var/lib/kubelet/plugins/csi-lvm
-            type: DirectoryOrCreate
-        - name: registration-dir
-          hostPath:
-            path: /var/lib/kubelet/plugins_registry/
-            type: DirectoryOrCreate
+          emptyDir: {}
         - name: host-dev
           hostPath:
             path: /dev
@@ -367,5 +370,5 @@ metadata:
   annotations:
     storageclass.kubernetes.io/is-default-class: "true"
   name: {{.StorageClassName}}
-provisioner: csi-lvmplugin
+provisioner: {{.StorageDriverName}}
 reclaimPolicy: Delete`
