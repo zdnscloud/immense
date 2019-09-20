@@ -281,11 +281,7 @@ spec:
           lifecycle:
             preStop:
               exec:
-                command: [
-                  "/bin/sh", "-c",
-                  "rm -rf /registration/csi-cephfsplugin \
-                  /registration/csi-cephfsplugin-reg.sock"
-                ]
+                command: ["/bin/sh", "-c", "rm -rf /registration/cephfs.csi.ceph.com-reg.sock /csi/"]
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
@@ -328,9 +324,6 @@ spec:
               mountPath: /mount-cache-dir
             - name: plugin-dir
               mountPath: /csi
-            - name: csi-plugins-dir
-              mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi
-              mountPropagation: "Bidirectional"
             - name: pods-mount-dir
               mountPath: /var/lib/kubelet/pods
               mountPropagation: "Bidirectional"
@@ -349,10 +342,6 @@ spec:
         - name: plugin-dir
           hostPath:
             path: /var/lib/kubelet/plugins/{{.StorageDriverName}}/
-            type: DirectoryOrCreate
-        - name: csi-plugins-dir
-          hostPath:
-            path: /var/lib/kubelet/plugins/kubernetes.io/csi
             type: DirectoryOrCreate
         - name: registration-dir
           hostPath:

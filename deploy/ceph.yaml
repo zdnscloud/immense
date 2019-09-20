@@ -1,7 +1,7 @@
 apiVersion: storage.zcloud.cn/v1
 kind: Cluster
 metadata:
-  name: ceph-cluster
+  name: cephfs
 spec:
   storageType: "ceph"
-  hosts: ["138","137"]
+  hosts: ["4","5"]

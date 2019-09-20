@@ -187,7 +187,7 @@ spec:
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "rm -rf /registration/ /csi/"]
+                command: ["/bin/sh", "-c", "rm -rf /registration/csi-lvmplugin-reg.sock /csi/"]
           env:
             - name: ADDRESS
               value: /csi/csi.sock
