@@ -5,7 +5,7 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
-func osdYaml(host, dev string) (string, error) {
+func osdYaml(fsid, host, dev string) (string, error) {
 	cfg := map[string]interface{}{
 		"Namespace":     common.StorageNamespace,
 		"CephInitImage": global.CephInitImage,
@@ -13,6 +13,7 @@ func osdYaml(host, dev string) (string, error) {
 		"CephConfName":  global.ConfigMapName,
 		"NodeName":      host,
 		"OsdID":         dev,
+		"FSID":          fsid,
 	}
 	return common.CompileTemplateFromMap(OsdTemp, cfg)
 }

@@ -4,23 +4,25 @@ const MonSvcTemp = `
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{.SvcName}}
-  namespace: {{.Namespace}}
-  annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
   labels:
-    app: ceph
-    daemon: mon
+    mon_svc: {{.MonSvc}}
+    mon_id: {{.MonID}}
+  name: {{.MonSvc}}-{{.MonID}}
+  namespace: {{.Namespace}}
 spec:
   ports:
-  - port: {{.MonPort}}
+  - name: msgr1
+    port: {{.MonPortV1}}
     protocol: TCP
-    targetPort: {{.MonPort}}
+    targetPort: {{.MonPortV1}}
+  - name: msgr2
+    port: {{.MonPortV2}}
+    protocol: TCP
+    targetPort: {{.MonPortV2}}
   selector:
-    app: ceph
-    daemon: mon
-  clusterIP: None
-`
+    mon_svc: {{.MonSvc}}
+    mon_id: {{.MonID}}
+  type: ClusterIP`
 
 const ConfigMapTemp = `
 apiVersion: v1
@@ -50,24 +52,19 @@ data:
     mon_osd_full_ratio = .95
     mon_osd_nearfull_ratio = .85
 
-    mon_host = {{.MonHost}}
+    mon initial members       = a b c
+    mon host                  = {{.MonEp}}
 
     [mon]
-    mon_osd_down_out_interval = 600
-    mon_osd_min_down_reporters = 4
     mon_clock_drift_allowed = .15
     mon_clock_drift_warn_backoff = 30
-    mon_osd_report_timeout = 300
     mon_data_avail_warn = 10
 
 
     [osd]
     journal_size = 100
-    cluster_network = {{.Network}}
-    public_network = {{.Network}}
     osd_mkfs_type = xfs
     osd_mkfs_options_xfs = -f -i size=2048
-    osd_mon_heartbeat_interval = 30
     osd_max_object_name_len = 256
 
     #crush
@@ -97,17 +94,9 @@ data:
     ms_bind_port_min = 6800
     ms_bind_port_max = 7100
 
-    [client]
-    rbd_cache_enabled = true
-    rbd_cache_writethrough_until_flush = true
-    rbd_default_features = 1
-
     [mds]
     mds_cache_size = 100000
 
-    [mgr]
-    client mount uid = 0
-    client mount gid = 0
   ceph.client.admin.keyring: |
     [client.admin]
       key = {{.AdminKey}}
@@ -116,10 +105,17 @@ data:
       caps mon = "allow *"
       caps osd = "allow *"
       caps mgr = "allow *"
-  ceph.mon.keyring: |
+  keyring: |
+    [client.admin]
+      key = {{.AdminKey}}
+      caps mds = "allow *"
+      caps mon = "allow *"
+      caps osd = "allow *"
+      caps mgr = "allow *"
     [mon.]
       key = {{.MonKey}}
       caps mon = "allow *"
+
 `
 
 const SecretTemp = `

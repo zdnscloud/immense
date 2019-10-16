@@ -12,17 +12,14 @@ import (
 	"github.com/zdnscloud/gok8s/helper"
 	"github.com/zdnscloud/gok8s/predicate"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	"github.com/zdnscloud/immense/pkg/ceph/fscsi"
 	cephGlobal "github.com/zdnscloud/immense/pkg/ceph/global"
-	"github.com/zdnscloud/immense/pkg/lvm"
 	"github.com/zdnscloud/immense/pkg/common"
 	"github.com/zdnscloud/immense/pkg/eventhandler"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/zdnscloud/immense/pkg/lvm"
 	k8sstorage "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"reflect"
 	"sync"
 )
 
@@ -78,7 +75,6 @@ func New(config *rest.Config) (*Controller, error) {
 	ctrl := controller.New("zcloudStorage", c, scm)
 	ctrl.Watch(&storagev1.Cluster{})
 	ctrl.Watch(&k8sstorage.VolumeAttachment{})
-	ctrl.Watch(&corev1.Endpoints{})
 	ctrl.Start(stopCh, storageCtrl, predicate.NewIgnoreUnchangedUpdate())
 	return storageCtrl, nil
 }
@@ -108,16 +104,6 @@ func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 		if err := d.handlermgr.Update(oldc, newc); err != nil {
 			log.Warnf("Update failed:%s", err.Error())
 		}
-	case *k8sstorage.VolumeAttachment:
-		oldc := e.ObjectOld.(*k8sstorage.VolumeAttachment)
-		newc := e.ObjectNew.(*k8sstorage.VolumeAttachment)
-		if oldc.Spec.NodeName != newc.Spec.NodeName {
-			d.UpdateFinalizer(oldc, newc)
-		}
-	case *corev1.Endpoints:
-		oldc := e.ObjectOld.(*corev1.Endpoints)
-		newc := e.ObjectNew.(*corev1.Endpoints)
-		d.UpdateCfgMap(oldc, newc)
 	}
 	return handler.Result{}, nil
 }
@@ -148,12 +134,11 @@ func (d *Controller) CreateFinalizer(va *k8sstorage.VolumeAttachment) error {
 		return err
 	}
 	metaObj := obj.(metav1.Object)
-	fr := ClusterFinalizer + "-" + va.Spec.NodeName
-	if helper.HasFinalizer(metaObj, fr) {
+	if helper.HasFinalizer(metaObj, ClusterFinalizer) {
 		return nil
 	}
-	helper.AddFinalizer(metaObj, fr)
-	log.Debugf("Add finalizer %s for storagecluster: %s", fr, metaObj.GetName())
+	helper.AddFinalizer(metaObj, ClusterFinalizer)
+	log.Debugf("Add finalizer %s for storagecluster: %s", ClusterFinalizer, metaObj.GetName())
 	if err := d.client.Update(ctx, obj); err != nil {
 		return err
 	}
@@ -173,69 +158,24 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 		return err
 	}
 	metaObj := obj.(metav1.Object)
-	fr := ClusterFinalizer + "-" + va.Spec.NodeName
-	if !helper.HasFinalizer(metaObj, fr) {
+	if !helper.HasFinalizer(metaObj, ClusterFinalizer) {
 		return nil
 	}
-	helper.RemoveFinalizer(metaObj, fr)
-	log.Debugf("Remove finalizer %s for storagecluster: %s", fr, metaObj.GetName())
+	helper.RemoveFinalizer(metaObj, ClusterFinalizer)
+	log.Debugf("Remove finalizer %s for storagecluster: %s", ClusterFinalizer, metaObj.GetName())
 	if err := d.client.Update(ctx, obj); err != nil {
 		return err
 	}
 	return nil
-}
-func (d *Controller) UpdateFinalizer(oldva, newva *k8sstorage.VolumeAttachment) error {
-	storageType := getStorageType(oldva.Spec.Attacher)
-	obj, err := common.GetClusterFromVolumeAttachment(d.client, storageType)
-	if err != nil {
-		return err
-	}
-	metaObj := obj.(metav1.Object)
-	newfr := ClusterFinalizer + "-" + newva.Spec.NodeName
-	oldfr := ClusterFinalizer + "-" + oldva.Spec.NodeName
-	if !helper.HasFinalizer(metaObj, newfr) {
-		helper.AddFinalizer(metaObj, newfr)
-		log.Debugf("Add finalizer %s for storagecluster: %s", newfr, metaObj.GetName())
-	}
-	if helper.HasFinalizer(metaObj, oldfr) {
-		helper.RemoveFinalizer(metaObj, oldfr)
-		log.Debugf("Remove finalizer %s for storagecluster: %s", oldfr, metaObj.GetName())
-	}
-	if err := d.client.Update(ctx, obj); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *Controller) UpdateCfgMap(oldep, newep *corev1.Endpoints) error {
-	if newep.Name != cephGlobal.MonDpName {
-		return nil
-	}
-	var oldips, newips []string
-	for _, sub := range oldep.Subsets {
-		for _, ads := range sub.Addresses {
-			oldips = append(oldips, ads.IP)
-		}
-	}
-	for _, sub := range newep.Subsets {
-		for _, ads := range sub.Addresses {
-			newips = append(newips, ads.IP)
-		}
-	}
-	if reflect.DeepEqual(oldips, newips) || len(newips) > len(oldips) {
-		return nil
-	}
-	log.Debugf("Watch endpoint %s has changed, update configmap %s now", newep.Name, cephGlobal.CSIConfigmapName)
-	return fscsi.UpdateCSICfg(d.client, newep)
 }
 
 func getStorageType(attacher string) string {
 	var storageType string
 	switch attacher {
 	case lvm.StorageDriverName:
-	        storageType = lvm.StorageType
+		storageType = lvm.StorageType
 	case cephGlobal.StorageDriverName:
-	        storageType = cephGlobal.StorageType
+		storageType = cephGlobal.StorageType
 	}
 	return storageType
 }

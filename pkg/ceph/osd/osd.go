@@ -11,10 +11,10 @@ import (
 	"time"
 )
 
-func Start(cli client.Client, host, dev string) error {
+func Start(cli client.Client, fsid, host, dev string) error {
 	name := "ceph-osd-" + host + "-" + dev
 	ok, err := util.CheckPodPhase(cli, name, "Running")
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	if !ok {
@@ -23,7 +23,7 @@ func Start(cli client.Client, host, dev string) error {
 		}
 	}
 	log.Debugf("Deploy osd %s:%s", host, dev)
-	yaml, err := osdYaml(host, dev)
+	yaml, err := osdYaml(fsid, host, dev)
 	if err != nil {
 		return err
 	}
@@ -36,7 +36,8 @@ func Start(cli client.Client, host, dev string) error {
 
 func Stop(cli client.Client, host, dev string) error {
 	log.Debugf("Undeploy osd %s:%s", host, dev)
-	yaml, err := osdYaml(host, dev)
+	var fsid string
+	yaml, err := osdYaml(fsid, host, dev)
 	if err != nil {
 		return err
 	}

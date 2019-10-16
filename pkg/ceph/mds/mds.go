@@ -8,9 +8,9 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 )
 
-func Start(cli client.Client) error {
+func Start(cli client.Client, pgnum int) error {
 	log.Debugf("Deploy mds")
-	yaml, err := mdsYaml()
+	yaml, err := mdsYaml(pgnum)
 	if err != nil {
 		return err
 	}
@@ -23,7 +23,8 @@ func Start(cli client.Client) error {
 
 func Stop(cli client.Client) error {
 	log.Debugf("Undeploy mds")
-	yaml, err := mdsYaml()
+	var pgnum int
+	yaml, err := mdsYaml(pgnum)
 	if err != nil {
 		return err
 	}

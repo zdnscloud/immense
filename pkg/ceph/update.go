@@ -25,10 +25,11 @@ func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 	if len(cluster.Spec.Hosts) == 0 {
 		return nil
 	}
+	uuid := string(cluster.UID)
 	for _, host := range cluster.Status.Config {
 		for _, d := range host.BlockDevices {
 			dev := d[5:]
-			if err := osd.Start(cli, host.NodeName, dev); err != nil {
+			if err := osd.Start(cli, uuid, host.NodeName, dev); err != nil {
 				return err
 			}
 		}

@@ -126,13 +126,6 @@ func GetBlocksFromClusterAgent(cli client.Client, name string) ([]string, error)
 			if d.Parted || d.Filesystem || d.Mount {
 				continue
 			}
-			/*
-				dev := storagev1.Dev{
-					Name: d.Name,
-					Size: d.Size,
-				}
-				devs = append(devs, dev)
-			*/
 			devs = append(devs, d.Name)
 		}
 	}

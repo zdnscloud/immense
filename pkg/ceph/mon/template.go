@@ -5,23 +5,23 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   labels:
-    app: ceph
-    daemon: mon
-  name: ceph-mon
+    mon_svc: {{.MonSvc}}
+    mon_id: {{.ID}}
+  name: ceph-mon-{{.ID}}
   namespace: {{.Namespace}}
 spec:
-  replicas: {{.MonNum}}
+  replicas: 1
   selector:
     matchLabels:
-      app: ceph
-      daemon: mon
+      mon_svc: {{.MonSvc}}
+      mon_id: {{.ID}}
   template:
     metadata:
-      name: ceph-mon
+      name: ceph-mon-{{.MonID}}
       namespace: {{.Namespace}}
       labels:
-        app: ceph
-        daemon: mon
+        mon_svc: {{.MonSvc}}
+        mon_id: {{.ID}}
     spec:
       serviceAccount: {{.ServiceAccountName}}
       tolerations:
@@ -29,20 +29,6 @@ spec:
           operator: Exists
         - key: node-role.kubernetes.io/master
           operator: Exists
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values: ["ceph"]
-                - key: daemon
-                  operator: In
-                  values: ["mon"]
-              topologyKey: kubernetes.io/hostname
-            weight: 100
       volumes:
         - name: ceph-configmap
           configMap:
@@ -62,33 +48,35 @@ spec:
       containers:
         - name: ceph-mon
           image: {{.CephImage}}
-          lifecycle:
-            preStop:
-                exec:
-                  # remove the mon on Pod stop.
-                  command:
-                    - "/remove-mon.sh"
+          command: ["/bin/sh", "-c", "sh -x /etc/ceph/start_mon.sh"]
           ports:
-            - containerPort: {{.MonPort}}
+            - containerPort: {{.MonPortV1}}
+            - containerPort: {{.MonPortV2}}
           env:
-            - name: CEPH_DAEMON
-              value: MON
-            - name: KV_TYPE
-              value: k8s
-            - name: NETWORK_AUTO_DETECT
-              value: "4"
-            - name: CLUSTER
-              value: ceph
+            - name: FSID
+              value: {{.FSID}}
+            - name: MON_HOSTS
+              value: "{{.MON_HOSTS}}"
+            - name: MON_MEMBERS
+              value: "{{.MON_MEMBERS}}"
+            - name: ID
+              value: {{.ID}}
+            - name: MON_SVC_ADDR
+              value: {{.MonSvcAddr}}
+            - name: MON_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           volumeMounts:
             - name: ceph-conf
               mountPath: /etc/ceph
           livenessProbe:
               tcpSocket:
-                port: {{.MonPort}}
+                port: {{.MonPortV1}}
               initialDelaySeconds: 60
               timeoutSeconds: 5
           readinessProbe:
               tcpSocket:
-                port: {{.MonPort}}
+                port: {{.MonPortV1}}
               timeoutSeconds: 5
 `

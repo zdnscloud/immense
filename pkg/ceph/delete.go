@@ -15,7 +15,7 @@ import (
 )
 
 func delete(cli client.Client, cluster storagev1.Cluster) error {
-	var networks, uuid, adminkey, monkey string
+	var uuid, adminkey, monkey string
 	var copies int
 	if err := fscsi.Stop(cli, uuid, cluster.Name); err != nil {
 		return err
@@ -37,10 +37,10 @@ func delete(cli client.Client, cluster storagev1.Cluster) error {
 	if err := mgr.Stop(cli); err != nil {
 		return err
 	}
-	if err := mon.Stop(cli, networks); err != nil {
+	if err := mon.Stop(cli); err != nil {
 		return err
 	}
-	if err := config.Stop(cli, uuid, networks, adminkey, monkey, copies); err != nil {
+	if err := config.Stop(cli, uuid, adminkey, monkey, copies); err != nil {
 		return err
 	}
 	if err := util.RemoveConf(cli); err != nil {

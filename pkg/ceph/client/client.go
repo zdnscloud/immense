@@ -6,16 +6,6 @@ import (
 	"strings"
 )
 
-/*
-func Rmmon(name string) error {
-	args := []string{"mon", "remove", name, "--connect-timeout", "15"}
-	_, err := util.ExecCMDWithOutput("ceph", args)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-*/
 func ReweigtOsd(id string) error {
 	args := []string{"osd", "crush", "reweight", id, "0", "--connect-timeout", "15"}
 	_, err := util.ExecCMDWithOutput("ceph", args)

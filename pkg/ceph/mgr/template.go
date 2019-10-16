@@ -79,4 +79,13 @@ spec:
           volumeMounts:
             - name: ceph-conf
               mountPath: /etc/ceph
+          livenessProbe:
+              tcpSocket:
+                port: 6800
+              initialDelaySeconds: 60
+              timeoutSeconds: 5
+          readinessProbe:
+              tcpSocket:
+                port: 6800
+              timeoutSeconds: 5
 `

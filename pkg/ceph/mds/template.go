@@ -58,11 +58,11 @@ spec:
             - name: CEPHFS_DATA_POOL
               value: "{{.CEPHFS_DATA_POOL}}"
             - name: CEPHFS_DATA_POOL_PG
-              value: "128"
+              value: "{{.PgNum}}"
             - name: CEPHFS_METADATA_POOL
               value: "{{.CEPHFS_METADATA_POOL}}"
             - name: CEPHFS_METADATA_POOL_PG
-              value: "128"
+              value: "{{.PgNum}}"
           volumeMounts:
             - name: ceph-conf
               mountPath: /etc/ceph

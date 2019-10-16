@@ -3,5 +3,5 @@ kind: Cluster
 metadata:
   name: cephfs
 spec:
-  storageType: "ceph"
-  hosts: ["4","5"]
+  storageType: "cephfs"
+  hosts: ["3","4","5"]

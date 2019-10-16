@@ -2,13 +2,11 @@ package util
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/common"
-	zketypes "github.com/zdnscloud/zke/types"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	k8sstoragev1 "k8s.io/api/storage/v1"
@@ -98,48 +96,6 @@ func ToSlice(cluster storagev1.Cluster) []string {
 	return infos
 }
 
-func GetClusterCIDR(cli client.Client, namespace, name string) (string, error) {
-	cm := corev1.ConfigMap{}
-	err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &cm)
-	if err != nil {
-		return "", err
-	}
-	var res zketypes.ZKEConfig
-	json.Unmarshal([]byte(cm.Data["cluster-config"]), &res)
-	return res.Option.ClusterCidr, nil
-
-}
-
-func GetMonEp(cli client.Client) (map[string]string, error) {
-	svc := make(map[string]string)
-	ep := corev1.Endpoints{}
-	err := cli.Get(ctx, k8stypes.NamespacedName{common.StorageNamespace, global.MonSvc}, &ep)
-	if err != nil {
-		return svc, err
-	}
-	for _, sub := range ep.Subsets {
-		for _, ads := range sub.Addresses {
-			svc[ads.TargetRef.Name] = ads.IP
-		}
-	}
-	return svc, nil
-}
-
-func GetCephUUID(cli client.Client) (string, error) {
-	storageclusters := storagev1.ClusterList{}
-	err := cli.List(ctx, nil, &storageclusters)
-	if err != nil {
-		return "", err
-	}
-	for _, sc := range storageclusters.Items {
-		if sc.Spec.StorageType != global.StorageType {
-			continue
-		}
-		return string(sc.UID), nil
-	}
-	return "", nil
-}
-
 func RemoveConf(cli client.Client) error {
 	for _, f := range files {
 		file := path.Join(root, f)
@@ -185,4 +141,25 @@ func WaitDpReady(cli client.Client, name string) {
 		}
 		ready = true
 	}
+}
+
+func getMonSvc(cli client.Client, name string) (string, error) {
+	service := corev1.Service{}
+	if err := cli.Get(ctx, k8stypes.NamespacedName{common.StorageNamespace, name}, &service); err != nil {
+		return "", err
+	}
+	return service.Spec.ClusterIP, nil
+}
+
+func GetMonSvcMap(cli client.Client) (map[string]string, error) {
+	svc := make(map[string]string)
+	for _, id := range global.MonMembers {
+		svcName := global.MonSvc + "-" + id
+		addr, err := getMonSvc(cli, svcName)
+		if err != nil {
+			return svc, err
+		}
+		svc[id] = addr
+	}
+	return svc, nil
 }

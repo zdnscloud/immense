@@ -13,28 +13,28 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/osd"
 	"github.com/zdnscloud/immense/pkg/ceph/status"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
-	"github.com/zdnscloud/immense/pkg/common"
 	"strings"
 )
 
 func create(cli client.Client, cluster storagev1.Cluster) error {
-	networks, err := util.GetClusterCIDR(cli, common.CIDRconfigMapNamespace, common.CIDRconfigMap)
-	if err != nil {
-		return err
-	}
 	uuid := string(cluster.UID)
 	adminkey, monkey, err := initconf()
 	if err != nil {
 		return err
 	}
-	copiers := getReplication(cluster)
-	if err := config.Start(cli, uuid, networks, adminkey, monkey, copiers); err != nil {
+	copiers, pgnum := getReplicationAndPgNum(cluster)
+
+	if err := config.Start(cli, uuid, adminkey, monkey, copiers); err != nil {
 		return err
 	}
 	if err := util.SaveConf(cli); err != nil {
 		return err
 	}
-	if err := mon.Start(cli, networks); err != nil {
+	monsvc, err := util.GetMonSvcMap(cli)
+	if err != nil {
+		return err
+	}
+	if err := mon.Start(cli, uuid, monsvc); err != nil {
 		return err
 	}
 	if err := mgr.Start(cli); err != nil {
@@ -45,16 +45,16 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 		func(o interface{}) (interface{}, error) {
 			host := strings.Split(o.(string), ":")[0]
 			dev := strings.Split(o.(string), ":")[1][5:]
-			return nil, osd.Start(cli, host, dev)
+			return nil, osd.Start(cli, uuid, host, dev)
 		},
 	)
 	if err != nil {
 		return err
 	}
-	if err := mds.Start(cli); err != nil {
+	if err := mds.Start(cli, pgnum); err != nil {
 		return err
 	}
-	if err := fscsi.Start(cli, uuid, cluster.Name); err != nil {
+	if err := fscsi.Start(cli, uuid, cluster.Name, monsvc); err != nil {
 		return err
 	}
 	go osd.Watch()
@@ -75,8 +75,8 @@ func initconf() (string, string, error) {
 	return adminkey, monkey, nil
 }
 
-func getReplication(cluster storagev1.Cluster) int {
-	var num, Replication int
+func getReplicationAndPgNum(cluster storagev1.Cluster) (int, int) {
+	var num, Replication, PgNum int
 	for _, host := range cluster.Status.Config {
 		num += len(host.BlockDevices)
 	}
@@ -85,5 +85,14 @@ func getReplication(cluster storagev1.Cluster) int {
 	} else {
 		Replication = 1
 	}
-	return Replication
+	if num < 5 {
+		PgNum = global.PgNumDefault
+	} else if num >= 5 && num < 10 {
+		PgNum = global.PgNumDefault * 4
+	} else if num >= 10 && num < 50 {
+		PgNum = global.PgNumDefault * 8
+	} else {
+		PgNum = global.PgNumDefault * 8
+	}
+	return Replication, PgNum
 }

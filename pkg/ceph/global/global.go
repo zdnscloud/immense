@@ -9,17 +9,18 @@ const (
 	MdsDpName               = "ceph-mds"
 	MgrDpName               = "ceph-mgr"
 	MonSvc                  = "ceph-mon"
-	MonPort                 = "3300"
+	MonPortV1               = "6789"
+	MonPortV2               = "3300"
 	ConfigMapName           = "ceph-conf"
 	SecretName              = "csi-cephfs-secret"
-	MonNum                  = 3
-	MgrNum                  = 2
-	MdsNum                  = 2
+	MgrNum                  = 1
+	MdsNum                  = 1
 	PoolDefaultSize         = 2
+	PgNumDefault            = 128
 	CephFsName              = "myfs"
 	CephFsDate              = "myfs_data"
 	CephFsMetadata          = "myfs_metadata"
-	CephInitImage           = "zdnscloud/ceph-init:v0.3"
+	CephInitImage           = "zdnscloud/ceph-init:v0.4"
 	CephImage               = "zdnscloud/ceph-daemon:v14.2.3"
 	CSIProvisionerStsName   = "csi-cephfsplugin-provisioner"
 	CSIPluginDsName         = "csi-cephfsplugin"
@@ -29,3 +30,5 @@ const (
 	CSIDriverRegistrarImage = "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2"
 	CephFsCSIImage          = "quay.io/cephcsi/cephcsi:v1.1.0"
 )
+
+var MonMembers = []string{"a", "b", "c"}

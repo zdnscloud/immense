@@ -45,7 +45,7 @@ spec:
       containers:
         - name: osd-pod
           image: {{.CephImage}}
-          command: ["/bin/sh", "-c", "sh -x /etc/ceph/osd_volume_create.sh"]
+          command: ["/bin/bash", "-c", "sh -x /etc/ceph/start_osd.sh"]
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: devices
@@ -67,6 +67,8 @@ spec:
               value: "1"
             - name: OSD_BLUESTORE
               value: "1"
+            - name: FSID
+              value: {{.FSID}}
             - name: OSD_NAME
               valueFrom:
                 fieldRef:
