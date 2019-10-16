@@ -85,6 +85,7 @@ func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (*st
 			Hosts:       add,
 		},
 	}
+
 	dels, err := AssembleDeleteConfig(cli, delc)
 	if err != nil {
 		return oldc, newc, err

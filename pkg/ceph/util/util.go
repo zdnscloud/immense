@@ -163,3 +163,18 @@ func GetMonSvcMap(cli client.Client) (map[string]string, error) {
 	}
 	return svc, nil
 }
+
+func GetCephUUID(cli client.Client) (string, error) {
+	storageclusters := storagev1.ClusterList{}
+	err := cli.List(ctx, nil, &storageclusters)
+	if err != nil {
+		return "", err
+	}
+	for _, sc := range storageclusters.Items {
+		if sc.Spec.StorageType != global.StorageType {
+			continue
+		}
+		return string(sc.UID), nil
+	}
+	return "", nil
+}

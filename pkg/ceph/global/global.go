@@ -21,7 +21,7 @@ const (
 	CephFsName              = "myfs"
 	CephFsDate              = "myfs_data"
 	CephFsMetadata          = "myfs_metadata"
-	CephInitImage           = "zdnscloud/ceph-init:v0.4"
+	CephInitImage           = "zdnscloud/ceph-init:v0.5.1"
 	CephImage               = "zdnscloud/ceph-daemon:v14.2.3"
 	CSIProvisionerStsName   = "csi-cephfsplugin-provisioner"
 	CSIPluginDsName         = "csi-cephfsplugin"

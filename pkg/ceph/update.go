@@ -1,9 +1,12 @@
 package ceph
 
 import (
+	"errors"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+
 	"github.com/zdnscloud/immense/pkg/ceph/osd"
+	"github.com/zdnscloud/immense/pkg/ceph/util"
 )
 
 func doDelhost(cli client.Client, cluster storagev1.Cluster) error {
@@ -25,7 +28,13 @@ func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 	if len(cluster.Spec.Hosts) == 0 {
 		return nil
 	}
-	uuid := string(cluster.UID)
+	uuid, err := util.GetCephUUID(cli)
+	if err != nil {
+		return err
+	}
+	if uuid == "" {
+		return errors.New("can not get storage cluster uuid")
+	}
 	for _, host := range cluster.Status.Config {
 		for _, d := range host.BlockDevices {
 			dev := d[5:]
