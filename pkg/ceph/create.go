@@ -85,14 +85,6 @@ func getReplicationAndPgNum(cluster storagev1.Cluster) (int, int) {
 	} else {
 		Replication = 1
 	}
-	if num < 5 {
-		PgNum = global.PgNumDefault
-	} else if num >= 5 && num < 10 {
-		PgNum = global.PgNumDefault * 4
-	} else if num >= 10 && num < 50 {
-		PgNum = global.PgNumDefault * 8
-	} else {
-		PgNum = global.PgNumDefault * 8
-	}
+	PgNum = global.TargetPgPerOsd * num / 2 / Replication
 	return Replication, PgNum
 }

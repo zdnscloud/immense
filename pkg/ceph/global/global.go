@@ -16,6 +16,7 @@ const (
 	MgrNum                  = 1
 	MdsNum                  = 1
 	PoolDefaultSize         = 2
+	TargetPgPerOsd          = 100
 	PgNumDefault            = 128
 	CephFsName              = "myfs"
 	CephFsDate              = "myfs_data"
