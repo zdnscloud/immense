@@ -16,7 +16,7 @@ func svcYaml(id string) (string, error) {
 	return common.CompileTemplateFromMap(MonSvcTemp, cfg)
 }
 
-func confYaml(uuid, adminkey, monkey, endpoint string, number int) (string, error) {
+func confYaml(uuid, adminkey, monkey, endpoint, members string, number int) (string, error) {
 	cfg := map[string]interface{}{
 		"CephConfName": global.ConfigMapName,
 		"Namespace":    common.StorageNamespace,
@@ -26,6 +26,7 @@ func confYaml(uuid, adminkey, monkey, endpoint string, number int) (string, erro
 		"MonKey":       monkey,
 		"Replication":  number,
 		"MonEp":        endpoint,
+		"MonMembers":   members,
 	}
 	return common.CompileTemplateFromMap(ConfigMapTemp, cfg)
 }

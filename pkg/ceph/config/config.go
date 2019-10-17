@@ -33,11 +33,12 @@ func Start(cli client.Client, uuid, adminkey, monkey string, number int) error {
 		monEndpoints = append(monEndpoints, ep)
 	}
 	eps := strings.Replace(strings.Trim(fmt.Sprint(monEndpoints), "[]"), " ", ",", -1)
+	members := strings.Replace(strings.Trim(fmt.Sprint(global.MonMembers), "[]"), " ", ",", -1)
 
 	exist, err := util.CheckConfigMap(cli, common.StorageNamespace, global.ConfigMapName)
 	if !exist || err != nil {
 		log.Debugf("Deploy configmap %s", global.ConfigMapName)
-		yaml, err := confYaml(uuid, adminkey, monkey, eps, number)
+		yaml, err := confYaml(uuid, adminkey, monkey, eps, members, number)
 		if err != nil {
 			return err
 		}
@@ -79,9 +80,9 @@ func Stop(cli client.Client, uuid, adminkey, monkey string, number int) error {
 			return err
 		}
 	}
-	var eps string
+	var eps, members string
 	log.Debugf("Undeploy configmap %s", global.ConfigMapName)
-	yaml, err := confYaml(uuid, adminkey, monkey, eps, number)
+	yaml, err := confYaml(uuid, adminkey, monkey, eps, members, number)
 	if err != nil {
 		return err
 	}

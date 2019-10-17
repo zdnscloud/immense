@@ -21,6 +21,7 @@ spec:
         app: ceph
         daemon: osd-{{.NodeName}}-{{.OsdID}}
     spec:
+      hostPID: true
       nodeSelector:
         kubernetes.io/hostname: "{{.NodeName}}"
       volumes:
@@ -32,6 +33,14 @@ spec:
             name: {{.CephConfName}}
         - name: ceph-conf
           emptyDir: {}
+        - hostPath:
+            path: /run/udev
+            type: ""
+          name: run-udev
+        - hostPath:
+            path: /var/lib/ceph
+            type: ""
+          name: ceph-data
       initContainers:
       - name: ceph-init
         image: {{.CephInitImage}}
@@ -52,8 +61,12 @@ spec:
               mountPath: /dev
             - name: ceph-conf
               mountPath: /etc/ceph
+            - mountPath: /run/udev
+              name: run-udev
           securityContext:
             privileged: true
+            readOnlyRootFilesystem: false
+            runAsUser: 0
           env:
             - name: OSD_TYPE
               value: "disk"
@@ -69,17 +82,16 @@ spec:
               value: "1"
             - name: FSID
               value: {{.FSID}}
+            - name: MON_MEMBERS
+              value: {{.Mon_Members}}
+            - name: MON_ENDPOINT
+              value: {{.Mon_Endpoint}}
+            - name: ADDR
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: OSD_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-          livenessProbe:
-              tcpSocket:
-                port: 6800
-              initialDelaySeconds: 60
-              timeoutSeconds: 5
-          readinessProbe:
-              tcpSocket:
-                port: 6800
-              timeoutSeconds: 5
 `

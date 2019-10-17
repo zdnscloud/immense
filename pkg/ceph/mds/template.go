@@ -42,6 +42,7 @@ spec:
       containers:
         - name: ceph-mds
           image: {{.CephImage}}
+          command: ["/bin/sh","-c","sleep 86400"]
           ports:
             - containerPort: 6800
           env:
@@ -66,13 +67,4 @@ spec:
           volumeMounts:
             - name: ceph-conf
               mountPath: /etc/ceph
-          livenessProbe:
-              tcpSocket:
-                port: 6800
-              initialDelaySeconds: 60
-              timeoutSeconds: 5
-          readinessProbe:
-              tcpSocket:
-                port: 6800
-              timeoutSeconds: 5
 `

@@ -35,10 +35,14 @@ func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 	if uuid == "" {
 		return errors.New("can not get storage cluster uuid")
 	}
+	monsvc, err := util.GetMonSvcMap(cli)
+	if err != nil {
+		return err
+	}
 	for _, host := range cluster.Status.Config {
 		for _, d := range host.BlockDevices {
 			dev := d[5:]
-			if err := osd.Start(cli, uuid, host.NodeName, dev); err != nil {
+			if err := osd.Start(cli, uuid, host.NodeName, dev, monsvc); err != nil {
 				return err
 			}
 		}

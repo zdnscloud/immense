@@ -45,7 +45,7 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 		func(o interface{}) (interface{}, error) {
 			host := strings.Split(o.(string), ":")[0]
 			dev := strings.Split(o.(string), ":")[1][5:]
-			return nil, osd.Start(cli, uuid, host, dev)
+			return nil, osd.Start(cli, uuid, host, dev, monsvc)
 		},
 	)
 	if err != nil {

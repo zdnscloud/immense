@@ -37,11 +37,20 @@ spec:
         volumeMounts:
           - mountPath: /dev
             name: host-dev
+        livenessProbe:
+            tcpSocket:
+              port: 1736
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+        readinessProbe:
+            tcpSocket:
+              port: 1736
+            timeoutSeconds: 5
       volumes:
         - name: host-dev
           hostPath:
-            path: /dev`
-
+            path: /dev
+`
 const LvmCSITemplate = `
 {{- if eq .RBACConfig "rbac"}}
 apiVersion: v1

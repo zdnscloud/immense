@@ -61,6 +61,7 @@ spec:
       containers:
         - name: ceph-mgr
           image: {{.CephImage}}
+          command: ["/bin/sh","-c","sh -x /etc/ceph/start_mgr.sh"]
           ports:
             - containerPort: 6800
             - containerPort: 7000
@@ -68,6 +69,8 @@ spec:
           env:
             - name: CEPH_DAEMON
               value: MGR
+            - name: MGR_NAME
+              value: "ceph-mgr-58dbb9d74b-k4nqx"
             - name: DEBUG
               value: stayalive
             - name: KV_TYPE
@@ -79,13 +82,4 @@ spec:
           volumeMounts:
             - name: ceph-conf
               mountPath: /etc/ceph
-          livenessProbe:
-              tcpSocket:
-                port: 6800
-              initialDelaySeconds: 60
-              timeoutSeconds: 5
-          readinessProbe:
-              tcpSocket:
-                port: 6800
-              timeoutSeconds: 5
 `

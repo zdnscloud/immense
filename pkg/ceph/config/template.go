@@ -44,15 +44,13 @@ data:
 
     # auth
     max_open_files = 131072
-    osd_pool_default_pg_num = 128
-    osd_pool_default_pgp_num = 128
     osd_pool_default_size = {{.Replication}}
     osd_pool_default_min_size = 1
 
     mon_osd_full_ratio = .95
     mon_osd_nearfull_ratio = .85
 
-    mon initial members       = a b c
+    mon initial members       = {{.MonMembers}}
     mon host                  = {{.MonEp}}
 
     [mon]
@@ -60,36 +58,14 @@ data:
     mon_clock_drift_warn_backoff = 30
     mon_data_avail_warn = 10
 
-
-    [osd]
-    journal_size = 100
-    osd_mkfs_type = xfs
-    osd_mkfs_options_xfs = -f -i size=2048
-    osd_max_object_name_len = 256
-
-    #crush
-    osd_pool_default_crush_rule = 0
-    osd_crush_update_on_start = true
-
-    #backend
-    osd_objectstore = filestore
-
     #performance tuning
     filestore_merge_threshold = 40
     filestore_split_multiple = 8
-    osd_op_threads = 8
     filestore_op_threads = 8
     filestore_max_sync_interval = 5
-    osd_max_scrubs = 1
 
     #recovery tuning
     osd_recovery_max_active = 5
-    osd_max_backfills = 2
-    osd_recovery_op_priority = 2
-    osd_client_op_priority = 63
-    osd_recovery_max_chunk = 1048576
-    osd_recovery_threads = 1
-
     #ports
     ms_bind_port_min = 6800
     ms_bind_port_max = 7100

@@ -1,17 +1,28 @@
 package osd
 
 import (
+	"fmt"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
+	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"github.com/zdnscloud/immense/pkg/ceph/zap"
 	"github.com/zdnscloud/immense/pkg/common"
+	"strings"
 	"time"
 )
 
-func Start(cli client.Client, fsid, host, dev string) error {
+func Start(cli client.Client, fsid, host, dev string, monsvc map[string]string) error {
+	var monEndpoints []string
+	for _, ip := range monsvc {
+		ep := "v1:" + ip + ":" + global.MonPortV1
+		monEndpoints = append(monEndpoints, ep)
+	}
+	eps := strings.Replace(strings.Trim(fmt.Sprint(monEndpoints), "[]"), " ", ",", -1)
+	members := strings.Replace(strings.Trim(fmt.Sprint(global.MonMembers), "[]"), " ", ",", -1)
+
 	name := "ceph-osd-" + host + "-" + dev
 	ok, err := util.CheckPodPhase(cli, name, "Running")
 	if err != nil {
@@ -23,7 +34,7 @@ func Start(cli client.Client, fsid, host, dev string) error {
 		}
 	}
 	log.Debugf("Deploy osd %s:%s", host, dev)
-	yaml, err := osdYaml(fsid, host, dev)
+	yaml, err := osdYaml(fsid, host, dev, members, eps)
 	if err != nil {
 		return err
 	}
@@ -36,8 +47,8 @@ func Start(cli client.Client, fsid, host, dev string) error {
 
 func Stop(cli client.Client, host, dev string) error {
 	log.Debugf("Undeploy osd %s:%s", host, dev)
-	var fsid string
-	yaml, err := osdYaml(fsid, host, dev)
+	var fsid, members, eps string
+	yaml, err := osdYaml(fsid, host, dev, members, eps)
 	if err != nil {
 		return err
 	}
