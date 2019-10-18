@@ -65,6 +65,7 @@ func getStatus(cli client.Client, storagecluster storagev1.Cluster) (string, str
 			log.Warnf("[lvm-status-controller] Connect to %s lvmd faield. Err: %s", host.NodeName, err.Error())
 			continue
 		}
+		defer lvmdcli.Close()
 		//instance.Stat = true
 		vgsreq := pb.ListVGRequest{}
 		vgsout, err := lvmdcli.ListVG(ctx, &vgsreq)
