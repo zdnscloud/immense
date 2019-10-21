@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"fmt"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
@@ -96,6 +97,16 @@ func ToSlice(cluster storagev1.Cluster) []string {
 	return infos
 }
 
+func GetDevsForHost(cluster storagev1.Cluster, host string) []string {
+	for _, node := range cluster.Status.Config {
+		if node.NodeName != host {
+			continue
+		}
+		return node.BlockDevices
+	}
+	return []string{}
+}
+
 func RemoveConf(cli client.Client) error {
 	for _, f := range files {
 		file := path.Join(root, f)
@@ -177,4 +188,17 @@ func GetCephUUID(cli client.Client) (string, error) {
 		return string(sc.UID), nil
 	}
 	return "", nil
+}
+
+func GetMonHosts(monsvc map[string]string) string {
+	var hosts [][]string
+	for _, ip := range monsvc {
+		var host []string
+		host1 := "v1:" + ip + ":" + global.MonPortV1
+		host2 := "v2:" + ip + ":" + global.MonPortV2
+		host = append(host, host2)
+		host = append(host, host1)
+		hosts = append(hosts, host)
+	}
+	return strings.Replace(strings.TrimPrefix(strings.TrimSuffix(fmt.Sprint(hosts), "]"), "["), " ", ",", -1)
 }

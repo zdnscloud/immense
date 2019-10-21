@@ -139,3 +139,23 @@ func GetIDToHost(id string) (string, error) {
 	}
 	return "", nil
 }
+
+func GetHostToIDs(host string) ([]string, error) {
+	var ids []string
+	args := []string{"osd", "status", "--connect-timeout", "15"}
+	out, err := util.ExecCMDWithOutput("ceph", args)
+	if err != nil {
+		return ids, err
+	}
+	lines := strings.Split(string(out), "\n")
+	for _, l := range lines {
+		if !strings.Contains(l, "ceph-osd-") {
+			continue
+		}
+		tmp := strings.Fields(l)
+		if strings.Contains(tmp[3], host) {
+			ids = append(ids, tmp[1])
+		}
+	}
+	return ids, nil
+}

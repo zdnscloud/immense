@@ -42,16 +42,22 @@ spec:
       containers:
         - name: ceph-mds
           image: {{.CephImage}}
-          command: ["/bin/sh","-c","sleep 86400"]
+          command: ["/bin/sh","-c","sh -x /etc/ceph/start_mds.sh"]
           ports:
             - containerPort: 6800
           env:
-            - name: CEPH_DAEMON
-              value: MDS
             - name: CEPHFS_CREATE
               value: "1"
-            - name: KV_TYPE
-              value: k8s
+            - name: MDS_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: FSID
+              value: {{.FSID}}
+            - name: MON_HOSTS
+              value: "{{.MON_HOSTS}}"
+            - name: MON_MEMBERS
+              value: "{{.MON_MEMBERS}}"
             - name: CLUSTER
               value: ceph
             - name: CEPHFS_NAME
@@ -67,4 +73,13 @@ spec:
           volumeMounts:
             - name: ceph-conf
               mountPath: /etc/ceph
+          livenessProbe:
+              tcpSocket:
+                port: 6800
+              initialDelaySeconds: 60
+              timeoutSeconds: 5
+          readinessProbe:
+              tcpSocket:
+                port: 6800
+              timeoutSeconds: 5
 `

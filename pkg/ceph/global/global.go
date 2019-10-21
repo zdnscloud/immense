@@ -14,14 +14,14 @@ const (
 	ConfigMapName           = "ceph-conf"
 	SecretName              = "csi-cephfs-secret"
 	MgrNum                  = 1
-	MdsNum                  = 1
+	MdsNum                  = 2
 	PoolDefaultSize         = 2
 	TargetPgPerOsd          = 100
 	PgNumDefault            = 128
 	CephFsName              = "myfs"
 	CephFsDate              = "myfs_data"
 	CephFsMetadata          = "myfs_metadata"
-	CephInitImage           = "zdnscloud/ceph-init:v0.5.7"
+	CephInitImage           = "zdnscloud/ceph-init:v0.6"
 	CephImage               = "ceph/ceph:v14.2.4-20190917"
 	CSIProvisionerStsName   = "csi-cephfsplugin-provisioner"
 	CSIPluginDsName         = "csi-cephfsplugin"

@@ -22,17 +22,6 @@ func Start(cli client.Client, fsid, host, dev string, monsvc map[string]string) 
 	}
 	eps := strings.Replace(strings.Trim(fmt.Sprint(monEndpoints), "[]"), " ", ",", -1)
 	members := strings.Replace(strings.Trim(fmt.Sprint(global.MonMembers), "[]"), " ", ",", -1)
-
-	name := "ceph-osd-" + host + "-" + dev
-	ok, err := util.CheckPodPhase(cli, name, "Running")
-	if err != nil {
-		return err
-	}
-	if !ok {
-		if err := zap.Do(cli, host, dev); err != nil {
-			return err
-		}
-	}
 	log.Debugf("Deploy osd %s:%s", host, dev)
 	yaml, err := osdYaml(fsid, host, dev, members, eps)
 	if err != nil {
@@ -56,7 +45,10 @@ func Stop(cli client.Client, host, dev string) error {
 		return err
 	}
 	checkDone(cli, host, dev)
-	return zap.Do(cli, host, dev)
+	if err := zap.Do(cli, host, dev); err != nil {
+		return err
+	}
+	return remove(host)
 }
 
 func waitDone(cli client.Client, host, dev string) {
@@ -86,61 +78,27 @@ func checkDone(cli client.Client, host, dev string) {
 	}
 }
 
-func Watch() {
-	log.Debugf("[ceph-osd-watcher] Start")
-	for {
-		if !util.CheckConf() {
-			log.Debugf("[ceph-osd-watcher] Stop")
-			return
+func remove(host string) error {
+	name := "ceph-osd-" + host + "-"
+	ids, err := cephclient.GetHostToIDs(name)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		log.Debugf("[ceph] Remove osd %s from ceph cluster", id)
+		osdName := "osd." + id
+		if err := cephclient.OutOsd(id); err != nil {
+			log.Warnf("[ceph] Ceph out osd %s failed , err:%s", id, err.Error())
 		}
-		time.Sleep(40 * time.Second)
-		downandin, err := cephclient.GetDownOsdIDs("in")
-		if err != nil {
-			log.Warnf("[ceph-osd-watcher] Get osd down and in failed , err:%s", err.Error())
-			continue
+		if err := cephclient.RemoveCrush(osdName); err != nil {
+			log.Warnf("[ceph] Ceph osd remove crush %s failed , err:%s", osdName, err.Error())
 		}
-		for _, id := range downandin {
-			log.Debugf("[ceph-osd-watcher] Ceph osd out id %s", id)
-			if err := cephclient.OutOsd(id); err != nil {
-				log.Warnf("[ceph-osd-watcher] Ceph out osd %s failed , err:%s", id, err.Error())
-				break
-			}
+		if err := cephclient.RmOsd(id); err != nil {
+			log.Warnf("[ceph] Ceph osd rm %s failed , err:%s", id, err.Error())
 		}
-		time.Sleep(20 * time.Second)
-		downandout, err := cephclient.GetDownOsdIDs("out")
-		if err != nil {
-			log.Warnf("[ceph-osd-watcher] Get osd down and out failed , err:%s. skip", err.Error())
-			continue
-		}
-		for _, id := range downandout {
-			osdName := "osd." + id
-			log.Debugf("[ceph-osd-watcher] Ceph osd crush remove %s", osdName)
-			if err := cephclient.RemoveCrush(osdName); err != nil {
-				log.Warnf("[ceph-osd-watcher] Ceph osd remove crush %s failed , err:%s", osdName, err.Error())
-				break
-			}
-			log.Debugf("[ceph-osd-watcher] Ceph osd rm %s", id)
-			if err := cephclient.RmOsd(id); err != nil {
-				log.Warnf("[ceph-osd-watcher] Ceph osd rm %s failed , err:%s", id, err.Error())
-				break
-			}
-			log.Debugf("[ceph-osd-watcher] Ceph auth del %s", osdName)
-			if err := cephclient.RmOsdAuth(osdName); err != nil {
-				log.Warnf("[ceph-osd-watcher] Ceph auth del osd.%s failed , err:%s", id, err.Error())
-				break
-			}
-		}
-		upandout, err := cephclient.GetUpAndOutOsdIDs()
-		if err != nil {
-			log.Warnf("[ceph-osd-watcher] Get osd up and out failed , err:%s. skip", err.Error())
-			continue
-		}
-		for _, id := range upandout {
-			log.Debugf("[ceph-osd-watcher] Ceph osd in id %s", id)
-			if err := cephclient.InOsd(id); err != nil {
-				log.Warnf("[ceph-osd-watcher] Ceph in osd %s failed , err:%s", id, err.Error())
-				break
-			}
+		if err := cephclient.RmOsdAuth(osdName); err != nil {
+			log.Warnf("[ceph] Ceph auth del osd.%s failed , err:%s", id, err.Error())
 		}
 	}
+	return nil
 }

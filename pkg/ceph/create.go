@@ -11,6 +11,7 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/mgr"
 	"github.com/zdnscloud/immense/pkg/ceph/mon"
 	"github.com/zdnscloud/immense/pkg/ceph/osd"
+	"github.com/zdnscloud/immense/pkg/ceph/prepare"
 	"github.com/zdnscloud/immense/pkg/ceph/status"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"strings"
@@ -40,6 +41,13 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 	if err := mgr.Start(cli); err != nil {
 		return err
 	}
+
+	for _, host := range cluster.Status.Config {
+		if err := prepare.Do(cli, host.NodeName, host.BlockDevices); err != nil {
+			return err
+		}
+	}
+
 	_, err = errgroup.Batch(
 		util.ToSlice(cluster),
 		func(o interface{}) (interface{}, error) {
@@ -51,13 +59,12 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 	if err != nil {
 		return err
 	}
-	if err := mds.Start(cli, pgnum); err != nil {
+	if err := mds.Start(cli, uuid, monsvc, pgnum); err != nil {
 		return err
 	}
 	if err := fscsi.Start(cli, uuid, cluster.Name, monsvc); err != nil {
 		return err
 	}
-	go osd.Watch()
 	go status.Watch(cli, cluster.Name)
 	return nil
 }
