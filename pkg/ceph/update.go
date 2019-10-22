@@ -16,18 +16,22 @@ func doDelhost(cli client.Client, cluster storagev1.Cluster) error {
 	if len(cluster.Spec.Hosts) == 0 {
 		return nil
 	}
-	_, err := errgroup.Batch(
-		util.ToSlice(cluster),
-		func(o interface{}) (interface{}, error) {
-			host := strings.Split(o.(string), ":")[0]
-			dev := strings.Split(o.(string), ":")[1][5:]
-			return nil, osd.Stop(cli, host, dev)
-		},
-	)
-	if err != nil {
+	if err := osd.Stop(cli, cluster.Status.Config); err != nil {
 		return err
 	}
-	_, err = errgroup.Batch(
+	/*
+		_, err := errgroup.Batch(
+			util.ToSlice(cluster),
+			func(o interface{}) (interface{}, error) {
+				host := strings.Split(o.(string), ":")[0]
+				dev := strings.Split(o.(string), ":")[1][5:]
+				return nil, osd.Stop(cli, host, dev)
+			},
+		)
+		if err != nil {
+			return err
+		}*/
+	_, err := errgroup.Batch(
 		cluster.Spec.Hosts,
 		func(o interface{}) (interface{}, error) {
 			host := o.(string)
@@ -55,10 +59,22 @@ func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 	if err != nil {
 		return err
 	}
-	for _, host := range cluster.Status.Config {
-		if err := prepare.Do(cli, host.NodeName, host.BlockDevices); err != nil {
-			return err
-		}
+	/*
+		for _, host := range cluster.Status.Config {
+			if err := prepare.Do(cli, host.NodeName, host.BlockDevices); err != nil {
+				return err
+			}
+		}*/
+	_, err = errgroup.Batch(
+		cluster.Spec.Hosts,
+		func(o interface{}) (interface{}, error) {
+			host := o.(string)
+			devs := util.GetDevsForHost(cluster, host)
+			return nil, prepare.Do(cli, host, devs)
+		},
+	)
+	if err != nil {
+		return err
 	}
 	_, err = errgroup.Batch(
 		util.ToSlice(cluster),

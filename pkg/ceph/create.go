@@ -41,13 +41,24 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 	if err := mgr.Start(cli); err != nil {
 		return err
 	}
+	/*
+		for _, host := range cluster.Status.Config {
+			if err := prepare.Do(cli, host.NodeName, host.BlockDevices); err != nil {
+				return err
+			}
+		}*/
 
-	for _, host := range cluster.Status.Config {
-		if err := prepare.Do(cli, host.NodeName, host.BlockDevices); err != nil {
-			return err
-		}
+	_, err = errgroup.Batch(
+		cluster.Spec.Hosts,
+		func(o interface{}) (interface{}, error) {
+			host := o.(string)
+			devs := util.GetDevsForHost(cluster, host)
+			return nil, prepare.Do(cli, host, devs)
+		},
+	)
+	if err != nil {
+		return err
 	}
-
 	_, err = errgroup.Batch(
 		util.ToSlice(cluster),
 		func(o interface{}) (interface{}, error) {
@@ -87,7 +98,7 @@ func getReplicationAndPgNum(cluster storagev1.Cluster) (int, int) {
 	for _, host := range cluster.Status.Config {
 		num += len(host.BlockDevices)
 	}
-	if num > 2 {
+	if num > 1 {
 		Replication = global.PoolDefaultSize
 	} else {
 		Replication = 1

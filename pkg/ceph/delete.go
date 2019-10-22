@@ -29,7 +29,7 @@ func delete(cli client.Client, cluster storagev1.Cluster) error {
 		func(o interface{}) (interface{}, error) {
 			host := strings.Split(o.(string), ":")[0]
 			dev := strings.Split(o.(string), ":")[1][5:]
-			return nil, osd.Stop(cli, host, dev)
+			return nil, osd.Remove(cli, host, dev)
 		},
 	)
 	if err != nil {
