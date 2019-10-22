@@ -41,6 +41,7 @@ data:
     osd_memory_target = 4242538496
     osd_memory_base = 2147483648
     osd_memory_cache_min = 3195011072
+    mon_max_pg_per_osd = 1000
 
     # auth
     max_open_files = 131072
