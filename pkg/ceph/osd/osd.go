@@ -71,7 +71,7 @@ func Stop(cli client.Client, hostInfos []storagev1.HostInfo) error {
 	}
 	for _, hostInfo := range hostInfos {
 		for _, dev := range hostInfo.BlockDevices {
-			if err := Remove(cli, hostInfo.NodeName, dev); err != nil {
+			if err := Remove(cli, hostInfo.NodeName, dev[5:]); err != nil {
 				return err
 			}
 		}
