@@ -41,13 +41,6 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 	if err := mgr.Start(cli); err != nil {
 		return err
 	}
-	/*
-		for _, host := range cluster.Status.Config {
-			if err := prepare.Do(cli, host.NodeName, host.BlockDevices); err != nil {
-				return err
-			}
-		}*/
-
 	_, err = errgroup.Batch(
 		cluster.Spec.Hosts,
 		func(o interface{}) (interface{}, error) {

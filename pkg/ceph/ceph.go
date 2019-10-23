@@ -3,8 +3,8 @@ package ceph
 import (
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	"github.com/zdnscloud/immense/pkg/common"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
+	"github.com/zdnscloud/immense/pkg/common"
 )
 
 type Ceph struct {
