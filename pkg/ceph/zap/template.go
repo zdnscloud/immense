@@ -17,11 +17,7 @@ spec:
       containers:
       - name: ceph-zap
         image: {{.CephImage}}
-        lifecycle:
-          postStart:
-            exec:
-              command: ["/bin/sh","-c","for i in $(dmsetup ls|grep ceph|grep osd|awk '{print $1}');do dmsetup remove -f $i;done"]
-        command: ["/bin/sh","-c","/opt/ceph-container/bin/entrypoint.sh zap_device;dd if=/dev/zero of=$(OSD_DEVICE) bs=1M count=1024"]
+        command: ["/bin/sh","-c","ceph-volume lvm zap $(OSD_DEVICE) --destroy;dd if=/dev/zero of=$(OSD_DEVICE) bs=1M count=1024"]
         securityContext:
           privileged: true
           capabilities:
