@@ -27,6 +27,10 @@ const (
 	CephLabelsValue          = "Ceph"
 	CIDRconfigMap            = "cluster-config"
 	CIDRconfigMapNamespace   = "kube-system"
+	Creating                 = "Creating"
+	Running                  = "Running"
+	Updating                 = "Updating"
+	Failed                   = "Failed"
 )
 
 var ctx = context.TODO()

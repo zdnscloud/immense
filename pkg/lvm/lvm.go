@@ -30,32 +30,37 @@ func (s *Lvm) GetType() string {
 }
 
 func (s *Lvm) Create(cluster storagev1.Cluster) error {
-	common.UpdateStatusPhase(s.cli, cluster.Name, "Creating")
+	common.UpdateStatusPhase(s.cli, cluster.Name, common.Creating)
 	common.CreateNodeAnnotationsAndLabels(s.cli, cluster)
 	if err := deployLvmd(s.cli, cluster); err != nil {
+		common.UpdateStatusPhase(s.cli, cluster.Name, common.Failed)
 		return err
 	}
 	if err := initBlocks(s.cli, cluster); err != nil {
+		common.UpdateStatusPhase(s.cli, cluster.Name, common.Failed)
 		return err
 	}
 	if err := deployLvmCSI(s.cli, cluster); err != nil {
+		common.UpdateStatusPhase(s.cli, cluster.Name, common.Failed)
 		return err
 	}
 
-	common.UpdateStatusPhase(s.cli, cluster.Name, "Running")
+	common.UpdateStatusPhase(s.cli, cluster.Name, common.Running)
 	go StatusControl(s.cli, cluster.Name)
 	return nil
 }
 
 func (s *Lvm) Update(dels, adds storagev1.Cluster) error {
-	common.UpdateStatusPhase(s.cli, adds.Name, "Updating")
+	common.UpdateStatusPhase(s.cli, adds.Name, common.Updating)
 	if err := doAddhost(s.cli, adds); err != nil {
+		common.UpdateStatusPhase(s.cli, adds.Name, common.Failed)
 		return err
 	}
 	if err := doDelhost(s.cli, dels); err != nil {
+		common.UpdateStatusPhase(s.cli, adds.Name, common.Failed)
 		return err
 	}
-	common.UpdateStatusPhase(s.cli, adds.Name, "Running")
+	common.UpdateStatusPhase(s.cli, adds.Name, common.Running)
 	return nil
 }
 
