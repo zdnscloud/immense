@@ -29,6 +29,17 @@ spec:
           operator: Exists
         - key: node-role.kubernetes.io/master
           operator: Exists
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: mon_svc
+                  operator: In
+                  values: ["{{.MonSvc}}"]
+              topologyKey: kubernetes.io/hostname
       volumes:
         - name: ceph-configmap
           configMap:

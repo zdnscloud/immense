@@ -23,6 +23,22 @@ spec:
         app: ceph
         daemon: mds
     spec:
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: daemon
+                  operator: In
+                  values: ["mds"]
+              topologyKey: kubernetes.io/hostname
       volumes:
         - name: ceph-configmap
           configMap:
