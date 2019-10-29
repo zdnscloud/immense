@@ -2,6 +2,7 @@ package lvm
 
 import (
 	"context"
+	"fmt"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
@@ -46,21 +47,18 @@ func initBlocks(cli client.Client, cluster storagev1.Cluster) error {
 	ctx := context.TODO()
 	for _, host := range cluster.Status.Config {
 		if len(host.BlockDevices) == 0 {
-			log.Debugf("[%s] No block device to init", host.NodeName)
-			continue
+			return fmt.Errorf("No block device to init for host %s", host.NodeName)
 		}
 		lvmdcli, err := CreateLvmdClient(ctx, cli, host.NodeName)
 		if err != nil {
-			log.Warnf("[%s] Create Lvmd client failed. Err: %s. Skip it", host.NodeName, err.Error())
-			continue
+			return fmt.Errorf("Create Lvmd client failed for host %s, %v", host.NodeName, err)
 		}
 		defer lvmdcli.Close()
 		for _, block := range host.BlockDevices {
 			log.Debugf("[%s] Init block start: %s", host.NodeName, block)
 			name, err := GetVG(ctx, lvmdcli, block)
 			if err != nil {
-				log.Warnf("Get VGName failed:%s", err.Error())
-				return err
+				return fmt.Errorf("Get VGName failed, %v", err)
 			}
 			if name == VGName {
 				log.Debugf("[%s] Block had inited before, skip %s", host.NodeName, block)
@@ -68,18 +66,15 @@ func initBlocks(cli client.Client, cluster storagev1.Cluster) error {
 			}
 			log.Debugf("[%s] Validate block %s", host.NodeName, block)
 			if err := Validate(ctx, lvmdcli, block); err != nil {
-				log.Warnf("[%s] Validate block %s failed:%s", host.NodeName, block, err.Error())
-				continue
+				return fmt.Errorf("Validate block failed, %v", err)
 			}
 			log.Debugf("[%s] Create pv with %s", host.NodeName, block)
 			if err := CreatePV(ctx, lvmdcli, block); err != nil {
-				log.Warnf("[%s] Create pv with %s failed:%s", host.NodeName, block, err.Error())
-				continue
+				return fmt.Errorf("Create pv failed, %v", err)
 			}
 			log.Debugf("[%s] Create vg with %s", host.NodeName, block)
 			if err := CreateVG(ctx, lvmdcli, block, VGName); err != nil {
-				log.Warnf("[%s] Create vg with %s failed:%s", host.NodeName, block, err.Error())
-				continue
+				return fmt.Errorf("Create vg failed, %v", err)
 			}
 		}
 	}

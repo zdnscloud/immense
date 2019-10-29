@@ -11,33 +11,45 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/mgr"
 	"github.com/zdnscloud/immense/pkg/ceph/mon"
 	"github.com/zdnscloud/immense/pkg/ceph/osd"
+	"github.com/zdnscloud/immense/pkg/ceph/prepare"
 	"github.com/zdnscloud/immense/pkg/ceph/status"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
-	"github.com/zdnscloud/immense/pkg/common"
 	"strings"
 )
 
 func create(cli client.Client, cluster storagev1.Cluster) error {
-	networks, err := util.GetClusterCIDR(cli, common.CIDRconfigMapNamespace, common.CIDRconfigMap)
-	if err != nil {
-		return err
-	}
 	uuid := string(cluster.UID)
 	adminkey, monkey, err := initconf()
 	if err != nil {
 		return err
 	}
-	copiers := getReplication(cluster)
-	if err := config.Start(cli, uuid, networks, adminkey, monkey, copiers); err != nil {
+	copiers, pgnum := getReplicationAndPgNum(cluster)
+
+	if err := config.Start(cli, uuid, adminkey, monkey, copiers); err != nil {
 		return err
 	}
 	if err := util.SaveConf(cli); err != nil {
 		return err
 	}
-	if err := mon.Start(cli, networks); err != nil {
+	monsvc, err := util.GetMonSvcMap(cli)
+	if err != nil {
+		return err
+	}
+	if err := mon.Start(cli, uuid, monsvc); err != nil {
 		return err
 	}
 	if err := mgr.Start(cli); err != nil {
+		return err
+	}
+	_, err = errgroup.Batch(
+		cluster.Spec.Hosts,
+		func(o interface{}) (interface{}, error) {
+			host := o.(string)
+			devs := util.GetDevsForHost(cluster, host)
+			return nil, prepare.Do(cli, host, devs)
+		},
+	)
+	if err != nil {
 		return err
 	}
 	_, err = errgroup.Batch(
@@ -45,19 +57,18 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 		func(o interface{}) (interface{}, error) {
 			host := strings.Split(o.(string), ":")[0]
 			dev := strings.Split(o.(string), ":")[1][5:]
-			return nil, osd.Start(cli, host, dev)
+			return nil, osd.Start(cli, uuid, host, dev, monsvc)
 		},
 	)
 	if err != nil {
 		return err
 	}
-	if err := mds.Start(cli); err != nil {
+	if err := mds.Start(cli, uuid, monsvc, pgnum); err != nil {
 		return err
 	}
-	if err := fscsi.Start(cli, uuid, cluster.Name); err != nil {
+	if err := fscsi.Start(cli, uuid, cluster.Name, monsvc); err != nil {
 		return err
 	}
-	go osd.Watch()
 	go status.Watch(cli, cluster.Name)
 	return nil
 }
@@ -75,15 +86,16 @@ func initconf() (string, string, error) {
 	return adminkey, monkey, nil
 }
 
-func getReplication(cluster storagev1.Cluster) int {
-	var num, Replication int
+func getReplicationAndPgNum(cluster storagev1.Cluster) (int, int) {
+	var num, Replication, PgNum int
 	for _, host := range cluster.Status.Config {
 		num += len(host.BlockDevices)
 	}
-	if num > 2 {
+	if num > 1 {
 		Replication = global.PoolDefaultSize
 	} else {
 		Replication = 1
 	}
-	return Replication
+	PgNum = global.TargetPgPerOsd * num / 2 / Replication
+	return Replication, PgNum
 }

@@ -21,6 +21,7 @@ spec:
         app: ceph
         daemon: osd-{{.NodeName}}-{{.OsdID}}
     spec:
+      hostPID: true
       nodeSelector:
         kubernetes.io/hostname: "{{.NodeName}}"
       volumes:
@@ -32,6 +33,14 @@ spec:
             name: {{.CephConfName}}
         - name: ceph-conf
           emptyDir: {}
+        - hostPath:
+            path: /run/udev
+            type: ""
+          name: run-udev
+        - hostPath:
+            path: /var/lib/ceph
+            type: ""
+          name: ceph-data
       initContainers:
       - name: ceph-init
         image: {{.CephInitImage}}
@@ -45,15 +54,19 @@ spec:
       containers:
         - name: osd-pod
           image: {{.CephImage}}
-          command: ["/bin/sh", "-c", "sh -x /etc/ceph/osd_volume_create.sh"]
+          command: ["/bin/bash", "-c", "sh -x /etc/ceph/start_osd.sh"]
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: devices
               mountPath: /dev
             - name: ceph-conf
               mountPath: /etc/ceph
+            - mountPath: /run/udev
+              name: run-udev
           securityContext:
             privileged: true
+            readOnlyRootFilesystem: false
+            runAsUser: 0
           env:
             - name: OSD_TYPE
               value: "disk"
@@ -67,6 +80,16 @@ spec:
               value: "1"
             - name: OSD_BLUESTORE
               value: "1"
+            - name: FSID
+              value: {{.FSID}}
+            - name: MON_MEMBERS
+              value: {{.Mon_Members}}
+            - name: MON_ENDPOINT
+              value: {{.Mon_Endpoint}}
+            - name: ADDR
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: OSD_NAME
               valueFrom:
                 fieldRef:

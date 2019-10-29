@@ -10,12 +10,13 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/mgr"
 	"github.com/zdnscloud/immense/pkg/ceph/mon"
 	"github.com/zdnscloud/immense/pkg/ceph/osd"
+	"github.com/zdnscloud/immense/pkg/ceph/prepare"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"strings"
 )
 
 func delete(cli client.Client, cluster storagev1.Cluster) error {
-	var networks, uuid, adminkey, monkey string
+	var uuid, adminkey, monkey string
 	var copies int
 	if err := fscsi.Stop(cli, uuid, cluster.Name); err != nil {
 		return err
@@ -28,7 +29,17 @@ func delete(cli client.Client, cluster storagev1.Cluster) error {
 		func(o interface{}) (interface{}, error) {
 			host := strings.Split(o.(string), ":")[0]
 			dev := strings.Split(o.(string), ":")[1][5:]
-			return nil, osd.Stop(cli, host, dev)
+			return nil, osd.Remove(cli, host, dev)
+		},
+	)
+	if err != nil {
+		return err
+	}
+	_, err = errgroup.Batch(
+		cluster.Spec.Hosts,
+		func(o interface{}) (interface{}, error) {
+			host := o.(string)
+			return nil, prepare.Delete(cli, host)
 		},
 	)
 	if err != nil {
@@ -37,10 +48,10 @@ func delete(cli client.Client, cluster storagev1.Cluster) error {
 	if err := mgr.Stop(cli); err != nil {
 		return err
 	}
-	if err := mon.Stop(cli, networks); err != nil {
+	if err := mon.Stop(cli); err != nil {
 		return err
 	}
-	if err := config.Stop(cli, uuid, networks, adminkey, monkey, copies); err != nil {
+	if err := config.Stop(cli, uuid, adminkey, monkey, copies); err != nil {
 		return err
 	}
 	if err := util.RemoveConf(cli); err != nil {

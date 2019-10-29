@@ -4,23 +4,25 @@ const MonSvcTemp = `
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{.SvcName}}
-  namespace: {{.Namespace}}
-  annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
   labels:
-    app: ceph
-    daemon: mon
+    mon_svc: {{.MonSvc}}
+    mon_id: {{.MonID}}
+  name: {{.MonSvc}}-{{.MonID}}
+  namespace: {{.Namespace}}
 spec:
   ports:
-  - port: {{.MonPort}}
+  - name: msgr1
+    port: {{.MonPortV1}}
     protocol: TCP
-    targetPort: {{.MonPort}}
+    targetPort: {{.MonPortV1}}
+  - name: msgr2
+    port: {{.MonPortV2}}
+    protocol: TCP
+    targetPort: {{.MonPortV2}}
   selector:
-    app: ceph
-    daemon: mon
-  clusterIP: None
-`
+    mon_svc: {{.MonSvc}}
+    mon_id: {{.MonID}}
+  type: ClusterIP`
 
 const ConfigMapTemp = `
 apiVersion: v1
@@ -39,75 +41,39 @@ data:
     osd_memory_target = 4242538496
     osd_memory_base = 2147483648
     osd_memory_cache_min = 3195011072
+    mon_max_pg_per_osd = 1000
 
     # auth
     max_open_files = 131072
-    osd_pool_default_pg_num = 128
-    osd_pool_default_pgp_num = 128
     osd_pool_default_size = {{.Replication}}
     osd_pool_default_min_size = 1
 
     mon_osd_full_ratio = .95
     mon_osd_nearfull_ratio = .85
 
-    mon_host = {{.MonHost}}
+    mon initial members       = {{.MonMembers}}
+    mon host                  = {{.MonEp}}
 
     [mon]
-    mon_osd_down_out_interval = 600
-    mon_osd_min_down_reporters = 4
     mon_clock_drift_allowed = .15
     mon_clock_drift_warn_backoff = 30
-    mon_osd_report_timeout = 300
     mon_data_avail_warn = 10
-
-
-    [osd]
-    journal_size = 100
-    cluster_network = {{.Network}}
-    public_network = {{.Network}}
-    osd_mkfs_type = xfs
-    osd_mkfs_options_xfs = -f -i size=2048
-    osd_mon_heartbeat_interval = 30
-    osd_max_object_name_len = 256
-
-    #crush
-    osd_pool_default_crush_rule = 0
-    osd_crush_update_on_start = true
-
-    #backend
-    osd_objectstore = filestore
 
     #performance tuning
     filestore_merge_threshold = 40
     filestore_split_multiple = 8
-    osd_op_threads = 8
     filestore_op_threads = 8
     filestore_max_sync_interval = 5
-    osd_max_scrubs = 1
 
     #recovery tuning
     osd_recovery_max_active = 5
-    osd_max_backfills = 2
-    osd_recovery_op_priority = 2
-    osd_client_op_priority = 63
-    osd_recovery_max_chunk = 1048576
-    osd_recovery_threads = 1
-
     #ports
     ms_bind_port_min = 6800
     ms_bind_port_max = 7100
 
-    [client]
-    rbd_cache_enabled = true
-    rbd_cache_writethrough_until_flush = true
-    rbd_default_features = 1
-
     [mds]
     mds_cache_size = 100000
 
-    [mgr]
-    client mount uid = 0
-    client mount gid = 0
   ceph.client.admin.keyring: |
     [client.admin]
       key = {{.AdminKey}}
@@ -116,10 +82,17 @@ data:
       caps mon = "allow *"
       caps osd = "allow *"
       caps mgr = "allow *"
-  ceph.mon.keyring: |
+  keyring: |
+    [client.admin]
+      key = {{.AdminKey}}
+      caps mds = "allow *"
+      caps mon = "allow *"
+      caps osd = "allow *"
+      caps mgr = "allow *"
     [mon.]
       key = {{.MonKey}}
       caps mon = "allow *"
+
 `
 
 const SecretTemp = `

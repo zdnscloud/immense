@@ -23,6 +23,22 @@ spec:
         app: ceph
         daemon: mds
     spec:
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: daemon
+                  operator: In
+                  values: ["mds"]
+              topologyKey: kubernetes.io/hostname
       volumes:
         - name: ceph-configmap
           configMap:
@@ -42,15 +58,22 @@ spec:
       containers:
         - name: ceph-mds
           image: {{.CephImage}}
+          command: ["/bin/sh","-c","sh -x /etc/ceph/start_mds.sh"]
           ports:
             - containerPort: 6800
           env:
-            - name: CEPH_DAEMON
-              value: MDS
             - name: CEPHFS_CREATE
               value: "1"
-            - name: KV_TYPE
-              value: k8s
+            - name: MDS_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: FSID
+              value: {{.FSID}}
+            - name: MON_HOSTS
+              value: "{{.MON_HOSTS}}"
+            - name: MON_MEMBERS
+              value: "{{.MON_MEMBERS}}"
             - name: CLUSTER
               value: ceph
             - name: CEPHFS_NAME
@@ -58,11 +81,11 @@ spec:
             - name: CEPHFS_DATA_POOL
               value: "{{.CEPHFS_DATA_POOL}}"
             - name: CEPHFS_DATA_POOL_PG
-              value: "128"
+              value: "{{.PgNum}}"
             - name: CEPHFS_METADATA_POOL
               value: "{{.CEPHFS_METADATA_POOL}}"
             - name: CEPHFS_METADATA_POOL_PG
-              value: "128"
+              value: "{{.PgNum}}"
           volumeMounts:
             - name: ceph-conf
               mountPath: /etc/ceph

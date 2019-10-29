@@ -27,6 +27,10 @@ const (
 	CephLabelsValue          = "Ceph"
 	CIDRconfigMap            = "cluster-config"
 	CIDRconfigMapNamespace   = "kube-system"
+	Creating                 = "Creating"
+	Running                  = "Running"
+	Updating                 = "Updating"
+	Failed                   = "Failed"
 )
 
 var ctx = context.TODO()
@@ -136,7 +140,7 @@ func IsLastOne(cli client.Client, va *k8sstorage.VolumeAttachment) (bool, error)
 		return false, err
 	}
 	for _, v := range volumeattachments.Items {
-		if v.Spec.Attacher == va.Spec.Attacher && v.Spec.NodeName == va.Spec.NodeName {
+		if v.Spec.Attacher == va.Spec.Attacher {
 			return false, nil
 		}
 	}

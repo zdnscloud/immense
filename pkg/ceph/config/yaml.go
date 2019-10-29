@@ -5,25 +5,28 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
-func svcYaml() (string, error) {
+func svcYaml(id string) (string, error) {
 	cfg := map[string]interface{}{
 		"Namespace": common.StorageNamespace,
-		"SvcName":   global.MonSvc,
-		"MonPort":   global.MonPort,
+		"MonSvc":    global.MonSvc,
+		"MonPortV1": global.MonPortV1,
+		"MonPortV2": global.MonPortV2,
+		"MonID":     id,
 	}
 	return common.CompileTemplateFromMap(MonSvcTemp, cfg)
 }
 
-func confYaml(uuid, networks, adminkey, monkey string, number int) (string, error) {
+func confYaml(uuid, adminkey, monkey, endpoint, members string, number int) (string, error) {
 	cfg := map[string]interface{}{
 		"CephConfName": global.ConfigMapName,
 		"Namespace":    common.StorageNamespace,
 		"MonHost":      global.MonSvc,
 		"FSID":         uuid,
-		"Network":      networks,
 		"AdminKey":     adminkey,
 		"MonKey":       monkey,
 		"Replication":  number,
+		"MonEp":        endpoint,
+		"MonMembers":   members,
 	}
 	return common.CompileTemplateFromMap(ConfigMapTemp, cfg)
 }

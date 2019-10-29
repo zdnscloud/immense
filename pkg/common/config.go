@@ -85,6 +85,7 @@ func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (*st
 			Hosts:       add,
 		},
 	}
+
 	dels, err := AssembleDeleteConfig(cli, delc)
 	if err != nil {
 		return oldc, newc, err
@@ -126,13 +127,6 @@ func GetBlocksFromClusterAgent(cli client.Client, name string) ([]string, error)
 			if d.Parted || d.Filesystem || d.Mount {
 				continue
 			}
-			/*
-				dev := storagev1.Dev{
-					Name: d.Name,
-					Size: d.Size,
-				}
-				devs = append(devs, dev)
-			*/
 			devs = append(devs, d.Name)
 		}
 	}
