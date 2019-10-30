@@ -46,6 +46,9 @@ spec:
             name: {{.CephConfName}}
         - name: ceph-conf
           emptyDir: {}
+        - hostPath:
+            path: /var/lib/zcloud/ceph-{{.FSID}}/mon-{{.ID}}/data
+          name: ceph-daemon-data
       initContainers:
       - name: ceph-init
         image: {{.CephInitImage}}
@@ -81,6 +84,8 @@ spec:
           volumeMounts:
             - name: ceph-conf
               mountPath: /etc/ceph
+            - mountPath: /var/lib/ceph/mon/ceph-{{.ID}}
+              name: ceph-daemon-data
           livenessProbe:
               tcpSocket:
                 port: {{.MonPortV1}}
