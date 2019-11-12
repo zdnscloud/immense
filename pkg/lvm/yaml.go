@@ -15,7 +15,7 @@ func csiyaml(name string) (string, error) {
 		"StorageLvmAttacherImage":        "quay.io/k8scsi/csi-attacher:v1.0.1",
 		"StorageLvmProvisionerImage":     "quay.io/k8scsi/csi-provisioner:v1.0.1",
 		"StorageLvmDriverRegistrarImage": "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2",
-		"StorageLvmCSIImage":             "zdnscloud/lvmcsi:v0.6",
+		"StorageLvmCSIImage":             "zdnscloud/lvmcsi:v0.6.2",
 		"StorageClassName":               name,
 		"StorageDriverName":              StorageDriverName,
 	}
@@ -36,8 +36,8 @@ func lvmdyaml() (string, error) {
 
 func scyaml(name string) (string, error) {
 	cfg := map[string]interface{}{
-		"StorageClassName":	name,
-		"StorageDriverName":	StorageDriverName,
+		"StorageClassName":  name,
+		"StorageDriverName": StorageDriverName,
 	}
 	return common.CompileTemplateFromMap(StorageClassTemp, cfg)
 }
