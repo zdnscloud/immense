@@ -5,7 +5,7 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
-func mdsYaml(fsid, monHosts, monMembers string, pgnum int) (string, error) {
+func mdsYaml(fsid, monHosts, monMembers string, size, pgnum int) (string, error) {
 	cfg := map[string]interface{}{
 		"Namespace":            common.StorageNamespace,
 		"CephInitImage":        global.CephInitImage,
@@ -17,6 +17,7 @@ func mdsYaml(fsid, monHosts, monMembers string, pgnum int) (string, error) {
 		"MdsNum":               global.MdsNum,
 		"MdsDpName":            global.MdsDpName,
 		"PgNum":                pgnum,
+		"POOL_REPLICATION":     size,
 		"FSID":                 fsid,
 		"MON_HOSTS":            monHosts,
 		"MON_MEMBERS":          monMembers,

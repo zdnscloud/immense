@@ -10,11 +10,11 @@ import (
 	"strings"
 )
 
-func Start(cli client.Client, fsid string, monsvc map[string]string, pgnum int) error {
+func Start(cli client.Client, fsid string, monsvc map[string]string, size, pgnum int) error {
 	monHosts := util.GetMonHosts(monsvc)
 	monMembers := strings.Replace(strings.Trim(fmt.Sprint(global.MonMembers), "[]"), " ", ",", -1)
 	log.Debugf("Deploy mds")
-	yaml, err := mdsYaml(fsid, monHosts, monMembers, pgnum)
+	yaml, err := mdsYaml(fsid, monHosts, monMembers, size, pgnum)
 	if err != nil {
 		return err
 	}
@@ -27,9 +27,9 @@ func Start(cli client.Client, fsid string, monsvc map[string]string, pgnum int) 
 
 func Stop(cli client.Client) error {
 	log.Debugf("Undeploy mds")
-	var pgnum int
+	var size, pgnum int
 	var fsid, monHosts, monMembers string
-	yaml, err := mdsYaml(fsid, monHosts, monMembers, pgnum)
+	yaml, err := mdsYaml(fsid, monHosts, monMembers, size, pgnum)
 	if err != nil {
 		return err
 	}

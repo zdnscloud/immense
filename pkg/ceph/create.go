@@ -1,7 +1,10 @@
 package ceph
 
 import (
+	"strings"
+
 	"github.com/zdnscloud/cement/errgroup"
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/ceph/config"
@@ -14,7 +17,6 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/prepare"
 	"github.com/zdnscloud/immense/pkg/ceph/status"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
-	"strings"
 )
 
 func create(cli client.Client, cluster storagev1.Cluster) error {
@@ -24,6 +26,7 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 		return err
 	}
 	copiers, pgnum := getReplicationAndPgNum(cluster)
+	log.Debugf("Based on block device number, the number of replication is %s,pg_num is %s", copiers, pgnum)
 
 	if err := config.Start(cli, uuid, adminkey, monkey, copiers); err != nil {
 		return err
@@ -63,7 +66,7 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 	if err != nil {
 		return err
 	}
-	if err := mds.Start(cli, uuid, monsvc, pgnum); err != nil {
+	if err := mds.Start(cli, uuid, monsvc, copiers, pgnum); err != nil {
 		return err
 	}
 	if err := fscsi.Start(cli, uuid, cluster.Name, monsvc); err != nil {
