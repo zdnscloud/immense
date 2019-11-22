@@ -77,7 +77,7 @@ spec:
             - name: CLUSTER
               value: ceph
             - name: REPLICATION
-              value: {{.POOL_REPLICATION}}
+              value: "{{.POOL_REPLICATION}}"
             - name: CEPHFS_NAME
               value: "{{.CEPHFS_NAME}}"
             - name: CEPHFS_DATA_POOL

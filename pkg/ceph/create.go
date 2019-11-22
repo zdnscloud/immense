@@ -26,7 +26,7 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 		return err
 	}
 	copiers, pgnum := getReplicationAndPgNum(cluster)
-	log.Debugf("Based on block device number, the number of replication is %s,pg_num is %s", copiers, pgnum)
+	log.Debugf("Based on block device number, the number of replication is %d,pg_num is %d", copiers, pgnum)
 
 	if err := config.Start(cli, uuid, adminkey, monkey, copiers); err != nil {
 		return err

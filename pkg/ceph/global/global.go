@@ -29,7 +29,7 @@ const (
 	CSIAttacherImage        = "quay.io/k8scsi/csi-attacher:v1.0.1"
 	CSIProvisionerImage     = "quay.io/k8scsi/csi-provisioner:v1.0.1"
 	CSIDriverRegistrarImage = "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2"
-	CephFsCSIImage          = "quay.io/cephcsi/cephcsi:v1.1.0"
+	CephFsCSIImage          = "zdnscloud/cephcsi:v1.1.0"
 )
 
 var MonMembers = []string{"a", "b", "c"}

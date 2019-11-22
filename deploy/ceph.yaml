@@ -4,4 +4,4 @@ metadata:
   name: cephfs
 spec:
   storageType: "cephfs"
-  hosts: ["3"]
+  hosts: ["3","4","5"]
