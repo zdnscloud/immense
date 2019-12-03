@@ -2,13 +2,14 @@ package common
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
-	"net/http"
 )
 
 func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (*storagev1.Cluster, error) {

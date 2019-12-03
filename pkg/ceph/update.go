@@ -2,14 +2,19 @@ package ceph
 
 import (
 	"errors"
-	"github.com/zdnscloud/cement/errgroup"
-	"github.com/zdnscloud/gok8s/client"
-	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"strconv"
 	"strings"
 
+	"github.com/zdnscloud/cement/errgroup"
+	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/gok8s/client"
+	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
+	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/ceph/osd"
 	"github.com/zdnscloud/immense/pkg/ceph/prepare"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
+	"github.com/zdnscloud/immense/pkg/common"
 )
 
 func doDelhost(cli client.Client, cluster storagev1.Cluster) error {
@@ -70,5 +75,27 @@ func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 		return err
 	}
 
+	return nil
+}
+
+func updatePgNumIfNeed(cli client.Client, name string) error {
+	storagecluster, err := common.GetStorage(cli, name)
+	if err != nil {
+		return err
+	}
+	_, pgnum := getReplicationAndPgNum(storagecluster)
+	currentPgnum, err := cephclient.GetCurrentSizeOrPgnum("pg_num")
+	if err != nil {
+		return err
+	}
+	if strconv.Itoa(pgnum) == currentPgnum {
+		return nil
+	}
+	log.Debugf("Based on block device number, pools's pg_num will update to %d from %s", pgnum, currentPgnum)
+	for _, pool := range []string{global.CephFsDate, global.CephFsMetadata} {
+		if err := cephclient.UpdateSizeOrPgnum(pool, "pg_num", strconv.Itoa(pgnum)); err != nil {
+			return err
+		}
+	}
 	return nil
 }

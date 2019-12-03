@@ -3,20 +3,21 @@ package util
 import (
 	"context"
 	"fmt"
-	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/gok8s/client"
-	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	"github.com/zdnscloud/immense/pkg/ceph/global"
-	"github.com/zdnscloud/immense/pkg/common"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
-	k8sstoragev1 "k8s.io/api/storage/v1"
-	k8stypes "k8s.io/apimachinery/pkg/types"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/gok8s/client"
+	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"github.com/zdnscloud/immense/pkg/ceph/global"
+	"github.com/zdnscloud/immense/pkg/common"
+	corev1 "k8s.io/api/core/v1"
+	k8sstoragev1 "k8s.io/api/storage/v1"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
 var ctx = context.TODO()
@@ -79,11 +80,8 @@ func CheckPodDel(cli client.Client, name string) (bool, error) {
 }
 
 func ExecCMDWithOutput(cmd string, args []string) (string, error) {
-	out, err := exec.Command(cmd, args...).Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
+	out, err := exec.Command(cmd, args...).CombinedOutput()
+	return strings.TrimSpace(string(out)), err
 }
 
 func ToSlice(cluster storagev1.Cluster) []string {

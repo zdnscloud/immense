@@ -64,7 +64,7 @@ spec:
           command: ["/bin/sh","-c","sh -x /etc/ceph/start_mgr.sh"]
           ports:
             - containerPort: 6800
-            - containerPort: 7000
+            - containerPort: 8443
               name: dashboard
           env:
             - name: CEPH_DAEMON
@@ -79,6 +79,8 @@ spec:
               value: "4"
             - name: CLUSTER
               value: ceph
+            - name: DASHBOARD
+              value: enable
           volumeMounts:
             - name: ceph-conf
               mountPath: /etc/ceph
@@ -91,4 +93,20 @@ spec:
               tcpSocket:
                 port: 6800
               timeoutSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ceph-mgr
+  namespace: {{.Namespace}}
+spec:
+  ports:
+  - name: http
+    port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app: ceph
+    daemon: mgr
+  type: NodePort
 `

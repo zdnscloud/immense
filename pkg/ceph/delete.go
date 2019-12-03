@@ -1,6 +1,8 @@
 package ceph
 
 import (
+	"strings"
+
 	"github.com/zdnscloud/cement/errgroup"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
@@ -12,7 +14,6 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/osd"
 	"github.com/zdnscloud/immense/pkg/ceph/prepare"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
-	"strings"
 )
 
 func delete(cli client.Client, cluster storagev1.Cluster) error {

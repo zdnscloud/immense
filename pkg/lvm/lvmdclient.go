@@ -3,15 +3,16 @@ package lvm
 import (
 	"context"
 	"errors"
+	"net"
+	"strconv"
+	"time"
+
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/immense/pkg/common"
 	lvmdclient "github.com/zdnscloud/lvmd/client"
 	pb "github.com/zdnscloud/lvmd/proto"
 	corev1 "k8s.io/api/core/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
-	"net"
-	"strconv"
-	"time"
 )
 
 func getHostAddr(ctx context.Context, cli client.Client, name string) (string, error) {

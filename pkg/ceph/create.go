@@ -7,6 +7,7 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
 	"github.com/zdnscloud/immense/pkg/ceph/config"
 	"github.com/zdnscloud/immense/pkg/ceph/fscsi"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
@@ -21,7 +22,7 @@ import (
 
 func create(cli client.Client, cluster storagev1.Cluster) error {
 	uuid := string(cluster.UID)
-	adminkey, monkey, err := initconf()
+	adminkey, monkey, err := genkey()
 	if err != nil {
 		return err
 	}
@@ -69,6 +70,9 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 	if err := mds.Start(cli, uuid, monsvc, copiers, pgnum); err != nil {
 		return err
 	}
+	if err := cephclient.EnableDashboard(); err != nil {
+		return err
+	}
 	if err := fscsi.Start(cli, uuid, cluster.Name, monsvc); err != nil {
 		return err
 	}
@@ -76,7 +80,7 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 	return nil
 }
 
-func initconf() (string, string, error) {
+func genkey() (string, string, error) {
 	var adminkey, monkey string
 	adminkey, err := util.ExecCMDWithOutput("/usr/bin/python", []string{"/ceph-key.py"})
 	if err != nil {

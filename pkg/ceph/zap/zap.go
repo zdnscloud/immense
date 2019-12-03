@@ -1,11 +1,12 @@
 package zap
 
 import (
+	"time"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
-	"time"
 )
 
 func Do(cli client.Client, host, dev string) error {

@@ -2,13 +2,14 @@ package config
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"github.com/zdnscloud/immense/pkg/common"
-	"strings"
 )
 
 func Start(cli client.Client, uuid, adminkey, monkey string, number int) error {
@@ -70,7 +71,7 @@ func Start(cli client.Client, uuid, adminkey, monkey string, number int) error {
 }
 
 func Stop(cli client.Client, uuid, adminkey, monkey string, number int) error {
-	log.Debugf(fmt.Sprintf("Undeploy service %s %s", global.MonSvc))
+	log.Debugf(fmt.Sprintf("Undeploy service %s", global.MonSvc))
 	for _, id := range global.MonMembers {
 		yaml, err := svcYaml(id)
 		if err != nil {

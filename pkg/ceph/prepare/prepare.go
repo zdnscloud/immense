@@ -2,12 +2,13 @@ package prepare
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
-	"strings"
-	"time"
 )
 
 func Do(cli client.Client, host string, devs []string) error {

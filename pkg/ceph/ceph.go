@@ -44,6 +44,10 @@ func (s *Ceph) Update(dels, adds storagev1.Cluster) error {
 		common.UpdateStatusPhase(s.cli, adds.Name, common.Failed)
 		return err
 	}
+	if err := updatePgNumIfNeed(s.cli, adds.Name); err != nil {
+		common.UpdateStatusPhase(s.cli, adds.Name, common.Failed)
+		return err
+	}
 	common.UpdateStatusPhase(s.cli, adds.Name, common.Running)
 	return nil
 }

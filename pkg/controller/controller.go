@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"sync"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
@@ -20,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"sync"
 )
 
 var ctx = context.TODO()

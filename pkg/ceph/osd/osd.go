@@ -2,6 +2,9 @@ package osd
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
@@ -11,8 +14,6 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"github.com/zdnscloud/immense/pkg/ceph/zap"
 	"github.com/zdnscloud/immense/pkg/common"
-	"strings"
-	"time"
 )
 
 func Start(cli client.Client, fsid, host, dev string, monsvc map[string]string) error {

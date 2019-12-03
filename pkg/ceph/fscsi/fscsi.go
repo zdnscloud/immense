@@ -1,13 +1,14 @@
 package fscsi
 
 import (
+	"strings"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"github.com/zdnscloud/immense/pkg/common"
-	"strings"
 )
 
 func Start(cli client.Client, id, name string, monsvc map[string]string) error {

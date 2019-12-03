@@ -2,12 +2,13 @@ package mds
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
-	"strings"
 )
 
 func Start(cli client.Client, fsid string, monsvc map[string]string, size, pgnum int) error {
