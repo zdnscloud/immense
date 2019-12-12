@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/zdnscloud/cement/set"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -67,7 +68,7 @@ func AssembleDeleteConfig(cli client.Client, cluster *storagev1.Cluster) (*stora
 }
 
 func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (*storagev1.Cluster, *storagev1.Cluster, error) {
-	del, add := HostsDiff(oldc.Spec.Hosts, newc.Spec.Hosts)
+	del, add := hostsDiff(oldc.Spec.Hosts, newc.Spec.Hosts)
 	delc := &storagev1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: newc.Name,
@@ -101,8 +102,7 @@ func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (*st
 func GetBlocksFromClusterAgent(cli client.Client, name string) ([]string, error) {
 	devs := make([]string, 0)
 	service := corev1.Service{}
-	err := cli.Get(ctx, k8stypes.NamespacedName{StorageNamespace, "cluster-agent"}, &service)
-	if err != nil {
+	if err := cli.Get(ctx, k8stypes.NamespacedName{StorageNamespace, "cluster-agent"}, &service); err != nil {
 		return devs, err
 	}
 	url := "/apis/agent.zcloud.cn/v1/blockdevices"
@@ -178,4 +178,12 @@ func UpdateStorageclusterConfig(cli client.Client, name, action string, infos []
 	newinfos = append(newinfos, oldinfos...)
 	storagecluster.Status.Config = newinfos
 	return cli.Update(ctx, &storagecluster)
+}
+
+func hostsDiff(oldcfg, newcfg []string) ([]string, []string) {
+	oldhosts := set.StringSetFromSlice(oldcfg)
+	newhosts := set.StringSetFromSlice(newcfg)
+	del := oldhosts.Difference(newhosts).ToSlice()
+	add := newhosts.Difference(oldhosts).ToSlice()
+	return del, add
 }

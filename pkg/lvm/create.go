@@ -21,7 +21,7 @@ func deployLvmCSI(cli client.Client, cluster storagev1.Cluster) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitCSIReady(cli, CSIProvisionerStsName, CSIPluginDsName)
+	common.WaitCSIReady(cli, common.StorageNamespace, CSIProvisionerStsName, CSIPluginDsName)
 
 	log.Debugf("Deploy storageclass %s", cluster.Name)
 	yaml, err = scyaml(cluster.Name)

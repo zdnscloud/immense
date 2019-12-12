@@ -2,16 +2,16 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
-	k8scfg "github.com/zdnscloud/gok8s/client/config"
+	//k8scfg "github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gok8s/controller"
 	"github.com/zdnscloud/gok8s/event"
 	"github.com/zdnscloud/gok8s/handler"
-	"github.com/zdnscloud/gok8s/helper"
 	"github.com/zdnscloud/gok8s/predicate"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	cephGlobal "github.com/zdnscloud/immense/pkg/ceph/global"
@@ -19,7 +19,6 @@ import (
 	"github.com/zdnscloud/immense/pkg/eventhandler"
 	"github.com/zdnscloud/immense/pkg/lvm"
 	k8sstorage "k8s.io/api/storage/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 )
@@ -27,7 +26,8 @@ import (
 var ctx = context.TODO()
 
 const (
-	ClusterFinalizer = "storage.zcloud.cn/finalizer"
+	ClusterInUseFinalizer       = "storage.zcloud.cn/inuse"
+	ClusterPrestopHookFinalizer = "storage.zcloud.cn/prestophook"
 )
 
 type Controller struct {
@@ -48,16 +48,16 @@ func New(config *rest.Config) (*Controller, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	cfg, err := k8scfg.GetConfig()
-	if err != nil {
-		return nil, err
-	}
+	/*
+		cfg, err := k8scfg.GetConfig()
+		if err != nil {
+			return nil, err
+		}*/
 	var options client.Options
 	options.Scheme = client.GetDefaultScheme()
 	storagev1.AddToScheme(options.Scheme)
 
-	cli, err := client.New(cfg, options)
+	cli, err := client.New(config, options)
 	if err != nil {
 		return nil, err
 	}
@@ -129,21 +129,11 @@ func (d *Controller) OnGeneric(e event.GenericEvent) (handler.Result, error) {
 }
 
 func (d *Controller) CreateFinalizer(va *k8sstorage.VolumeAttachment) error {
-	storageType := getStorageType(va.Spec.Attacher)
-	obj, err := common.GetClusterFromVolumeAttachment(d.client, storageType)
+	storageType, err := getStorageTypeFromVolumeAttachment(va)
 	if err != nil {
 		return err
 	}
-	metaObj := obj.(metav1.Object)
-	if helper.HasFinalizer(metaObj, ClusterFinalizer) {
-		return nil
-	}
-	helper.AddFinalizer(metaObj, ClusterFinalizer)
-	log.Debugf("Add finalizer %s for storagecluster: %s", ClusterFinalizer, metaObj.GetName())
-	if err := d.client.Update(ctx, obj); err != nil {
-		return err
-	}
-	return nil
+	return common.AddFinalizerForStorage(d.client, storageType, ClusterInUseFinalizer)
 }
 func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 	lastone, err := common.IsLastOne(d.client, va)
@@ -153,30 +143,20 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 	if !lastone {
 		return nil
 	}
-	storageType := getStorageType(va.Spec.Attacher)
-	obj, err := common.GetClusterFromVolumeAttachment(d.client, storageType)
+	storageType, err := getStorageTypeFromVolumeAttachment(va)
 	if err != nil {
 		return err
 	}
-	metaObj := obj.(metav1.Object)
-	if !helper.HasFinalizer(metaObj, ClusterFinalizer) {
-		return nil
-	}
-	helper.RemoveFinalizer(metaObj, ClusterFinalizer)
-	log.Debugf("Remove finalizer %s for storagecluster: %s", ClusterFinalizer, metaObj.GetName())
-	if err := d.client.Update(ctx, obj); err != nil {
-		return err
-	}
-	return nil
+	return common.DelFinalizerForStorage(d.client, storageType, ClusterInUseFinalizer)
 }
 
-func getStorageType(attacher string) string {
-	var storageType string
-	switch attacher {
+func getStorageTypeFromVolumeAttachment(va *k8sstorage.VolumeAttachment) (string, error) {
+	switch va.Spec.Attacher {
 	case lvm.StorageDriverName:
-		storageType = lvm.StorageType
+		return lvm.StorageType, nil
 	case cephGlobal.StorageDriverName:
-		storageType = cephGlobal.StorageType
+		return cephGlobal.StorageType, nil
+	default:
+		return "", fmt.Errorf("unknow storage cluster type for volumeAttachment %s", va.Name)
 	}
-	return storageType
 }

@@ -14,6 +14,8 @@ import (
 	pb "github.com/zdnscloud/lvmd/proto"
 )
 
+var ctx = context.TODO()
+
 func StatusControl(cli client.Client, name string) {
 	log.Debugf("[lvm-status-controller] Start")
 	for {
@@ -24,21 +26,20 @@ func StatusControl(cli client.Client, name string) {
 			log.Debugf("[lvm-status-controller] Stop")
 			return
 		}
-		if storagecluster.Status.Phase == "Updating" || storagecluster.Status.Phase == "Creating" {
+		if storagecluster.Status.Phase == storagev1.Updating || storagecluster.Status.Phase == storagev1.Creating {
 			continue
 		}
-		phase, message, capacity := getStatus(cli, storagecluster)
-		if err := common.UpdateStatus(cli, name, phase, message, capacity); err != nil {
+		storagecluster.Status = genStatus(cli, storagecluster)
+		if err := cli.Update(ctx, &storagecluster); err != nil {
 			log.Warnf("[lvm-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
 			continue
 		}
 	}
 }
 
-func getStatus(cli client.Client, storagecluster storagev1.Cluster) (string, string, storagev1.Capacity) {
-	ctx := context.TODO()
-	var state, message string
-	var capacity storagev1.Capacity
+func genStatus(cli client.Client, storagecluster storagev1.Cluster) storagev1.ClusterStatus {
+	var status storagev1.ClusterStatus
+	status.Config = storagecluster.Status.Config
 	instances := make([]storagev1.Instance, 0)
 	var total, used, free uint64
 	for _, host := range storagecluster.Status.Config {
@@ -50,8 +51,8 @@ func getStatus(cli client.Client, storagecluster storagev1.Cluster) (string, str
 		}
 		instance.Dev = strings.Replace(strings.Trim(fmt.Sprint(devs), "[]"), " ", ",", -1)
 		if len(instance.Dev) == 0 {
-			state = "Warnning"
-			message = message + host.NodeName + ":" + "No block devices can be used\n"
+			status.Phase = storagev1.Warnning
+			status.Message = status.Message + host.NodeName + ":" + "No block devices can be used\n"
 			instance.Stat = false
 			instances = append(instances, instance)
 			log.Warnf("[lvm-status-controller] Hosts %s have no block devices can used", host.NodeName)
@@ -59,8 +60,8 @@ func getStatus(cli client.Client, storagecluster storagev1.Cluster) (string, str
 		}
 		lvmdcli, err := CreateLvmdClient(ctx, cli, host.NodeName)
 		if err != nil {
-			state = "Warnning"
-			message = message + host.NodeName + ":" + err.Error() + "\n"
+			status.Phase = storagev1.Warnning
+			status.Message = status.Message + host.NodeName + ":" + err.Error() + "\n"
 			instance.Stat = false
 			instances = append(instances, instance)
 			log.Warnf("[lvm-status-controller] Connect to %s lvmd faield. Err: %s", host.NodeName, err.Error())
@@ -71,15 +72,15 @@ func getStatus(cli client.Client, storagecluster storagev1.Cluster) (string, str
 		vgsreq := pb.ListVGRequest{}
 		vgsout, err := lvmdcli.ListVG(ctx, &vgsreq)
 		if err != nil {
-			state = "Warnning"
-			message = message + host.NodeName + ":" + err.Error() + "\n"
+			status.Phase = storagev1.Warnning
+			status.Message = status.Message + host.NodeName + ":" + err.Error() + "\n"
 			instance.Stat = false
 			instances = append(instances, instance)
 			log.Warnf("[lvm-status-controller] List volume group faield for host %s. Err: %s", host.NodeName, err.Error())
 			continue
 		}
-		if len(state) == 0 {
-			state = "Running"
+		if len(status.Phase) == 0 {
+			status.Phase = storagev1.Running
 		}
 		for _, v := range vgsout.VolumeGroups {
 			if v.Name != "k8s" {
@@ -98,13 +99,13 @@ func getStatus(cli client.Client, storagecluster storagev1.Cluster) (string, str
 		}
 	}
 	if len(instances) == 0 {
-		state = "Error"
+		status.Phase = storagev1.Failed
 	}
-	capacity.Instances = instances
-	capacity.Total = storagev1.Size{
+	status.Capacity.Instances = instances
+	status.Capacity.Total = storagev1.Size{
 		Total: string(strconv.Itoa(int(total))),
 		Used:  string(strconv.Itoa(int(used))),
 		Free:  string(strconv.Itoa(int(free))),
 	}
-	return state, message, capacity
+	return status
 }

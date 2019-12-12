@@ -1,6 +1,7 @@
 package status
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"time"
@@ -25,44 +26,47 @@ func Watch(cli client.Client, name string) {
 		if storagecluster.Status.Phase == "Updating" || storagecluster.Status.Phase == "Creating" {
 			continue
 		}
-		phase, message, capacity, err := getStatus(storagecluster)
+		storagecluster.Status, err = genStatus(storagecluster)
 		if err != nil {
 			log.Warnf("[ceph-status-controller] Get ceph status failed. Err: %s", err.Error())
 			continue
 		}
-		if err := common.UpdateStatus(cli, name, phase, message, capacity); err != nil {
+		if err := cli.Update(context.TODO(), &storagecluster); err != nil {
 			log.Warnf("[ceph-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
 		}
 	}
 }
 
-func getStatus(storagecluster storagev1.Cluster) (string, string, storagev1.Capacity, error) {
-	var phase, message string
-	var capacity storagev1.Capacity
-
-	phase, message, err := getPhaseAndMsg()
+func genStatus(storagecluster storagev1.Cluster) (storagev1.ClusterStatus, error) {
+	var status storagev1.ClusterStatus
+	var err error
+	status.Phase, status.Message, err = getPhaseAndMsg()
 	if err != nil {
-		return phase, message, capacity, err
+		return status, err
 	}
-	capacity, err = getCapacity(storagecluster)
+	status.Capacity, err = getCapacity(storagecluster)
 	if err != nil {
-		return phase, message, capacity, err
+		return status, err
 	}
-	return phase, message, capacity, nil
+	status.Config = storagecluster.Status.Config
+	return status, nil
 }
 
-func getPhaseAndMsg() (string, string, error) {
-	var phase, message string
+func getPhaseAndMsg() (storagev1.StatusPhase, string, error) {
+	var (
+		phase   storagev1.StatusPhase
+		message string
+	)
 	message, err := cephclient.CheckHealth()
 	if err != nil {
 		return phase, message, err
 	}
 	if strings.Contains(message, "HEALTH_OK") {
-		phase = "Running"
+		phase = storagev1.Running
 	} else if strings.Contains(message, "HEALTH_WARN") {
-		phase = "Warnning"
+		phase = storagev1.Warnning
 	} else {
-		phase = "Error"
+		phase = storagev1.Failed
 	}
 	return phase, message, nil
 }

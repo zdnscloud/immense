@@ -22,33 +22,33 @@ func (s *Ceph) GetType() string {
 }
 
 func (s *Ceph) Create(cluster storagev1.Cluster) error {
-	common.UpdateStatusPhase(s.cli, cluster.Name, common.Creating)
+	common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Creating)
 	common.CreateNodeAnnotationsAndLabels(s.cli, cluster)
 	if err := create(s.cli, cluster); err != nil {
-		common.UpdateStatusPhase(s.cli, cluster.Name, common.Failed)
+		common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Failed)
 		return err
 	}
-	common.UpdateStatusPhase(s.cli, cluster.Name, common.Running)
+	common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Running)
 	return nil
 }
 
 func (s *Ceph) Update(dels, adds storagev1.Cluster) error {
-	common.UpdateStatusPhase(s.cli, adds.Name, common.Updating)
+	common.UpdateStatusPhase(s.cli, adds.Name, storagev1.Updating)
 	common.DeleteNodeAnnotationsAndLabels(s.cli, dels)
 	common.CreateNodeAnnotationsAndLabels(s.cli, adds)
 	if err := doAddhost(s.cli, adds); err != nil {
-		common.UpdateStatusPhase(s.cli, adds.Name, common.Failed)
+		common.UpdateStatusPhase(s.cli, adds.Name, storagev1.Failed)
 		return err
 	}
 	if err := doDelhost(s.cli, dels); err != nil {
-		common.UpdateStatusPhase(s.cli, adds.Name, common.Failed)
+		common.UpdateStatusPhase(s.cli, adds.Name, storagev1.Failed)
 		return err
 	}
 	if err := updatePgNumIfNeed(s.cli, adds.Name); err != nil {
-		common.UpdateStatusPhase(s.cli, adds.Name, common.Failed)
+		common.UpdateStatusPhase(s.cli, adds.Name, storagev1.Failed)
 		return err
 	}
-	common.UpdateStatusPhase(s.cli, adds.Name, common.Running)
+	common.UpdateStatusPhase(s.cli, adds.Name, storagev1.Running)
 	return nil
 }
 
