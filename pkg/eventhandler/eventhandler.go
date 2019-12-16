@@ -44,7 +44,10 @@ func (h *HandlerManager) Create(cluster *storagev1.Cluster) error {
 				return err
 			}
 			logCluster(*newcluster, "create")
-			return s.Create(*newcluster)
+			if err := s.Create(*newcluster); err != nil {
+				return err
+			}
+			log.Debugf("create storage type %s finish", cluster.Spec.StorageType)
 		}
 	}
 	return nil
@@ -55,7 +58,10 @@ func (h *HandlerManager) Delete(cluster *storagev1.Cluster) error {
 		if s.GetType() == cluster.Spec.StorageType {
 			log.Debugf("delete event for storage type %s", cluster.Spec.StorageType)
 			logCluster(*cluster, "delete")
-			return s.Delete(*cluster)
+			if err := s.Delete(*cluster); err != nil {
+				return err
+			}
+			log.Debugf("delete storage type %s finish", cluster.Spec.StorageType)
 		}
 	}
 	return nil
@@ -82,7 +88,10 @@ func (h *HandlerManager) Update(oldc *storagev1.Cluster, newc *storagev1.Cluster
 			if len(adds.Spec.Hosts) > 0 {
 				logCluster(*adds, "create")
 			}
-			return s.Update(*dels, *adds)
+			if err := s.Update(*dels, *adds); err != nil {
+				return err
+			}
+			log.Debugf("update storage type %s finish", oldc.Spec.StorageType)
 		}
 	}
 	return nil

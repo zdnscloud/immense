@@ -12,6 +12,7 @@ import (
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
 	pb "github.com/zdnscloud/lvmd/proto"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 var ctx = context.TODO()
@@ -22,7 +23,9 @@ func StatusControl(cli client.Client, name string) {
 		time.Sleep(60 * time.Second)
 		storagecluster, err := common.GetStorage(cli, name)
 		if err != nil {
-			log.Warnf("[lvm-status-controller] Get storage %s config with blocks failed. Err: %s", name, err.Error())
+			if apierrors.IsNotFound(err) == false {
+				log.Warnf("[lvm-status-controller] Get storage cluster %s failed. Err: %s", name, err.Error())
+			}
 			log.Debugf("[lvm-status-controller] Stop")
 			return
 		}

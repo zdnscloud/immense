@@ -3,6 +3,7 @@ package lvm
 import (
 	"context"
 	"errors"
+	"net"
 	"strconv"
 	"time"
 
@@ -28,7 +29,21 @@ func CreateLvmdClient(ctx context.Context, cli client.Client, hostname string) (
 		return nil, errors.New("Get host address failed!" + err.Error())
 	}
 	addr := hostip + ":1736"
+	if !waitLvmd(addr) {
+		return nil, errors.New("Lvmd not ready!" + addr)
+	}
 	return lvmdclient.New(addr, 5*time.Second)
+}
+
+func waitLvmd(addr string) bool {
+	for i := 0; i < 20; i++ {
+		_, err := net.Dial("tcp", addr)
+		if err == nil {
+			return true
+		}
+		time.Sleep(6 * time.Second)
+	}
+	return false
 }
 
 func validate(ctx context.Context, lvmdcli *lvmdclient.Client, block string) (bool, error) {

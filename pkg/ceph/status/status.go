@@ -11,6 +11,7 @@ import (
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
 	"github.com/zdnscloud/immense/pkg/common"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func Watch(cli client.Client, name string) {
@@ -19,7 +20,9 @@ func Watch(cli client.Client, name string) {
 		time.Sleep(60 * time.Second)
 		storagecluster, err := common.GetStorage(cli, name)
 		if err != nil {
-			log.Warnf("[ceph-status-controller] Get storage %s config with blocks failed. Err: %s", name, err.Error())
+			if apierrors.IsNotFound(err) == false {
+				log.Warnf("[ceph-status-controller] Get storage cluster %s failed. Err: %s", name, err.Error())
+			}
 			log.Debugf("[ceph-status-controller] Stop")
 			return
 		}
