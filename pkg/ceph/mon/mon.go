@@ -9,6 +9,7 @@ import (
 	"github.com/zdnscloud/gok8s/helper"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
+	"github.com/zdnscloud/immense/pkg/common"
 )
 
 func Start(cli client.Client, fsid string, monsvc map[string]string) error {
@@ -25,7 +26,7 @@ func Start(cli client.Client, fsid string, monsvc map[string]string) error {
 			return err
 		}
 		name := global.MonDpName + "-" + id
-		util.WaitDpReady(cli, name)
+		common.WaitDpReady(cli, common.StorageNamespace, name)
 	}
 	return nil
 }
@@ -42,6 +43,8 @@ func Stop(cli client.Client) error {
 		if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
 			return err
 		}
+		name := global.MonDpName + "-" + id
+		common.WaitDpTerminated(cli, common.StorageNamespace, name)
 	}
 	return nil
 }

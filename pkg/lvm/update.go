@@ -22,7 +22,7 @@ func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 		return nil
 	}
 	common.CreateNodeAnnotationsAndLabels(cli, cluster)
-	waitDone(cli)
-	common.WaitCSIReady(cli, common.StorageNamespace, CSIProvisionerStsName, CSIPluginDsName)
+	common.WaitDsReady(cli, common.StorageNamespace, LvmdDsName)
+	common.WaitDsReady(cli, common.StorageNamespace, CSIPluginDsName)
 	return initBlocks(cli, cluster)
 }

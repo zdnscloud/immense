@@ -47,7 +47,7 @@ func (s *Lvm) Create(cluster storagev1.Cluster) error {
 
 	common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Running)
 	go StatusControl(s.cli, cluster.Name)
-	return nil
+	return common.AddFinalizerForStorage(s.cli, cluster.Name, common.ClusterPrestopHookFinalizer)
 }
 
 func (s *Lvm) Update(dels, adds storagev1.Cluster) error {
@@ -65,15 +65,19 @@ func (s *Lvm) Update(dels, adds storagev1.Cluster) error {
 }
 
 func (s *Lvm) Delete(cluster storagev1.Cluster) error {
+	common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Deleting)
 	if err := undeployLvmCSI(s.cli, cluster); err != nil {
+		common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Failed)
 		return err
 	}
 	if err := unInitBlocks(s.cli, cluster); err != nil {
+		common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Failed)
 		return err
 	}
 	if err := undeployLvmd(s.cli, cluster); err != nil {
+		common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Failed)
 		return err
 	}
 	common.DeleteNodeAnnotationsAndLabels(s.cli, cluster)
-	return nil
+	return common.DelFinalizerForStorage(s.cli, cluster.Name, common.ClusterPrestopHookFinalizer)
 }

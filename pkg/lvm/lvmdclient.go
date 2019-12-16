@@ -3,7 +3,6 @@ package lvm
 import (
 	"context"
 	"errors"
-	"net"
 	"strconv"
 	"time"
 
@@ -29,33 +28,18 @@ func CreateLvmdClient(ctx context.Context, cli client.Client, hostname string) (
 		return nil, errors.New("Get host address failed!" + err.Error())
 	}
 	addr := hostip + ":1736"
-
-	if !waitLvmd(addr) {
-		return nil, errors.New("Lvmd not ready!" + addr)
-	}
 	return lvmdclient.New(addr, 5*time.Second)
-}
-
-func waitLvmd(addr string) bool {
-	for i := 0; i < 20; i++ {
-		_, err := net.Dial("tcp", addr)
-		if err == nil {
-			return true
-		}
-		time.Sleep(6 * time.Second)
-	}
-	return false
 }
 
 func validate(ctx context.Context, lvmdcli *lvmdclient.Client, block string) (bool, error) {
 	req := pb.ValidateRequest{
 		Block: block,
 	}
-	out, err := lvmdcli.Validate(ctx, &req)
-	if err != nil {
+	if out, err := lvmdcli.Validate(ctx, &req); err != nil {
 		return false, err
+	} else {
+		return out.Validate, nil
 	}
-	return out.Validate, nil
 }
 
 func pvExist(ctx context.Context, lvmdcli *lvmdclient.Client, block string) (bool, error) {
@@ -90,11 +74,11 @@ func pvCreate(ctx context.Context, lvmdcli *lvmdclient.Client, block string) (st
 	req := pb.CreatePVRequest{
 		Block: block,
 	}
-	out, err := lvmdcli.CreatePV(ctx, &req)
-	if err != nil {
+	if out, err := lvmdcli.CreatePV(ctx, &req); err != nil {
 		return "", err
+	} else {
+		return out.CommandOutput, nil
 	}
-	return out.CommandOutput, nil
 }
 
 func vgCreate(ctx context.Context, lvmdcli *lvmdclient.Client, block string, name string) (string, error) {
@@ -102,11 +86,11 @@ func vgCreate(ctx context.Context, lvmdcli *lvmdclient.Client, block string, nam
 		Name:           name,
 		PhysicalVolume: block,
 	}
-	out, err := lvmdcli.CreateVG(ctx, &req)
-	if err != nil {
+	if out, err := lvmdcli.CreateVG(ctx, &req); err != nil {
 		return "", err
+	} else {
+		return out.CommandOutput, nil
 	}
-	return out.CommandOutput, nil
 }
 
 func vgExtend(ctx context.Context, lvmdcli *lvmdclient.Client, block string, name string) (string, error) {
@@ -114,11 +98,11 @@ func vgExtend(ctx context.Context, lvmdcli *lvmdclient.Client, block string, nam
 		Name:           name,
 		PhysicalVolume: block,
 	}
-	out, err := lvmdcli.ExtendVG(ctx, &req)
-	if err != nil {
+	if out, err := lvmdcli.ExtendVG(ctx, &req); err != nil {
 		return "", err
+	} else {
+		return out.CommandOutput, nil
 	}
-	return out.CommandOutput, nil
 }
 
 func vgReduce(ctx context.Context, lvmdcli *lvmdclient.Client, block string, name string) (string, error) {
@@ -126,70 +110,68 @@ func vgReduce(ctx context.Context, lvmdcli *lvmdclient.Client, block string, nam
 		Name:           name,
 		PhysicalVolume: block,
 	}
-	out, err := lvmdcli.ReduceVG(ctx, &req)
-	if err != nil {
+	if out, err := lvmdcli.ReduceVG(ctx, &req); err != nil {
 		return "", err
+	} else {
+		return out.CommandOutput, nil
 	}
-	return out.CommandOutput, nil
 }
 
 func destory(ctx context.Context, lvmdcli *lvmdclient.Client, block string) (string, error) {
 	req := pb.DestoryRequest{
 		Block: block,
 	}
-	out, err := lvmdcli.Destory(ctx, &req)
-	if err != nil {
+	if out, err := lvmdcli.Destory(ctx, &req); err != nil {
 		return "", err
+	} else {
+		return out.CommandOutput, nil
 	}
-	return out.CommandOutput, nil
 }
 
 func removeVG(ctx context.Context, lvmdcli *lvmdclient.Client, name string) (string, error) {
 	req := pb.CreateVGRequest{
 		Name: name,
 	}
-	out, err := lvmdcli.RemoveVG(ctx, &req)
-	if err != nil {
+	if out, err := lvmdcli.RemoveVG(ctx, &req); err != nil {
 		return "", err
+	} else {
+		return out.CommandOutput, nil
 	}
-	return out.CommandOutput, nil
 }
 
 func removePV(ctx context.Context, lvmdcli *lvmdclient.Client, block string) (string, error) {
 	req := pb.RemovePVRequest{
 		Block: block,
 	}
-	out, err := lvmdcli.RemovePV(ctx, &req)
-	if err != nil {
+	if out, err := lvmdcli.RemovePV(ctx, &req); err != nil {
 		return "", err
+	} else {
+		return out.CommandOutput, nil
 	}
-	return out.CommandOutput, nil
 }
 
 func GetVG(ctx context.Context, lvmdcli *lvmdclient.Client, block string) (string, error) {
 	req := pb.MatchRequest{
 		Block: block,
 	}
-	out, err := lvmdcli.Match(ctx, &req)
-	if err != nil {
+	if out, err := lvmdcli.Match(ctx, &req); err != nil {
 		return "", err
+	} else {
+		return out.CommandOutput, nil
 	}
-	return out.CommandOutput, nil
 }
 
 func getPVNum(ctx context.Context, lvmdcli *lvmdclient.Client, name string) (int, error) {
 	req := pb.CreateVGRequest{
 		Name: name,
 	}
-	out, err := lvmdcli.GetPVNum(ctx, &req)
-	if err != nil {
+	if out, err := lvmdcli.GetPVNum(ctx, &req); err != nil {
 		return 0, err
-	}
-	num, err := strconv.Atoi(out.CommandOutput)
-	if err != nil {
+	} else if num, err := strconv.Atoi(out.CommandOutput); err != nil {
 		return 0, err
+	} else {
+		return num, nil
 	}
-	return num, nil
 }
 
 func CreateVG(ctx context.Context, lvmdcli *lvmdclient.Client, block string, name string) error {

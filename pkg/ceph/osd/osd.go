@@ -11,7 +11,6 @@ import (
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	cephclient "github.com/zdnscloud/immense/pkg/ceph/client"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
-	"github.com/zdnscloud/immense/pkg/ceph/util"
 	"github.com/zdnscloud/immense/pkg/ceph/zap"
 	"github.com/zdnscloud/immense/pkg/common"
 )
@@ -32,7 +31,8 @@ func Start(cli client.Client, fsid, host, dev string, monsvc map[string]string) 
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	waitOsdRunning(cli, host, dev)
+	name := "ceph-osd-" + host + "-" + dev
+	common.WaitDsReady(cli, common.StorageNamespace, name)
 	return nil
 }
 
@@ -46,7 +46,8 @@ func Remove(cli client.Client, host, dev string) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	waitOsdDelete(cli, host, dev)
+	name := "ceph-osd-" + host + "-" + dev
+	common.WaitDsTerminated(cli, common.StorageNamespace, name)
 	if err := zap.Do(cli, host, dev); err != nil {
 		return err
 	}
@@ -83,43 +84,15 @@ func Stop(cli client.Client, hostInfos []storagev1.HostInfo) error {
 	return nil
 }
 
-func waitOsdRunning(cli client.Client, host, dev string) {
-	log.Debugf("Wait osd running %s:%s, this will take some time", host, dev)
-	name := "ceph-osd-" + host + "-" + dev
-	var done bool
-	for !done {
-		time.Sleep(10 * time.Second)
-		if !common.IsDsReady(cli, common.StorageNamespace, name) {
-			continue
-		}
-		done = true
-	}
-}
-
-func waitOsdDelete(cli client.Client, host, dev string) {
-	log.Debugf("Wait osd end %s:%s", host, dev)
-	name := "ceph-osd-" + host + "-" + dev
-	var ready bool
-	for !ready {
-		time.Sleep(10 * time.Second)
-		del, err := util.CheckPodDel(cli, name)
-		if err != nil || !del {
-			continue
-		}
-		ready = true
-	}
-}
-
 func waitRebalance() {
 	log.Debugf("Wait ceph pgs rebalance to finish, this will take some time")
-	var finish bool
-	for !finish {
-		time.Sleep(60 * time.Second)
+	for {
 		message, err := cephclient.CheckHealth()
 		if err != nil || !strings.Contains(message, "HEALTH_OK") {
+			time.Sleep(60 * time.Second)
 			continue
 		}
-		finish = true
+		break
 	}
 }
 

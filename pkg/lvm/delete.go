@@ -2,11 +2,13 @@ package lvm
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"github.com/zdnscloud/immense/pkg/common"
 )
 
 func undeployLvmCSI(cli client.Client, cluster storagev1.Cluster) error {
@@ -18,12 +20,18 @@ func undeployLvmCSI(cli client.Client, cluster storagev1.Cluster) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
+	common.WaitStsTerminated(cli, common.StorageNamespace, CSIProvisionerStsName)
+	common.WaitDsTerminated(cli, common.StorageNamespace, CSIPluginDsName)
+
 	log.Debugf("Undeploy storageclass %s", cluster.Name)
 	yaml, err = scyaml(cluster.Name)
 	if err != nil {
 		return err
 	}
-	return helper.DeleteResourceFromYaml(cli, yaml)
+	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
+		return err
+	}
+	return nil
 }
 
 func undeployLvmd(cli client.Client, cluster storagev1.Cluster) error {
@@ -32,36 +40,32 @@ func undeployLvmd(cli client.Client, cluster storagev1.Cluster) error {
 	if err != nil {
 		return err
 	}
-	return helper.DeleteResourceFromYaml(cli, yaml)
+	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
+		return err
+	}
+	common.WaitDsTerminated(cli, common.StorageNamespace, LvmdDsName)
+	return nil
 }
 
 func unInitBlocks(cli client.Client, cluster storagev1.Cluster) error {
 	ctx := context.TODO()
 	for _, host := range cluster.Status.Config {
 		if len(host.BlockDevices) == 0 {
-			//return fmt.Errorf("No block device to init for host %s", host.NodeName)
-			log.Debugf("[%s] No block device to uninit", host.NodeName)
-			continue
+			return fmt.Errorf("No block device to uninit for host %s", host.NodeName)
 		}
 		lvmdcli, err := CreateLvmdClient(ctx, cli, host.NodeName)
 		if err != nil {
-			//return fmt.Errorf("Create Lvmd client failed for host %s, %v", host.NodeName, err)
-			log.Warnf("[%s] Create Lvmd client failed:%s", host.NodeName, err.Error())
-			continue
+			return fmt.Errorf("Create Lvmd client failed for host %s, %v", host.NodeName, err)
 		}
 		defer lvmdcli.Close()
 		for _, block := range host.BlockDevices {
 			log.Debugf("[%s] Remove vg with %s", host.NodeName, block)
 			if err := RemoveVG(ctx, lvmdcli, VGName); err != nil {
-				//return fmt.Errorf("Remove vg failed, %v", err)
-				log.Warnf("[%s] Remove vg with %s failed:%s", host.NodeName, block, err.Error())
-				continue
+				return fmt.Errorf("Remove vg failed, %v", err)
 			}
 			log.Debugf("[%s] Remove pv with %s", host.NodeName, block)
 			if err := RemovePV(ctx, lvmdcli, block); err != nil {
-				//return fmt.Errorf("Remove pv failed, %v", err)
-				log.Warnf("[%s] Remove pv with %s failed:%s", host.NodeName, block, err.Error())
-				continue
+				return fmt.Errorf("Remove pv failed, %v", err)
 			}
 		}
 	}

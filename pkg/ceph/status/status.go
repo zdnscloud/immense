@@ -23,6 +23,10 @@ func Watch(cli client.Client, name string) {
 			log.Debugf("[ceph-status-controller] Stop")
 			return
 		}
+		if storagecluster.DeletionTimestamp != nil {
+			log.Debugf("[ceph-status-controller] Stop")
+			return
+		}
 		if storagecluster.Status.Phase == "Updating" || storagecluster.Status.Phase == "Creating" {
 			continue
 		}

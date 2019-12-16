@@ -3,7 +3,6 @@ package lvm
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
@@ -21,7 +20,8 @@ func deployLvmCSI(cli client.Client, cluster storagev1.Cluster) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitCSIReady(cli, common.StorageNamespace, CSIProvisionerStsName, CSIPluginDsName)
+	common.WaitStsReady(cli, common.StorageNamespace, CSIProvisionerStsName)
+	common.WaitDsReady(cli, common.StorageNamespace, CSIPluginDsName)
 
 	log.Debugf("Deploy storageclass %s", cluster.Name)
 	yaml, err = scyaml(cluster.Name)
@@ -40,7 +40,7 @@ func deployLvmd(cli client.Client, cluster storagev1.Cluster) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	waitDone(cli)
+	common.WaitDsReady(cli, common.StorageNamespace, LvmdDsName)
 	return nil
 }
 
@@ -80,16 +80,4 @@ func initBlocks(cli client.Client, cluster storagev1.Cluster) error {
 		}
 	}
 	return nil
-}
-
-func waitDone(cli client.Client) {
-	log.Debugf("Wait all lvmd running, this will take some time")
-	var done bool
-	for !done {
-		time.Sleep(10 * time.Second)
-		if !common.IsDsReady(cli, common.StorageNamespace, LvmdDsName) {
-			continue
-		}
-		done = true
-	}
 }

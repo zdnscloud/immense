@@ -8,9 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
-	"time"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
@@ -26,8 +24,7 @@ var files = []string{"ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring
 
 func CheckConfigMap(cli client.Client, namespace, name string) (bool, error) {
 	cm := corev1.ConfigMap{}
-	err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &cm)
-	if err != nil {
+	if err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &cm); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -35,8 +32,7 @@ func CheckConfigMap(cli client.Client, namespace, name string) (bool, error) {
 
 func CheckSecret(cli client.Client, namespace, name string) (bool, error) {
 	secret := corev1.Secret{}
-	err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &secret)
-	if err != nil {
+	if err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &secret); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -44,37 +40,8 @@ func CheckSecret(cli client.Client, namespace, name string) (bool, error) {
 
 func CheckStorageclass(cli client.Client, name string) (bool, error) {
 	sc := k8sstoragev1.StorageClass{}
-	err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &sc)
-	if err != nil {
+	if err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &sc); err != nil {
 		return false, err
-	}
-	return true, nil
-}
-
-func CheckPodPhase(cli client.Client, name, stat string) (bool, error) {
-	pods := corev1.PodList{}
-	err := cli.List(ctx, &client.ListOptions{Namespace: common.StorageNamespace}, &pods)
-	if err != nil {
-		return false, err
-	}
-	for _, p := range pods.Items {
-		if strings.Contains(p.Name, name) && string(p.Status.Phase) == stat {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func CheckPodDel(cli client.Client, name string) (bool, error) {
-	pods := corev1.PodList{}
-	err := cli.List(ctx, &client.ListOptions{Namespace: common.StorageNamespace}, &pods)
-	if err != nil {
-		return false, err
-	}
-	for _, p := range pods.Items {
-		if strings.Contains(p.Name, name) {
-			return false, nil
-		}
 	}
 	return true, nil
 }
@@ -117,8 +84,7 @@ func RemoveConf(cli client.Client) error {
 }
 func SaveConf(cli client.Client) error {
 	cm := corev1.ConfigMap{}
-	err := cli.Get(ctx, k8stypes.NamespacedName{common.StorageNamespace, global.ConfigMapName}, &cm)
-	if err != nil {
+	if err := cli.Get(ctx, k8stypes.NamespacedName{common.StorageNamespace, global.ConfigMapName}, &cm); err != nil {
 		return err
 	}
 	for _, f := range files {
@@ -133,23 +99,10 @@ func SaveConf(cli client.Client) error {
 
 func CheckConf() bool {
 	file := path.Join(root, "ceph.conf")
-	_, err := os.Stat(file)
-	if err != nil {
+	if _, err := os.Stat(file); err != nil {
 		return false
 	}
 	return true
-}
-
-func WaitDpReady(cli client.Client, name string) {
-	log.Debugf("Wait all %s running, this will take some time", name)
-	var ready bool
-	for !ready {
-		time.Sleep(10 * time.Second)
-		if !common.IsDpReady(cli, common.StorageNamespace, name) {
-			continue
-		}
-		ready = true
-	}
 }
 
 func getMonSvc(cli client.Client, name string) (string, error) {
@@ -175,8 +128,7 @@ func GetMonSvcMap(cli client.Client) (map[string]string, error) {
 
 func GetCephUUID(cli client.Client) (string, error) {
 	storageclusters := storagev1.ClusterList{}
-	err := cli.List(ctx, nil, &storageclusters)
-	if err != nil {
+	if err := cli.List(ctx, nil, &storageclusters); err != nil {
 		return "", err
 	}
 	for _, sc := range storageclusters.Items {

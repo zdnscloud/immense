@@ -26,6 +26,11 @@ func StatusControl(cli client.Client, name string) {
 			log.Debugf("[lvm-status-controller] Stop")
 			return
 		}
+		if storagecluster.DeletionTimestamp != nil {
+			log.Debugf("[lvm-status-controller] Stop")
+			return
+		}
+
 		if storagecluster.Status.Phase == storagev1.Updating || storagecluster.Status.Phase == storagev1.Creating {
 			continue
 		}

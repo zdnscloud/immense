@@ -3,12 +3,11 @@ package prepare
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
-	"github.com/zdnscloud/immense/pkg/ceph/util"
+	"github.com/zdnscloud/immense/pkg/common"
 )
 
 func Do(cli client.Client, host string, devs []string) error {
@@ -21,22 +20,9 @@ func Do(cli client.Client, host string, devs []string) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	check(cli, host)
-	return nil
-}
-
-func check(cli client.Client, host string) {
-	log.Debugf("Wait prepare done %s", host)
 	name := "ceph-job-prepare-" + host
-	var ready bool
-	for !ready {
-		time.Sleep(10 * time.Second)
-		ok, err := util.CheckPodPhase(cli, name, "Succeeded")
-		if err != nil || !ok {
-			continue
-		}
-		ready = true
-	}
+	common.WaitPodSucceeded(cli, common.StorageNamespace, name)
+	return nil
 }
 
 func Delete(cli client.Client, host string) error {

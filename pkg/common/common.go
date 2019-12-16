@@ -14,32 +14,36 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sstorage "k8s.io/api/storage/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
 const (
-	RBACConfig               = "rbac"
-	StorageHostLabels        = "storage.zcloud.cn/storagetype"
-	StorageBlocksAnnotations = "storage.zcloud.cn/blocks"
-	StorageNamespace         = "zcloud"
-	NodeIPLabels             = "zdnscloud.cn/internal-ip"
-	StorageHostRole          = "node-role.kubernetes.io/storage"
-	LvmLabelsValue           = "Lvm"
-	CephLabelsValue          = "Ceph"
-	CIDRconfigMap            = "cluster-config"
-	CIDRconfigMapNamespace   = "kube-system"
+	ClusterInUsedFinalizer      = "storage.zcloud.cn/inused"
+	ClusterPrestopHookFinalizer = "storage.zcloud.cn/prestophook"
+	RBACConfig                  = "rbac"
+	StorageHostLabels           = "storage.zcloud.cn/storagetype"
+	StorageBlocksAnnotations    = "storage.zcloud.cn/blocks"
+	StorageNamespace            = "zcloud"
+	NodeIPLabels                = "zdnscloud.cn/internal-ip"
+	StorageHostRole             = "node-role.kubernetes.io/storage"
+	LvmLabelsValue              = "Lvm"
+	CephLabelsValue             = "Ceph"
+	CIDRconfigMap               = "cluster-config"
+	CIDRconfigMapNamespace      = "kube-system"
+	PodCheckInterval            = 10
 )
 
 var ctx = context.TODO()
 
 func CreateNodeAnnotationsAndLabels(cli client.Client, cluster storagev1.Cluster) {
 	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("[%s] Add Labels for host:%s", cluster.Spec.StorageType, host)
+		log.Debugf("Add Labels for storage type %s on host:%s", cluster.Spec.StorageType, host)
 		node := corev1.Node{}
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host}, &node); err != nil {
-			log.Warnf("[%s] Add Labels for host %s failed. Err: %s", cluster.Spec.StorageType, host, err.Error())
+			log.Warnf("Add Labels for storage type %s on host %s failed. Err: %s", cluster.Spec.StorageType, host, err.Error())
 			continue
 		}
 		node.Labels[StorageHostRole] = "true"
@@ -50,7 +54,7 @@ func CreateNodeAnnotationsAndLabels(cli client.Client, cluster storagev1.Cluster
 			node.Labels[StorageHostLabels] = CephLabelsValue
 		}
 		if err := cli.Update(ctx, &node); err != nil {
-			log.Warnf("[%s] Add Labels for host %s failed. Err: %s", cluster.Spec.StorageType, host, err.Error())
+			log.Warnf("Add Labels for storage type %s on host %s failed. Err: %s", cluster.Spec.StorageType, host, err.Error())
 			continue
 		}
 	}
@@ -58,16 +62,16 @@ func CreateNodeAnnotationsAndLabels(cli client.Client, cluster storagev1.Cluster
 
 func DeleteNodeAnnotationsAndLabels(cli client.Client, cluster storagev1.Cluster) {
 	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("[%s] Del Labels for host:%s", cluster.Spec.StorageType, host)
+		log.Debugf("Del Labels for storage type %s on host:%s", cluster.Spec.StorageType, host)
 		node := corev1.Node{}
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host}, &node); err != nil {
-			log.Warnf("[%s] Del Labels for host %s failed. Err: %s", cluster.Spec.StorageType, host, err.Error())
+			log.Warnf("Del Labels for storage type %s on host %s failed. Err: %s", cluster.Spec.StorageType, host, err.Error())
 			continue
 		}
 		delete(node.Labels, StorageHostRole)
 		delete(node.Labels, StorageHostLabels)
 		if err := cli.Update(ctx, &node); err != nil {
-			log.Warnf("[%s] Del Labels for host %s failed. Err: %s", cluster.Spec.StorageType, host, err.Error())
+			log.Warnf("Del Labels for storage type %s on host %s failed. Err: %s", cluster.Spec.StorageType, host, err.Error())
 			continue
 		}
 	}
@@ -83,15 +87,23 @@ func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error)
 }
 
 func UpdateStatusPhase(cli client.Client, name string, phase storagev1.StatusPhase) {
-	storagecluster := storagev1.Cluster{}
-	if err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &storagecluster); err != nil {
+	storagecluster, err := GetStorage(cli, name)
+	if err != nil {
+		if apierrors.IsNotFound(err) == true {
+			return
+		}
 		log.Warnf("Update storage cluster %s status failed. Err: %s", name, err.Error())
 		return
 	}
 	storagecluster.Status.Phase = phase
 	if err := cli.Update(ctx, &storagecluster); err != nil {
+		if apierrors.IsNotFound(err) == true {
+			return
+		}
 		log.Warnf("Update storage cluster %s status failed. Err: %s", name, err.Error())
+		return
 	}
+	return
 }
 
 func GetStorage(cli client.Client, name string) (storagev1.Cluster, error) {
@@ -113,6 +125,7 @@ func AddFinalizerForStorage(cli client.Client, name, finalizer string) error {
 	if helper.HasFinalizer(metaObj, finalizer) {
 		return nil
 	}
+	log.Debugf("Add finalizer %s for storage cluster %s", finalizer, name)
 	helper.AddFinalizer(metaObj, finalizer)
 	if err := cli.Update(ctx, obj); err != nil {
 		log.Warnf("add finalizer %s for storage cluster %s failed. Err: %s", finalizer, name, err.Error())
@@ -123,6 +136,9 @@ func AddFinalizerForStorage(cli client.Client, name, finalizer string) error {
 func DelFinalizerForStorage(cli client.Client, name, finalizer string) error {
 	storagecluster, err := GetStorage(cli, name)
 	if err != nil {
+		if apierrors.IsNotFound(err) == true {
+			return nil
+		}
 		return err
 	}
 	var obj runtime.Object
@@ -131,29 +147,13 @@ func DelFinalizerForStorage(cli client.Client, name, finalizer string) error {
 	if !helper.HasFinalizer(metaObj, finalizer) {
 		return nil
 	}
+	log.Debugf("Del finalizer %s for storage cluster %s", finalizer, name)
 	helper.RemoveFinalizer(metaObj, finalizer)
 	if err := cli.Update(ctx, obj); err != nil {
 		log.Warnf("del finalizer %s for storage cluster %s failed. Err: %s", finalizer, name, err.Error())
 	}
 	return nil
 }
-
-/*
-func GetClusterFromVolumeAttachment(cli client.Client, storageType string) (runtime.Object, error) {
-	storageclusters := storagev1.ClusterList{}
-	if err := cli.List(ctx, nil, &storageclusters); err != nil {
-		return nil, err
-	}
-	for _, storage := range storageclusters.Items {
-		if storage.Spec.StorageType != storageType {
-			continue
-		}
-		var obj runtime.Object
-		obj = &storage
-		return obj, nil
-	}
-	return nil, errors.New("can not found storagecluster for type" + storageType)
-}*/
 
 func IsLastOne(cli client.Client, va *k8sstorage.VolumeAttachment) (bool, error) {
 	volumeattachments := k8sstorage.VolumeAttachmentList{}
@@ -174,57 +174,162 @@ func IsDpReady(cli client.Client, namespace, name string) bool {
 		return false
 	}
 	log.Debugf("Deployment: %s ready:%d, desired: %d", name, deploy.Status.ReadyReplicas, *deploy.Spec.Replicas)
+	if *deploy.Spec.Replicas == 0 {
+		return false
+	}
 	return deploy.Status.ReadyReplicas == *deploy.Spec.Replicas
 }
 
 func IsDsReady(cli client.Client, namespace, name string) bool {
 	daemonSet := appsv1.DaemonSet{}
-	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &daemonSet); err != nil {
+	if err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &daemonSet); err != nil {
 		return false
 	}
 	log.Debugf("DaemonSet: %s ready:%d, desired: %d", name, daemonSet.Status.NumberReady, daemonSet.Status.DesiredNumberScheduled)
+	if daemonSet.Status.DesiredNumberScheduled == 0 {
+		return false
+	}
 	return daemonSet.Status.NumberReady == daemonSet.Status.DesiredNumberScheduled
 }
 
 func IsStsReady(cli client.Client, namespace, name string) bool {
 	statefulset := appsv1.StatefulSet{}
-	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &statefulset); err != nil {
+	if err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &statefulset); err != nil {
 		return false
 	}
 	log.Debugf("StatefulSet: %s ready:%d, desired: %d", name, statefulset.Status.ReadyReplicas, *statefulset.Spec.Replicas)
+	if *statefulset.Spec.Replicas == 0 {
+		return false
+	}
 	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas
 }
 
-func WaitCSIReady(cli client.Client, namespace, provisioner, plugin string) {
-	log.Debugf("Wait all csi pod running, this will take some time")
+func IsDpTerminated(cli client.Client, namespace, name string) bool {
+	deploys := appsv1.DeploymentList{}
+	if err := cli.List(ctx, &client.ListOptions{Namespace: namespace}, &deploys); err != nil {
+		return false
+	}
+	for _, deploy := range deploys.Items {
+		if deploy.Name == name {
+			return false
+		}
+	}
+	return true
+}
+
+func IsDsTerminated(cli client.Client, namespace, name string) bool {
+	daemonSets := appsv1.DaemonSetList{}
+	if err := cli.List(ctx, &client.ListOptions{Namespace: namespace}, &daemonSets); err != nil {
+		return false
+	}
+	for _, daemonSet := range daemonSets.Items {
+		if daemonSet.Name == name {
+			return false
+		}
+	}
+	return true
+}
+
+func IsStsTerminated(cli client.Client, namespace, name string) bool {
+	statefulsets := appsv1.StatefulSetList{}
+	if err := cli.List(ctx, &client.ListOptions{Namespace: namespace}, &statefulsets); err != nil {
+		return false
+	}
+	for _, statefulset := range statefulsets.Items {
+		if statefulset.Name == name {
+			return false
+		}
+	}
+	return true
+}
+
+func WaitStsTerminated(cli client.Client, namespace, name string) {
+	log.Debugf("Wait statefulset %s terminated, this will take some time", name)
 	for {
-		if !IsStsReady(cli, StorageNamespace, provisioner) || !IsDsReady(cli, StorageNamespace, plugin) {
-			time.Sleep(10 * time.Second)
+		if !IsStsTerminated(cli, namespace, name) {
+			time.Sleep(PodCheckInterval * time.Second)
 			continue
 		}
 		break
 	}
 }
 
-func WaitPodTerminated(cli client.Client, namespace, prefix string) {
-	log.Debugf("Wait all pods %s-xxx terminated, this will take some time")
+func WaitStsReady(cli client.Client, namespace, name string) {
+	log.Debugf("Wait statefulset %s ready, this will take some time", name)
 	for {
-		pods := corev1.PodList{}
-		if err := cli.List(context.TODO(), &client.ListOptions{Namespace: namespace}, &pods); err != nil {
+		if !IsStsReady(cli, namespace, name) {
+			time.Sleep(PodCheckInterval * time.Second)
 			continue
 		}
-		var exist bool
-		for _, pod := range pods.Items {
-			if strings.HasPrefix(pod.Name, prefix) {
-				exist = true
-				break
-			}
-		}
-		if exist {
-			time.Sleep(10 * time.Second)
+		break
+	}
+}
+
+func WaitDsTerminated(cli client.Client, namespace, name string) {
+	log.Debugf("Wait daemonset %s terminated, this will take some time", name)
+	for {
+		if !IsDsTerminated(cli, namespace, name) {
+			time.Sleep(PodCheckInterval * time.Second)
 			continue
-		} else {
-			break
 		}
+		break
+	}
+}
+
+func WaitDsReady(cli client.Client, namespace, name string) {
+	log.Debugf("Wait daemonset %s ready, this will take some time", name)
+	for {
+		if !IsDsReady(cli, namespace, name) {
+			time.Sleep(PodCheckInterval * time.Second)
+			continue
+		}
+		break
+	}
+}
+
+func WaitDpTerminated(cli client.Client, namespace, name string) {
+	log.Debugf("Wait deployment %s terminated, this will take some time", name)
+	for {
+		if !IsDpTerminated(cli, namespace, name) {
+			time.Sleep(PodCheckInterval * time.Second)
+			continue
+		}
+		break
+	}
+}
+
+func WaitDpReady(cli client.Client, namespace, name string) {
+	log.Debugf("Wait deployment %s ready, this will take some time", name)
+	for {
+		if !IsDpReady(cli, namespace, name) {
+			time.Sleep(PodCheckInterval * time.Second)
+			continue
+		}
+		break
+	}
+}
+
+func isPodSucceeded(cli client.Client, namespace, name string) bool {
+	pods := corev1.PodList{}
+	err := cli.List(ctx, &client.ListOptions{Namespace: namespace}, &pods)
+	if err != nil {
+		return false
+	}
+	for _, pod := range pods.Items {
+		if strings.Contains(pod.Name, name) && string(pod.Status.Phase) == "Succeeded" {
+			return true
+		}
+	}
+	return false
+}
+
+func WaitPodSucceeded(cli client.Client, namespace, name string) {
+	log.Debugf("Wait pod %s status succeeded, this will take some time", name)
+	for {
+		if !isPodSucceeded(cli, namespace, name) {
+			time.Sleep(PodCheckInterval * time.Second)
+			continue
+		}
+		break
 	}
 }

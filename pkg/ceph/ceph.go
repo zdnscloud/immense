@@ -29,7 +29,7 @@ func (s *Ceph) Create(cluster storagev1.Cluster) error {
 		return err
 	}
 	common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Running)
-	return nil
+	return common.AddFinalizerForStorage(s.cli, cluster.Name, common.ClusterPrestopHookFinalizer)
 }
 
 func (s *Ceph) Update(dels, adds storagev1.Cluster) error {
@@ -53,6 +53,11 @@ func (s *Ceph) Update(dels, adds storagev1.Cluster) error {
 }
 
 func (s *Ceph) Delete(cluster storagev1.Cluster) error {
+	common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Deleting)
 	common.DeleteNodeAnnotationsAndLabels(s.cli, cluster)
-	return delete(s.cli, cluster)
+	if err := delete(s.cli, cluster); err != nil {
+		common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+		return err
+	}
+	return common.DelFinalizerForStorage(s.cli, cluster.Name, common.ClusterPrestopHookFinalizer)
 }

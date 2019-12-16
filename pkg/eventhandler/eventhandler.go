@@ -37,9 +37,10 @@ func New(cli client.Client) *HandlerManager {
 func (h *HandlerManager) Create(cluster *storagev1.Cluster) error {
 	for _, s := range h.handlers {
 		if s.GetType() == cluster.Spec.StorageType {
-			log.Debugf("[%s] create event", cluster.Spec.StorageType)
+			log.Debugf("create event for storage type %s", cluster.Spec.StorageType)
 			newcluster, err := common.AssembleCreateConfig(h.client, cluster)
 			if err != nil {
+				common.UpdateStatusPhase(h.client, cluster.Name, storagev1.Failed)
 				return err
 			}
 			logCluster(*newcluster, "create")
@@ -52,7 +53,7 @@ func (h *HandlerManager) Create(cluster *storagev1.Cluster) error {
 func (h *HandlerManager) Delete(cluster *storagev1.Cluster) error {
 	for _, s := range h.handlers {
 		if s.GetType() == cluster.Spec.StorageType {
-			log.Debugf("[%s] delete event", cluster.Spec.StorageType)
+			log.Debugf("delete event for storage type %s", cluster.Spec.StorageType)
 			logCluster(*cluster, "delete")
 			return s.Delete(*cluster)
 		}
@@ -69,9 +70,10 @@ func (h *HandlerManager) Update(oldc *storagev1.Cluster, newc *storagev1.Cluster
 	}
 	for _, s := range h.handlers {
 		if s.GetType() == oldc.Spec.StorageType {
-			log.Debugf("[%s] update event", newc.Spec.StorageType)
+			log.Debugf("update event for storage type %s", oldc.Spec.StorageType)
 			dels, adds, err := common.AssembleUpdateConfig(h.client, oldc, newc)
 			if err != nil {
+				common.UpdateStatusPhase(h.client, oldc.Name, storagev1.Failed)
 				return err
 			}
 			if len(dels.Spec.Hosts) > 0 {

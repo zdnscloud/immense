@@ -28,8 +28,7 @@ func ReweigtOsd(id string) error {
 func OutOsd(id string) error {
 	args := []string{"osd", "out", id}
 	args = append(args, cephTimeOut...)
-	out, err := util.ExecCMDWithOutput(cephCMD, args)
-	if err != nil {
+	if out, err := util.ExecCMDWithOutput(cephCMD, args); err != nil {
 		return fmt.Errorf("filed osd out,cmd out: %s, err: %v", out, err)
 	}
 	return nil
@@ -38,8 +37,7 @@ func OutOsd(id string) error {
 func InOsd(id string) error {
 	args := []string{"osd", "in", id}
 	args = append(args, cephTimeOut...)
-	out, err := util.ExecCMDWithOutput(cephCMD, args)
-	if err != nil {
+	if out, err := util.ExecCMDWithOutput(cephCMD, args); err != nil {
 		return fmt.Errorf("filed osd in,cmd out: %s, err: %v", out, err)
 	}
 	return nil
@@ -48,8 +46,7 @@ func InOsd(id string) error {
 func RemoveCrush(id string) error {
 	args := []string{"osd", "crush", "remove", id}
 	args = append(args, cephTimeOut...)
-	out, err := util.ExecCMDWithOutput(cephCMD, args)
-	if err != nil {
+	if out, err := util.ExecCMDWithOutput(cephCMD, args); err != nil {
 		return fmt.Errorf("filed osd crush remove,cmd out: %s, err: %v", out, err)
 	}
 	return nil
@@ -58,8 +55,7 @@ func RemoveCrush(id string) error {
 func RmOsd(id string) error {
 	args := []string{"osd", "rm", id}
 	args = append(args, cephTimeOut...)
-	out, err := util.ExecCMDWithOutput(cephCMD, args)
-	if err != nil {
+	if out, err := util.ExecCMDWithOutput(cephCMD, args); err != nil {
 		return fmt.Errorf("filed osd rm,cmd out: %s, err: %v", out, err)
 	}
 	return nil
@@ -68,8 +64,7 @@ func RmOsd(id string) error {
 func RmOsdAuth(id string) error {
 	args := []string{"auth", "del", id}
 	args = append(args, cephTimeOut...)
-	out, err := util.ExecCMDWithOutput(cephCMD, args)
-	if err != nil {
+	if out, err := util.ExecCMDWithOutput(cephCMD, args); err != nil {
 		return fmt.Errorf("filed auth del,cmd out: %s, err: %v", out, err)
 	}
 	return nil

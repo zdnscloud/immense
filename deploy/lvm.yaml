@@ -1,7 +1,7 @@
 apiVersion: storage.zcloud.cn/v1
 kind: Cluster
 metadata:
-  name: lvm-cluster
+  name: lvm
 spec:
   storageType: "lvm"
   hosts: ["3","5"]

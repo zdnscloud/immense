@@ -3,12 +3,13 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
-	//k8scfg "github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gok8s/controller"
 	"github.com/zdnscloud/gok8s/event"
 	"github.com/zdnscloud/gok8s/handler"
@@ -24,11 +25,6 @@ import (
 )
 
 var ctx = context.TODO()
-
-const (
-	ClusterInUseFinalizer       = "storage.zcloud.cn/inuse"
-	ClusterPrestopHookFinalizer = "storage.zcloud.cn/prestophook"
-)
 
 type Controller struct {
 	stopCh     chan struct{}
@@ -48,11 +44,6 @@ func New(config *rest.Config) (*Controller, error) {
 	if err != nil {
 		return nil, err
 	}
-	/*
-		cfg, err := k8scfg.GetConfig()
-		if err != nil {
-			return nil, err
-		}*/
 	var options client.Options
 	options.Scheme = client.GetDefaultScheme()
 	storagev1.AddToScheme(options.Scheme)
@@ -90,7 +81,9 @@ func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
 			log.Warnf("Create failed:%s", err.Error())
 		}
 	case *k8sstorage.VolumeAttachment:
-		d.CreateFinalizer(obj)
+		if err := d.CreateFinalizer(obj); err != nil {
+			log.Warnf("Watch to volumeAttachment create event, but add finalizer failed:%s", err.Error())
+		}
 	}
 	return handler.Result{}, nil
 }
@@ -102,8 +95,18 @@ func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	case *storagev1.Cluster:
 		oldc := e.ObjectOld.(*storagev1.Cluster)
 		newc := e.ObjectNew.(*storagev1.Cluster)
-		if err := d.handlermgr.Update(oldc, newc); err != nil {
-			log.Warnf("Update failed:%s", err.Error())
+		if !reflect.DeepEqual(oldc.Status, newc.Status) {
+			return handler.Result{}, nil
+		} else if !reflect.DeepEqual(oldc.Spec, newc.Spec) {
+			if err := d.handlermgr.Update(oldc, newc); err != nil {
+				log.Warnf("Update failed:%s", err.Error())
+			}
+		} else {
+			if newc.DeletionTimestamp != nil && slice.SliceIndex(newc.Finalizers, common.ClusterInUsedFinalizer) == -1 {
+				if err := d.handlermgr.Delete(newc); err != nil {
+					log.Warnf("Delete failed:%s", err.Error())
+				}
+			}
 		}
 	}
 	return handler.Result{}, nil
@@ -113,13 +116,16 @@ func (d *Controller) OnDelete(e event.DeleteEvent) (handler.Result, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	switch obj := e.Object.(type) {
-	case *storagev1.Cluster:
-		cluster := e.Object.(*storagev1.Cluster)
-		if err := d.handlermgr.Delete(cluster); err != nil {
-			log.Warnf("Delete failed:%s", err.Error())
-		}
 	case *k8sstorage.VolumeAttachment:
-		d.DeleteFinalizer(obj)
+		if err := d.DeleteFinalizer(obj); err != nil {
+			log.Warnf("Watch to volumeAttachment delete event, but del finalizer failed:%s", err.Error())
+		}
+	case *storagev1.Cluster:
+		if slice.SliceIndex(obj.Finalizers, common.ClusterPrestopHookFinalizer) == -1 {
+			if err := d.handlermgr.Delete(obj); err != nil {
+				log.Warnf("Delete failed:%s", err.Error())
+			}
+		}
 	}
 	return handler.Result{}, nil
 }
@@ -133,7 +139,7 @@ func (d *Controller) CreateFinalizer(va *k8sstorage.VolumeAttachment) error {
 	if err != nil {
 		return err
 	}
-	return common.AddFinalizerForStorage(d.client, storageType, ClusterInUseFinalizer)
+	return common.AddFinalizerForStorage(d.client, storageType, common.ClusterInUsedFinalizer)
 }
 func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 	lastone, err := common.IsLastOne(d.client, va)
@@ -147,7 +153,7 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 	if err != nil {
 		return err
 	}
-	return common.DelFinalizerForStorage(d.client, storageType, ClusterInUseFinalizer)
+	return common.DelFinalizerForStorage(d.client, storageType, common.ClusterInUsedFinalizer)
 }
 
 func getStorageTypeFromVolumeAttachment(va *k8sstorage.VolumeAttachment) (string, error) {

@@ -1,12 +1,10 @@
 package zap
 
 import (
-	"time"
-
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
-	"github.com/zdnscloud/immense/pkg/ceph/util"
+	"github.com/zdnscloud/immense/pkg/common"
 )
 
 func Do(cli client.Client, host, dev string) error {
@@ -14,7 +12,8 @@ func Do(cli client.Client, host, dev string) error {
 	if err := create(cli, host, dev); err != nil {
 		return err
 	}
-	check(cli, host, dev)
+	name := "ceph-job-zap-" + host + "-" + dev
+	common.WaitPodSucceeded(cli, common.StorageNamespace, name)
 	if err := delete(cli, host, dev); err != nil {
 		return err
 	}
@@ -30,20 +29,6 @@ func create(cli client.Client, host, dev string) error {
 		return err
 	}
 	return nil
-}
-
-func check(cli client.Client, host, dev string) {
-	log.Debugf("Wait zap done %s:%s", host, dev)
-	name := "ceph-job-zap-" + host + "-" + dev
-	var ready bool
-	for !ready {
-		time.Sleep(10 * time.Second)
-		ok, err := util.CheckPodPhase(cli, name, "Succeeded")
-		if err != nil || !ok {
-			continue
-		}
-		ready = true
-	}
 }
 
 func delete(cli client.Client, host, dev string) error {
