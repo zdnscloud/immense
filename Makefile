@@ -6,7 +6,7 @@ LDFLAGS=-ldflags "-w -s -X main.version=${VERSION} -X main.build=${BUILD}"
 GOSRC = $(shell find . -type f -name '*.go')
 
 REGISTRY_NAME = zdnscloud
-IMAGE_Name = storage-operator
+IMAGE_NAME= storage-operator
 IMAGE_VERSION = v3.5.7
 
 build:
