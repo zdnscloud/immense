@@ -21,6 +21,7 @@ func fscsiYaml() (string, error) {
 		"CSIProvisionerStsName":           global.CSIProvisionerStsName,
 		"RBACConfig":                      global.RBAC,
 		"StorageCephAttacherImage":        global.CSIAttacherImage,
+		"StorageCephResizerImage":         global.CSIResizerImage,
 		"StorageCephProvisionerImage":     global.CSIProvisionerImage,
 		"StorageCephDriverRegistrarImage": global.CSIDriverRegistrarImage,
 		"StorageCephFsCSIImage":           global.CephFsCSIImage,
@@ -33,13 +34,13 @@ func fscsiYaml() (string, error) {
 
 func StorageClassYaml(id, name string) (string, error) {
 	cfg := map[string]interface{}{
-		"CephSecretName":   	global.SecretName,
-		"CephFsPool":       	global.CephFsDate,
-		"CephFsName":       	global.CephFsName,
-		"CephClusterID":    	id,
-		"StorageNamespace": 	common.StorageNamespace,
-		"StorageClassName": 	name,
-		"StorageDriverName":	global.StorageDriverName,
+		"CephSecretName":    global.SecretName,
+		"CephFsPool":        global.CephFsDate,
+		"CephFsName":        global.CephFsName,
+		"CephClusterID":     id,
+		"StorageNamespace":  common.StorageNamespace,
+		"StorageClassName":  name,
+		"StorageDriverName": global.StorageDriverName,
 	}
 	return common.CompileTemplateFromMap(StorageClassTemp, cfg)
 }

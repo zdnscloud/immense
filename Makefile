@@ -13,6 +13,10 @@ build:
 	CGO_ENABLED=0 GOOS=linux go build cmd/operator.go
 
 image:
+	docker build -t $(REGISTRY_NAME)/$(IMAGE_NAME):${BRANCH} --build-arg version=${VERSION} --build-arg buildtime=${BUILD} .
+	docker image prune -f
+
+docker:
 	docker build -t $(REGISTRY_NAME)/$(IMAGE_NAME):${IMAGE_VERSION} --build-arg version=${VERSION} --build-arg buildtime=${BUILD} .
 	docker image prune -f
 	docker push $(REGISTRY_NAME)/$(IMAGE_NAME):${IMAGE_VERSION}

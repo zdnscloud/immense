@@ -63,7 +63,7 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   namespace: {{.StorageNamespace}}
-  name: external-provisioner-runner
+  name: csi-lvmplugin-provisioner
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -82,16 +82,22 @@ rules:
     verbs: ["get", "list", "watch", "update"]
   - apiGroups: [""]
     resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "create", "delete"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch"]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["update", "patch"]
   - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses","volumeattachments"]
-    verbs: ["get", "list", "watch", "update"]
+    resources: ["storageclasses", "volumeattachments", "csinodes"]
+    verbs: ["get", "list", "watch", "update", "patch"]
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
   - apiGroups: ["extensions"]
     resourceNames:
     - privileged 
@@ -110,7 +116,7 @@ subjects:
     namespace: {{.StorageNamespace}}
 roleRef:
   kind: ClusterRole
-  name: external-provisioner-runner
+  name: csi-lvmplugin-provisioner
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: v1
@@ -146,6 +152,9 @@ rules:
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
     verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
   - apiGroups: ["extensions"]
     resourceNames:
     - privileged 
@@ -276,7 +285,6 @@ spec:
   ports:
     - name: dummy
       port: 12345
-
 ---
 kind: StatefulSet
 apiVersion: apps/v1
@@ -299,11 +307,25 @@ spec:
         {{.LabelKey}}: {{.LabelValue}}
       hostNetwork: true
       containers:
+        - name: csi-resizer
+          image: {{.StorageLvmResizerImage}}
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
         - name: csi-lvmplugin-attacher
           image: {{.StorageLvmAttacherImage}}
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
           env:
             - name: ADDRESS
               value: /csi/csi.sock
@@ -314,11 +336,13 @@ spec:
         - name: csi-lvmplugin-provisioner
           image: {{.StorageLvmProvisionerImage}}
           args:
-            - "--provisioner={{.StorageDriverName}}"
             - "--csi-address=$(ADDRESS)"
             - "--v=50"
             - "--logtostderr"
             - "--feature-gates=Topology=true"
+            - "--enable-leader-election=true"
+            - "--leader-election-type=leases"
+            - "--retry-interval-start=500ms"
           env:
             - name: ADDRESS
               value: /csi/csi.sock
@@ -380,4 +404,5 @@ metadata:
     storageclass.kubernetes.io/is-default-class: "true"
   name: {{.StorageClassName}}
 provisioner: {{.StorageDriverName}}
-reclaimPolicy: Delete`
+reclaimPolicy: Delete
+allowVolumeExpansion: true`

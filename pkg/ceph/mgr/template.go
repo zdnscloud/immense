@@ -69,8 +69,15 @@ spec:
           env:
             - name: CEPH_DAEMON
               value: MGR
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
             - name: MGR_NAME
-              value: "ceph-mgr-58dbb9d74b-k4nqx"
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: DEBUG
               value: stayalive
             - name: KV_TYPE
