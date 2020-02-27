@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"text/template"
 	"time"
@@ -15,66 +16,51 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8sstorage "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
 const (
-	ClusterInUsedFinalizer      = "storage.zcloud.cn/inused"
-	ClusterPrestopHookFinalizer = "storage.zcloud.cn/prestophook"
+	StorageInUsedFinalizer      = "storage.zcloud.cn/inused"
+	StoragePrestopHookFinalizer = "storage.zcloud.cn/prestophook"
 	RBACConfig                  = "rbac"
-	StorageHostLabels           = "storage.zcloud.cn/storagetype"
-	StorageBlocksAnnotations    = "storage.zcloud.cn/blocks"
-	StorageNamespace            = "zcloud"
-	NodeIPLabels                = "zdnscloud.cn/internal-ip"
 	StorageHostRole             = "node-role.kubernetes.io/storage"
-	LvmLabelsValue              = "Lvm"
-	CephLabelsValue             = "Ceph"
-	CIDRconfigMap               = "cluster-config"
-	CIDRconfigMapNamespace      = "kube-system"
+	StorageHostLabels           = "storage.zcloud.cn/storagetype"
+	StorageNamespace            = "zcloud"
 	PodCheckInterval            = 10
 )
 
 var ctx = context.TODO()
 
-func CreateNodeAnnotationsAndLabels(cli client.Client, cluster storagev1.Cluster) {
-	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("Add Labels for storage type %s on host:%s", cluster.Spec.StorageType, host)
+func CreateNodeAnnotationsAndLabels(cli client.Client, value string, hosts []string) error {
+	for _, host := range hosts {
+		log.Debugf("Add Labels for storage %s on host:%s", value, host)
 		node := corev1.Node{}
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host}, &node); err != nil {
-			log.Warnf("Add Labels for storage type %s on host %s failed. Err: %s", cluster.Spec.StorageType, host, err.Error())
-			continue
+			return fmt.Errorf("Add Labels for storage %s on host %s failed. Err: %v", value, host, err)
 		}
 		node.Labels[StorageHostRole] = "true"
-		switch cluster.Spec.StorageType {
-		case "lvm":
-			node.Labels[StorageHostLabels] = LvmLabelsValue
-		case "ceph":
-			node.Labels[StorageHostLabels] = CephLabelsValue
-		}
+		node.Labels[StorageHostLabels] = value
 		if err := cli.Update(ctx, &node); err != nil {
-			log.Warnf("Add Labels for storage type %s on host %s failed. Err: %s", cluster.Spec.StorageType, host, err.Error())
-			continue
+			return fmt.Errorf("Add Labels for storage %s on host %s failed. Err: %v", value, host, err)
 		}
 	}
+	return nil
 }
 
-func DeleteNodeAnnotationsAndLabels(cli client.Client, cluster storagev1.Cluster) {
-	for _, host := range cluster.Spec.Hosts {
-		log.Debugf("Del Labels for storage type %s on host:%s", cluster.Spec.StorageType, host)
+func DeleteNodeAnnotationsAndLabels(cli client.Client, value string, hosts []string) error {
+	for _, host := range hosts {
+		log.Debugf("Del Labels for storage %s on host:%s", value, host)
 		node := corev1.Node{}
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host}, &node); err != nil {
-			log.Warnf("Del Labels for storage type %s on host %s failed. Err: %s", cluster.Spec.StorageType, host, err.Error())
-			continue
+			return fmt.Errorf("Delete Labels for storage %s on host %s failed. Err: %v", value, host, err)
 		}
 		delete(node.Labels, StorageHostRole)
 		delete(node.Labels, StorageHostLabels)
 		if err := cli.Update(ctx, &node); err != nil {
-			log.Warnf("Del Labels for storage type %s on host %s failed. Err: %s", cluster.Spec.StorageType, host, err.Error())
-			continue
+			return fmt.Errorf("Delete Labels for storage %s on host %s failed. Err: %v", value, host, err)
 		}
 	}
+	return nil
 }
 
 func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error) {
@@ -86,8 +72,8 @@ func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error)
 	return out.String(), nil
 }
 
-func UpdateStatusPhase(cli client.Client, name string, phase storagev1.StatusPhase) {
-	storagecluster, err := GetStorage(cli, name)
+func UpdateClusterStatusPhase(cli client.Client, name string, phase storagev1.StatusPhase) {
+	storagecluster, err := GetStorageCluster(cli, name)
 	if err != nil {
 		if apierrors.IsNotFound(err) == true {
 			return
@@ -96,7 +82,7 @@ func UpdateStatusPhase(cli client.Client, name string, phase storagev1.StatusPha
 		return
 	}
 	storagecluster.Status.Phase = phase
-	if err := cli.Update(ctx, &storagecluster); err != nil {
+	if err := cli.Update(ctx, storagecluster); err != nil {
 		if apierrors.IsNotFound(err) == true {
 			return
 		}
@@ -106,52 +92,40 @@ func UpdateStatusPhase(cli client.Client, name string, phase storagev1.StatusPha
 	return
 }
 
-func GetStorage(cli client.Client, name string) (storagev1.Cluster, error) {
-	storagecluster := storagev1.Cluster{}
-	if err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &storagecluster); err != nil {
-		return storagecluster, err
+func GetStorageCluster(cli client.Client, name string) (*storagev1.Cluster, error) {
+	storagecluster := &storagev1.Cluster{}
+	if err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, storagecluster); err != nil {
+		return nil, err
 	}
 	return storagecluster, nil
 }
 
 func AddFinalizerForStorage(cli client.Client, name, finalizer string) error {
-	storagecluster, err := GetStorage(cli, name)
+	storagecluster, err := GetStorageCluster(cli, name)
 	if err != nil {
 		return err
 	}
-	var obj runtime.Object
-	obj = &storagecluster
-	metaObj := obj.(metav1.Object)
-	if helper.HasFinalizer(metaObj, finalizer) {
-		return nil
-	}
-	log.Debugf("Add finalizer %s for storage cluster %s", finalizer, name)
-	helper.AddFinalizer(metaObj, finalizer)
-	if err := cli.Update(ctx, obj); err != nil {
+	helper.AddFinalizer(storagecluster, finalizer)
+	if err := cli.Update(ctx, storagecluster); err != nil {
 		log.Warnf("add finalizer %s for storage cluster %s failed. Err: %s", finalizer, name, err.Error())
 	}
+	log.Debugf("Add finalizer %s for storage cluster %s", finalizer, name)
 	return nil
 }
 
 func DelFinalizerForStorage(cli client.Client, name, finalizer string) error {
-	storagecluster, err := GetStorage(cli, name)
+	storagecluster, err := GetStorageCluster(cli, name)
 	if err != nil {
 		if apierrors.IsNotFound(err) == true {
 			return nil
 		}
 		return err
 	}
-	var obj runtime.Object
-	obj = &storagecluster
-	metaObj := obj.(metav1.Object)
-	if !helper.HasFinalizer(metaObj, finalizer) {
-		return nil
-	}
-	log.Debugf("Del finalizer %s for storage cluster %s", finalizer, name)
-	helper.RemoveFinalizer(metaObj, finalizer)
-	if err := cli.Update(ctx, obj); err != nil {
+	helper.RemoveFinalizer(storagecluster, finalizer)
+	if err := cli.Update(ctx, storagecluster); err != nil {
 		log.Warnf("del finalizer %s for storage cluster %s failed. Err: %s", finalizer, name, err.Error())
 	}
+	log.Debugf("Delete finalizer %s for storage cluster %s", finalizer, name)
 	return nil
 }
 

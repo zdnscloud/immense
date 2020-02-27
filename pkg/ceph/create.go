@@ -26,7 +26,7 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 	if err != nil {
 		return err
 	}
-	copiers, pgnum := getReplicationAndPgNum(cluster)
+	copiers, pgnum := getReplicationAndPgNum(cluster.Status.Config)
 	log.Debugf("Based on block device number, the number of replication is %d,pg_num is %d", copiers, pgnum)
 
 	if err := config.Start(cli, uuid, adminkey, monkey, copiers); err != nil {
@@ -93,9 +93,10 @@ func genkey() (string, string, error) {
 	return adminkey, monkey, nil
 }
 
-func getReplicationAndPgNum(cluster storagev1.Cluster) (int, int) {
+//func getReplicationAndPgNum(cluster storagev1.Cluster) (int, int) {
+func getReplicationAndPgNum(hosts []storagev1.HostInfo) (int, int) {
 	var num, Replication, PgNum int
-	for _, host := range cluster.Status.Config {
+	for _, host := range hosts {
 		num += len(host.BlockDevices)
 	}
 	if num > 1 {

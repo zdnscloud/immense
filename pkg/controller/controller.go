@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/zdnscloud/cement/log"
@@ -16,9 +17,11 @@ import (
 	"github.com/zdnscloud/gok8s/predicate"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	cephGlobal "github.com/zdnscloud/immense/pkg/ceph/global"
+	"github.com/zdnscloud/immense/pkg/cluster"
 	"github.com/zdnscloud/immense/pkg/common"
-	"github.com/zdnscloud/immense/pkg/eventhandler"
+	"github.com/zdnscloud/immense/pkg/iscsi"
 	"github.com/zdnscloud/immense/pkg/lvm"
+	"github.com/zdnscloud/immense/pkg/nfs"
 	k8sstorage "k8s.io/api/storage/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -28,7 +31,9 @@ var ctx = context.TODO()
 
 type Controller struct {
 	stopCh     chan struct{}
-	handlermgr *eventhandler.HandlerManager
+	clusterMgr *cluster.HandlerManager
+	iscsiMgr   *iscsi.HandlerManager
+	nfsMgr     *nfs.HandlerManager
 	lock       sync.RWMutex
 	client     client.Client
 }
@@ -53,19 +58,21 @@ func New(config *rest.Config) (*Controller, error) {
 		return nil, err
 	}
 
-	hm := eventhandler.New(cli)
-
 	stopCh := make(chan struct{})
 	go c.Start(stopCh)
 	c.WaitForCacheSync(stopCh)
 
 	storageCtrl := &Controller{
 		stopCh:     stopCh,
-		handlermgr: hm,
+		clusterMgr: cluster.New(cli),
+		iscsiMgr:   iscsi.New(cli),
+		nfsMgr:     nfs.New(cli),
 		client:     cli,
 	}
 	ctrl := controller.New("zcloudStorage", c, scm)
 	ctrl.Watch(&storagev1.Cluster{})
+	ctrl.Watch(&storagev1.Iscsi{})
+	ctrl.Watch(&storagev1.Nfs{})
 	ctrl.Watch(&k8sstorage.VolumeAttachment{})
 	ctrl.Start(stopCh, storageCtrl, predicate.NewIgnoreUnchangedUpdate())
 	return storageCtrl, nil
@@ -76,9 +83,19 @@ func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	defer d.lock.Unlock()
 	switch obj := e.Object.(type) {
 	case *storagev1.Cluster:
-		cluster := e.Object.(*storagev1.Cluster)
-		if err := d.handlermgr.Create(cluster); err != nil {
+		conf := e.Object.(*storagev1.Cluster)
+		if err := d.clusterMgr.Create(conf); err != nil {
 			log.Warnf("Create failed:%s", err.Error())
+		}
+	case *storagev1.Iscsi:
+		conf := e.Object.(*storagev1.Iscsi)
+		if err := d.iscsiMgr.Create(conf); err != nil {
+			log.Warnf("Delete failed:%s", err.Error())
+		}
+	case *storagev1.Nfs:
+		conf := e.Object.(*storagev1.Nfs)
+		if err := d.nfsMgr.Create(conf); err != nil {
+			log.Warnf("Delete failed:%s", err.Error())
 		}
 	case *k8sstorage.VolumeAttachment:
 		if err := d.CreateFinalizer(obj); err != nil {
@@ -98,12 +115,40 @@ func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 		if !reflect.DeepEqual(oldc.Status, newc.Status) {
 			return handler.Result{}, nil
 		} else if !reflect.DeepEqual(oldc.Spec, newc.Spec) {
-			if err := d.handlermgr.Update(oldc, newc); err != nil {
+			if err := d.clusterMgr.Update(oldc, newc); err != nil {
 				log.Warnf("Update failed:%s", err.Error())
 			}
 		} else {
-			if newc.DeletionTimestamp != nil && slice.SliceIndex(newc.Finalizers, common.ClusterInUsedFinalizer) == -1 {
-				if err := d.handlermgr.Delete(newc); err != nil {
+			if newc.DeletionTimestamp != nil && slice.SliceIndex(newc.Finalizers, common.StorageInUsedFinalizer) == -1 {
+				if err := d.clusterMgr.Delete(newc); err != nil {
+					log.Warnf("Delete failed:%s", err.Error())
+				}
+			}
+		}
+	case *storagev1.Iscsi:
+		oldc := e.ObjectOld.(*storagev1.Iscsi)
+		newc := e.ObjectNew.(*storagev1.Iscsi)
+		if !reflect.DeepEqual(oldc.Status, newc.Status) {
+			return handler.Result{}, nil
+		} else if !reflect.DeepEqual(oldc.Spec.Initiators, newc.Spec.Initiators) {
+			if err := d.iscsiMgr.Update(oldc, newc); err != nil {
+				log.Warnf("Update failed:%s", err.Error())
+			}
+		} else {
+			if newc.DeletionTimestamp != nil && slice.SliceIndex(newc.Finalizers, common.StorageInUsedFinalizer) == -1 {
+				if err := d.iscsiMgr.Delete(newc); err != nil {
+					log.Warnf("Delete failed:%s", err.Error())
+				}
+			}
+		}
+	case *storagev1.Nfs:
+		oldc := e.ObjectOld.(*storagev1.Nfs)
+		newc := e.ObjectNew.(*storagev1.Nfs)
+		if !reflect.DeepEqual(oldc.Status, newc.Status) {
+			return handler.Result{}, nil
+		} else {
+			if newc.DeletionTimestamp != nil && slice.SliceIndex(newc.Finalizers, common.StorageInUsedFinalizer) == -1 {
+				if err := d.nfsMgr.Delete(newc); err != nil {
 					log.Warnf("Delete failed:%s", err.Error())
 				}
 			}
@@ -121,8 +166,22 @@ func (d *Controller) OnDelete(e event.DeleteEvent) (handler.Result, error) {
 			log.Warnf("Watch to volumeAttachment delete event, but del finalizer failed:%s", err.Error())
 		}
 	case *storagev1.Cluster:
-		if slice.SliceIndex(obj.Finalizers, common.ClusterPrestopHookFinalizer) == -1 {
-			if err := d.handlermgr.Delete(obj); err != nil {
+		if slice.SliceIndex(obj.Finalizers, common.StoragePrestopHookFinalizer) == -1 {
+			if err := d.clusterMgr.Delete(obj); err != nil {
+				log.Warnf("Delete failed:%s", err.Error())
+			}
+		}
+	case *storagev1.Iscsi:
+		conf := e.Object.(*storagev1.Iscsi)
+		if slice.SliceIndex(conf.Finalizers, common.StoragePrestopHookFinalizer) == -1 {
+			if err := d.iscsiMgr.Delete(conf); err != nil {
+				log.Warnf("Delete failed:%s", err.Error())
+			}
+		}
+	case *storagev1.Nfs:
+		conf := e.Object.(*storagev1.Nfs)
+		if slice.SliceIndex(conf.Finalizers, common.StoragePrestopHookFinalizer) == -1 {
+			if err := d.nfsMgr.Delete(conf); err != nil {
 				log.Warnf("Delete failed:%s", err.Error())
 			}
 		}
@@ -135,11 +194,22 @@ func (d *Controller) OnGeneric(e event.GenericEvent) (handler.Result, error) {
 }
 
 func (d *Controller) CreateFinalizer(va *k8sstorage.VolumeAttachment) error {
-	storageType, err := getStorageTypeFromVolumeAttachment(va)
-	if err != nil {
-		return err
+	switch driver := va.Spec.Attacher; driver {
+	case lvm.StorageDriverName:
+		return common.AddFinalizerForStorage(d.client, lvm.StorageType, common.StorageInUsedFinalizer)
+	case cephGlobal.StorageDriverName:
+		return common.AddFinalizerForStorage(d.client, cephGlobal.StorageType, common.StorageInUsedFinalizer)
+	default:
+		if strings.HasSuffix(driver, iscsi.IscsiDriverSuffix) {
+			name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", iscsi.IscsiDriverSuffix))
+			return iscsi.AddFinalizer(d.client, name, common.StorageInUsedFinalizer)
+		}
+		if strings.HasSuffix(driver, nfs.NfsDriverSuffix) {
+			name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", nfs.NfsDriverSuffix))
+			return nfs.AddFinalizer(d.client, name, common.StorageInUsedFinalizer)
+		}
 	}
-	return common.AddFinalizerForStorage(d.client, storageType, common.ClusterInUsedFinalizer)
+	return nil
 }
 func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 	lastone, err := common.IsLastOne(d.client, va)
@@ -149,20 +219,20 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 	if !lastone {
 		return nil
 	}
-	storageType, err := getStorageTypeFromVolumeAttachment(va)
-	if err != nil {
-		return err
-	}
-	return common.DelFinalizerForStorage(d.client, storageType, common.ClusterInUsedFinalizer)
-}
-
-func getStorageTypeFromVolumeAttachment(va *k8sstorage.VolumeAttachment) (string, error) {
-	switch va.Spec.Attacher {
+	switch driver := va.Spec.Attacher; driver {
 	case lvm.StorageDriverName:
-		return lvm.StorageType, nil
+		return common.DelFinalizerForStorage(d.client, lvm.StorageType, common.StorageInUsedFinalizer)
 	case cephGlobal.StorageDriverName:
-		return cephGlobal.StorageType, nil
+		return common.DelFinalizerForStorage(d.client, cephGlobal.StorageType, common.StorageInUsedFinalizer)
 	default:
-		return "", fmt.Errorf("unknow storage cluster type for volumeAttachment %s", va.Name)
+		if strings.HasSuffix(driver, iscsi.IscsiDriverSuffix) {
+			name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", iscsi.IscsiDriverSuffix))
+			return iscsi.RemoveFinalizer(d.client, name, common.StorageInUsedFinalizer)
+		}
+		if strings.HasSuffix(driver, nfs.NfsDriverSuffix) {
+			name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", nfs.NfsDriverSuffix))
+			return nfs.RemoveFinalizer(d.client, name, common.StorageInUsedFinalizer)
+		}
 	}
+	return nil
 }

@@ -191,7 +191,7 @@ spec:
             - "--controllerserver=true"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
-            - "--drivername=cephfs.csi.ceph.com"
+            - "--drivername={{.StorageDriverName}}"
             - "--metadatastorage=k8s_configmap"
             - "--pidlimit=-1"
             - "--metricsport=8091"
@@ -294,14 +294,13 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/cephfs.csi.ceph.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/{{.StorageDriverName}}/csi.sock"
           lifecycle:
             preStop:
               exec:
                 command: [
                   "/bin/sh", "-c",
-                  "rm -rf /registration/cephfs.csi.ceph.com \
-                  /registration/cephfs.csi.ceph.com-reg.sock"
+                  "rm -rf /registration/{{.StorageDriverName}}-reg.sock /csi/"
                 ]
           env:
             - name: KUBE_NODE_NAME
@@ -326,7 +325,7 @@ spec:
             - "--nodeserver=true"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
-            - "--drivername=cephfs.csi.ceph.com"
+            - "--drivername={{.StorageDriverName}}"
             - "--metadatastorage=k8s_configmap"
             - "--metricsport=8090"
             - "--metricspath=/metrics"
@@ -394,7 +393,7 @@ spec:
       volumes:
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com/
+            path: /var/lib/kubelet/plugins/{{.StorageDriverName}}/
             type: DirectoryOrCreate
         - name: registration-dir
           hostPath:

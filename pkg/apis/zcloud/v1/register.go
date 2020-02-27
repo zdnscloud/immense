@@ -14,5 +14,7 @@ var (
 func AddToScheme(s *runtime.Scheme) {
 	builder := &scheme.Builder{GroupVersion: SchemeGroupVersion}
 	builder.Register(&Cluster{}, &ClusterList{})
+	builder.Register(&Iscsi{}, &IscsiList{})
+	builder.Register(&Nfs{}, &NfsList{})
 	builder.AddToScheme(s)
 }

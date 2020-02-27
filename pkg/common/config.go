@@ -14,7 +14,7 @@ import (
 )
 
 func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (*storagev1.Cluster, error) {
-	storagecluster, err := GetStorage(cli, cluster.Name)
+	storagecluster, err := GetStorageCluster(cli, cluster.Name)
 	if err != nil {
 		return cluster, err
 	}
@@ -46,7 +46,7 @@ func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (*stora
 }
 
 func AssembleDeleteConfig(cli client.Client, cluster *storagev1.Cluster) (*storagev1.Cluster, error) {
-	storagecluster, err := GetStorage(cli, cluster.Name)
+	storagecluster, err := GetStorageCluster(cli, cluster.Name)
 	if err != nil {
 		return cluster, err
 	}
@@ -68,7 +68,7 @@ func AssembleDeleteConfig(cli client.Client, cluster *storagev1.Cluster) (*stora
 }
 
 func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (*storagev1.Cluster, *storagev1.Cluster, error) {
-	del, add := hostsDiff(oldc.Spec.Hosts, newc.Spec.Hosts)
+	del, add := HostsDiff(oldc.Spec.Hosts, newc.Spec.Hosts)
 	delc := &storagev1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: newc.Name,
@@ -144,7 +144,7 @@ func isExist(h string, infos []storagev1.HostInfo) (bool, []string) {
 }
 
 func UpdateStorageclusterConfig(cli client.Client, name, action string, infos []storagev1.HostInfo) error {
-	storagecluster, err := GetStorage(cli, name)
+	storagecluster, err := GetStorageCluster(cli, name)
 	if err != nil {
 		return err
 	}
@@ -177,10 +177,10 @@ func UpdateStorageclusterConfig(cli client.Client, name, action string, infos []
 	}
 	newinfos = append(newinfos, oldinfos...)
 	storagecluster.Status.Config = newinfos
-	return cli.Update(ctx, &storagecluster)
+	return cli.Update(ctx, storagecluster)
 }
 
-func hostsDiff(oldcfg, newcfg []string) ([]string, []string) {
+func HostsDiff(oldcfg, newcfg []string) ([]string, []string) {
 	oldhosts := set.StringSetFromSlice(oldcfg)
 	newhosts := set.StringSetFromSlice(newcfg)
 	del := oldhosts.Difference(newhosts).ToSlice()

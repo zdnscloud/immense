@@ -59,9 +59,9 @@ func initBlocks(cli client.Client, cluster storagev1.Cluster) error {
 			log.Debugf("[%s] Init block start: %s", host.NodeName, block)
 			name, err := GetVG(ctx, lvmdcli, block)
 			if err != nil {
-				return fmt.Errorf("Get VGName failed, %v", err)
+				return fmt.Errorf("Get VolumeGroup failed, %v", err)
 			}
-			if name == VGName {
+			if name == VolumeGroup {
 				log.Debugf("[%s] Block had inited before, skip %s", host.NodeName, block)
 				continue
 			}
@@ -74,7 +74,7 @@ func initBlocks(cli client.Client, cluster storagev1.Cluster) error {
 				return fmt.Errorf("Create pv failed, %v", err)
 			}
 			log.Debugf("[%s] Create vg with %s", host.NodeName, block)
-			if err := CreateVG(ctx, lvmdcli, block, VGName); err != nil {
+			if err := CreateVG(ctx, lvmdcli, block, VolumeGroup); err != nil {
 				return fmt.Errorf("Create vg failed, %v", err)
 			}
 		}

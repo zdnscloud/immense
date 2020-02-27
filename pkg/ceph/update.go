@@ -79,11 +79,11 @@ func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 }
 
 func updatePgNumIfNeed(cli client.Client, name string) error {
-	storagecluster, err := common.GetStorage(cli, name)
+	storagecluster, err := common.GetStorageCluster(cli, name)
 	if err != nil {
 		return err
 	}
-	_, pgnum := getReplicationAndPgNum(storagecluster)
+	_, pgnum := getReplicationAndPgNum(storagecluster.Status.Config)
 	currentPgnum, err := cephclient.GetCurrentSizeOrPgnum("pg_num")
 	if err != nil {
 		return err

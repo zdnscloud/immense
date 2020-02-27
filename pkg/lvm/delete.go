@@ -60,7 +60,7 @@ func unInitBlocks(cli client.Client, cluster storagev1.Cluster) error {
 		defer lvmdcli.Close()
 		for _, block := range host.BlockDevices {
 			log.Debugf("[%s] Remove vg with %s", host.NodeName, block)
-			if err := RemoveVG(ctx, lvmdcli, VGName); err != nil {
+			if err := RemoveVG(ctx, lvmdcli, VolumeGroup); err != nil {
 				return fmt.Errorf("Remove vg failed, %v", err)
 			}
 			log.Debugf("[%s] Remove pv with %s", host.NodeName, block)

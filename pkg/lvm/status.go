@@ -21,7 +21,7 @@ func StatusControl(cli client.Client, name string) {
 	log.Debugf("[lvm-status-controller] Start")
 	for {
 		time.Sleep(60 * time.Second)
-		storagecluster, err := common.GetStorage(cli, name)
+		storagecluster, err := common.GetStorageCluster(cli, name)
 		if err != nil {
 			if apierrors.IsNotFound(err) == false {
 				log.Warnf("[lvm-status-controller] Get storage cluster %s failed. Err: %s", name, err.Error())
@@ -38,14 +38,14 @@ func StatusControl(cli client.Client, name string) {
 			continue
 		}
 		storagecluster.Status = genStatus(cli, storagecluster)
-		if err := cli.Update(ctx, &storagecluster); err != nil {
+		if err := cli.Update(ctx, storagecluster); err != nil {
 			log.Warnf("[lvm-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
 			continue
 		}
 	}
 }
 
-func genStatus(cli client.Client, storagecluster storagev1.Cluster) storagev1.ClusterStatus {
+func genStatus(cli client.Client, storagecluster *storagev1.Cluster) storagev1.ClusterStatus {
 	var status storagev1.ClusterStatus
 	status.Config = storagecluster.Status.Config
 	instances := make([]storagev1.Instance, 0)

@@ -12,7 +12,7 @@ type Lvm struct {
 
 const (
 	StorageType           = "lvm"
-	VGName                = "k8s"
+	VolumeGroup                = "k8s"
 	LvmdDsName            = "lvmd"
 	CSIPluginDsName       = "csi-lvmplugin"
 	CSIProvisionerStsName = "csi-lvmplugin-provisioner"
@@ -30,54 +30,58 @@ func (s *Lvm) GetType() string {
 }
 
 func (s *Lvm) Create(cluster storagev1.Cluster) error {
-	common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Creating)
-	common.CreateNodeAnnotationsAndLabels(s.cli, cluster)
+	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Creating)
+	if err := common.CreateNodeAnnotationsAndLabels(s.cli, s.GetType(), cluster.Spec.Hosts); err != nil {
+		return err
+	}
 	if err := deployLvmd(s.cli, cluster); err != nil {
-		common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
 		return err
 	}
 	if err := initBlocks(s.cli, cluster); err != nil {
-		common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
 		return err
 	}
 	if err := deployLvmCSI(s.cli, cluster); err != nil {
-		common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
 		return err
 	}
 
-	common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Running)
+	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Running)
 	go StatusControl(s.cli, cluster.Name)
-	return common.AddFinalizerForStorage(s.cli, cluster.Name, common.ClusterPrestopHookFinalizer)
+	return common.AddFinalizerForStorage(s.cli, cluster.Name, common.StoragePrestopHookFinalizer)
 }
 
 func (s *Lvm) Update(dels, adds storagev1.Cluster) error {
-	common.UpdateStatusPhase(s.cli, adds.Name, storagev1.Updating)
+	common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Updating)
 	if err := doAddhost(s.cli, adds); err != nil {
-		common.UpdateStatusPhase(s.cli, adds.Name, storagev1.Failed)
+		common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Failed)
 		return err
 	}
 	if err := doDelhost(s.cli, dels); err != nil {
-		common.UpdateStatusPhase(s.cli, adds.Name, storagev1.Failed)
+		common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Failed)
 		return err
 	}
-	common.UpdateStatusPhase(s.cli, adds.Name, storagev1.Running)
+	common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Running)
 	return nil
 }
 
 func (s *Lvm) Delete(cluster storagev1.Cluster) error {
-	common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Deleting)
+	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Deleting)
 	if err := undeployLvmCSI(s.cli, cluster); err != nil {
-		common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
 		return err
 	}
 	if err := unInitBlocks(s.cli, cluster); err != nil {
-		common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
 		return err
 	}
 	if err := undeployLvmd(s.cli, cluster); err != nil {
-		common.UpdateStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
 		return err
 	}
-	common.DeleteNodeAnnotationsAndLabels(s.cli, cluster)
-	return common.DelFinalizerForStorage(s.cli, cluster.Name, common.ClusterPrestopHookFinalizer)
+	if err := common.DeleteNodeAnnotationsAndLabels(s.cli, s.GetType(), cluster.Spec.Hosts); err != nil {
+		return err
+	}
+	return common.DelFinalizerForStorage(s.cli, cluster.Name, common.StoragePrestopHookFinalizer)
 }

@@ -13,7 +13,9 @@ func doDelhost(cli client.Client, cluster storagev1.Cluster) error {
 	if err := unInitBlocks(cli, cluster); err != nil {
 		return err
 	}
-	common.DeleteNodeAnnotationsAndLabels(cli, cluster)
+	if err := common.DeleteNodeAnnotationsAndLabels(cli, cluster.Spec.StorageType, cluster.Spec.Hosts); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -21,7 +23,9 @@ func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 	if len(cluster.Spec.Hosts) == 0 {
 		return nil
 	}
-	common.CreateNodeAnnotationsAndLabels(cli, cluster)
+	if err := common.CreateNodeAnnotationsAndLabels(cli, cluster.Spec.StorageType, cluster.Spec.Hosts); err != nil {
+		return err
+	}
 	common.WaitDsReady(cli, common.StorageNamespace, LvmdDsName)
 	common.WaitDsReady(cli, common.StorageNamespace, CSIPluginDsName)
 	return initBlocks(cli, cluster)

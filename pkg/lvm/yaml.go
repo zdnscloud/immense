@@ -6,31 +6,32 @@ import (
 
 func csiyaml(name string) (string, error) {
 	cfg := map[string]interface{}{
-		"CSIProvisionerStsName":          CSIProvisionerStsName,
-		"CSIPluginDsName":                CSIPluginDsName,
+		"StorageNamespace":               common.StorageNamespace,
 		"RBACConfig":                     common.RBACConfig,
 		"LabelKey":                       common.StorageHostLabels,
-		"LabelValue":                     common.LvmLabelsValue,
-		"StorageNamespace":               common.StorageNamespace,
-		"StorageLvmAttacherImage":        "quay.io/k8scsi/csi-attacher:v2.1.0",
-		"StorageLvmProvisionerImage":     "quay.io/k8scsi/csi-provisioner:v1.4.0",
-		"StorageLvmDriverRegistrarImage": "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0",
-		"StorageLvmCSIImage":             "zdnscloud/lvmcsi:v0.6.3",
-		"StorageLvmResizerImage":         "quay.io/k8scsi/csi-resizer:v0.4.0",
+		"LabelValue":                     StorageType,
+		"StorageLvmAttacherImage":        common.CSIAttacherImage,
+		"StorageLvmResizerImage":         common.CSIResizerImage,
+		"StorageLvmProvisionerImage":     common.CSIProvisionerImage,
+		"StorageLvmDriverRegistrarImage": common.CSIDriverRegistrarImage,
+		"StorageLvmCSIImage":             StorageLvmCSIImage,
+		"CSIProvisionerStsName":          CSIProvisionerStsName,
+		"CSIPluginDsName":                CSIPluginDsName,
 		"StorageClassName":               name,
 		"StorageDriverName":              StorageDriverName,
+		"VolumeGroup":                    VolumeGroup,
 	}
 	return common.CompileTemplateFromMap(LvmCSITemplate, cfg)
 }
 
 func lvmdyaml() (string, error) {
 	cfg := map[string]interface{}{
-		"LvmdDsName":       LvmdDsName,
-		"RBACConfig":       common.RBACConfig,
-		"LabelValue":       common.LvmLabelsValue,
-		"LabelKey":         common.StorageHostLabels,
-		"StorageLvmdImage": "zdnscloud/lvmd:latest",
 		"StorageNamespace": common.StorageNamespace,
+		"RBACConfig":       common.RBACConfig,
+		"LabelKey":         common.StorageHostLabels,
+		"LabelValue":       StorageType,
+		"LvmdDsName":       LvmdDsName,
+		"StorageLvmdImage": StorageLvmdImage,
 	}
 	return common.CompileTemplateFromMap(LvmdTemplate, cfg)
 }

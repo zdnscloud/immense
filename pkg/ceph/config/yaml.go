@@ -43,7 +43,7 @@ func secretYaml(user, secret string) (string, error) {
 
 func saYaml() (string, error) {
 	cfg := map[string]interface{}{
-		"RBACConfig":       global.RBAC,
+		"RBACConfig":       common.RBACConfig,
 		"CephSAName":       global.ServiceAccountName,
 		"StorageNamespace": common.StorageNamespace,
 	}

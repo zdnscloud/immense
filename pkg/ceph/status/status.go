@@ -18,7 +18,7 @@ func Watch(cli client.Client, name string) {
 	log.Debugf("[ceph-status-controller] Start")
 	for {
 		time.Sleep(60 * time.Second)
-		storagecluster, err := common.GetStorage(cli, name)
+		storagecluster, err := common.GetStorageCluster(cli, name)
 		if err != nil {
 			if apierrors.IsNotFound(err) == false {
 				log.Warnf("[ceph-status-controller] Get storage cluster %s failed. Err: %s", name, err.Error())
@@ -38,13 +38,13 @@ func Watch(cli client.Client, name string) {
 			log.Warnf("[ceph-status-controller] Get ceph status failed. Err: %s", err.Error())
 			continue
 		}
-		if err := cli.Update(context.TODO(), &storagecluster); err != nil {
+		if err := cli.Update(context.TODO(), storagecluster); err != nil {
 			log.Warnf("[ceph-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
 		}
 	}
 }
 
-func genStatus(storagecluster storagev1.Cluster) (storagev1.ClusterStatus, error) {
+func genStatus(storagecluster *storagev1.Cluster) (storagev1.ClusterStatus, error) {
 	var status storagev1.ClusterStatus
 	var err error
 	status.Phase, status.Message, err = getPhaseAndMsg()
@@ -80,7 +80,7 @@ func getPhaseAndMsg() (storagev1.StatusPhase, string, error) {
 
 var unit = int64(1024)
 
-func getCapacity(storagecluster storagev1.Cluster) (storagev1.Capacity, error) {
+func getCapacity(storagecluster *storagev1.Cluster) (storagev1.Capacity, error) {
 	var capacity storagev1.Capacity
 	infos, err := cephclient.GetDF()
 	if err != nil {
@@ -97,7 +97,7 @@ func getCapacity(storagecluster storagev1.Cluster) (storagev1.Capacity, error) {
 	return capacity, nil
 }
 
-func getOnlineInstances(storagecluster storagev1.Cluster, nodes []cephclient.Node) []storagev1.Instance {
+func getOnlineInstances(storagecluster *storagev1.Cluster, nodes []cephclient.Node) []storagev1.Instance {
 	instances := make([]storagev1.Instance, 0)
 	for _, n := range nodes {
 		name, err := cephclient.GetIDToHost(strconv.FormatInt(n.ID, 10))
@@ -127,7 +127,7 @@ func getOnlineInstances(storagecluster storagev1.Cluster, nodes []cephclient.Nod
 	return instances
 }
 
-func getOfflineInstances(storagecluster storagev1.Cluster, onlineinstances []storagev1.Instance) []storagev1.Instance {
+func getOfflineInstances(storagecluster *storagev1.Cluster, onlineinstances []storagev1.Instance) []storagev1.Instance {
 	instances := make([]storagev1.Instance, 0)
 	online := make(map[string][]string)
 	for _, i := range onlineinstances {
@@ -158,7 +158,7 @@ func getOfflineInstances(storagecluster storagev1.Cluster, onlineinstances []sto
 	return instances
 }
 
-func osdSplit(storagecluster storagev1.Cluster, podname string) (string, string) {
+func osdSplit(storagecluster *storagev1.Cluster, podname string) (string, string) {
 	for _, h := range storagecluster.Status.Config {
 		for _, d := range h.BlockDevices {
 			str1 := "-" + h.NodeName + "-"
