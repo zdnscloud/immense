@@ -1,4 +1,4 @@
-package lvm
+package common
 
 import (
 	"context"
@@ -26,12 +26,23 @@ func getHostAddr(ctx context.Context, cli client.Client, name string) (string, e
 	return node.Annotations[NodeIPLabels], nil
 }
 
+func CreateLvmdClientForPod(cli client.Client, node, ds string) (*lvmdclient.Client, error) {
+	addr, err := GetLVMDAddr(cli, node, ds)
+	if err != nil {
+		return nil, err
+	}
+	if !waitLvmd(addr) {
+		return nil, errors.New("Lvmd not ready!" + addr)
+	}
+	return lvmdclient.New(addr, 5*time.Second)
+}
+
 func CreateLvmdClient(ctx context.Context, cli client.Client, hostname string) (*lvmdclient.Client, error) {
 	hostip, err := getHostAddr(ctx, cli, hostname)
 	if err != nil {
 		return nil, errors.New("Get host address failed!" + err.Error())
 	}
-	addr := hostip + ":1736"
+	addr := hostip + ":" + LvmdPort
 	if !waitLvmd(addr) {
 		return nil, errors.New("Lvmd not ready!" + addr)
 	}

@@ -53,18 +53,18 @@ func unInitBlocks(cli client.Client, cluster storagev1.Cluster) error {
 		if len(host.BlockDevices) == 0 {
 			return fmt.Errorf("No block device to uninit for host %s", host.NodeName)
 		}
-		lvmdcli, err := CreateLvmdClient(ctx, cli, host.NodeName)
+		lvmdcli, err := common.CreateLvmdClient(ctx, cli, host.NodeName)
 		if err != nil {
 			return fmt.Errorf("Create Lvmd client failed for host %s, %v", host.NodeName, err)
 		}
 		defer lvmdcli.Close()
 		for _, block := range host.BlockDevices {
 			log.Debugf("[%s] Remove vg with %s", host.NodeName, block)
-			if err := RemoveVG(ctx, lvmdcli, VolumeGroup); err != nil {
+			if err := common.RemoveVG(ctx, lvmdcli, VolumeGroup); err != nil {
 				return fmt.Errorf("Remove vg failed, %v", err)
 			}
 			log.Debugf("[%s] Remove pv with %s", host.NodeName, block)
-			if err := RemovePV(ctx, lvmdcli, block); err != nil {
+			if err := common.RemovePV(ctx, lvmdcli, block); err != nil {
 				return fmt.Errorf("Remove pv failed, %v", err)
 			}
 		}

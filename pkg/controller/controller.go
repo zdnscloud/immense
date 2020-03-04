@@ -90,12 +90,12 @@ func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	case *storagev1.Iscsi:
 		conf := e.Object.(*storagev1.Iscsi)
 		if err := d.iscsiMgr.Create(conf); err != nil {
-			log.Warnf("Delete failed:%s", err.Error())
+			log.Warnf("Create failed:%s", err.Error())
 		}
 	case *storagev1.Nfs:
 		conf := e.Object.(*storagev1.Nfs)
 		if err := d.nfsMgr.Create(conf); err != nil {
-			log.Warnf("Delete failed:%s", err.Error())
+			log.Warnf("Create failed:%s", err.Error())
 		}
 	case *k8sstorage.VolumeAttachment:
 		if err := d.CreateFinalizer(obj); err != nil {
@@ -195,10 +195,14 @@ func (d *Controller) OnGeneric(e event.GenericEvent) (handler.Result, error) {
 
 func (d *Controller) CreateFinalizer(va *k8sstorage.VolumeAttachment) error {
 	switch driver := va.Spec.Attacher; driver {
-	case lvm.StorageDriverName:
-		return common.AddFinalizerForStorage(d.client, lvm.StorageType, common.StorageInUsedFinalizer)
-	case cephGlobal.StorageDriverName:
-		return common.AddFinalizerForStorage(d.client, cephGlobal.StorageType, common.StorageInUsedFinalizer)
+	case lvm.StorageDriverName, cephGlobal.StorageDriverName:
+		if va.Spec.Source.PersistentVolumeName != nil {
+			storagecluster, err := common.GetStorageClusterFromPv(d.client, *va.Spec.Source.PersistentVolumeName)
+			if err != nil {
+				return err
+			}
+			return common.AddFinalizerForStorage(d.client, storagecluster, common.StorageInUsedFinalizer)
+		}
 	default:
 		if strings.HasSuffix(driver, iscsi.IscsiDriverSuffix) {
 			name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", iscsi.IscsiDriverSuffix))
@@ -220,10 +224,14 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 		return nil
 	}
 	switch driver := va.Spec.Attacher; driver {
-	case lvm.StorageDriverName:
-		return common.DelFinalizerForStorage(d.client, lvm.StorageType, common.StorageInUsedFinalizer)
-	case cephGlobal.StorageDriverName:
-		return common.DelFinalizerForStorage(d.client, cephGlobal.StorageType, common.StorageInUsedFinalizer)
+	case lvm.StorageDriverName, cephGlobal.StorageDriverName:
+		if va.Spec.Source.PersistentVolumeName != nil {
+			storagecluster, err := common.GetStorageClusterFromPv(d.client, *va.Spec.Source.PersistentVolumeName)
+			if err != nil {
+				return err
+			}
+			return common.DelFinalizerForStorage(d.client, storagecluster, common.StorageInUsedFinalizer)
+		}
 	default:
 		if strings.HasSuffix(driver, iscsi.IscsiDriverSuffix) {
 			name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", iscsi.IscsiDriverSuffix))

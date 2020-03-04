@@ -9,6 +9,7 @@ import (
 func csiyaml(name, host, path string) (string, error) {
 	cfg := map[string]interface{}{
 		"RBACConfig":          common.RBACConfig,
+		"Instance":            name,
 		"StorageNamespace":    common.StorageNamespace,
 		"NFSProvisionerImage": NFSProvisionerImage,
 		"ProvisionerName":     fmt.Sprintf("%s.%s", name, NfsDriverSuffix),

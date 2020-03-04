@@ -50,14 +50,14 @@ func initBlocks(cli client.Client, cluster storagev1.Cluster) error {
 		if len(host.BlockDevices) == 0 {
 			return fmt.Errorf("No block device to init for host %s", host.NodeName)
 		}
-		lvmdcli, err := CreateLvmdClient(ctx, cli, host.NodeName)
+		lvmdcli, err := common.CreateLvmdClient(ctx, cli, host.NodeName)
 		if err != nil {
 			return fmt.Errorf("Create Lvmd client failed for host %s, %v", host.NodeName, err)
 		}
 		defer lvmdcli.Close()
 		for _, block := range host.BlockDevices {
 			log.Debugf("[%s] Init block start: %s", host.NodeName, block)
-			name, err := GetVG(ctx, lvmdcli, block)
+			name, err := common.GetVG(ctx, lvmdcli, block)
 			if err != nil {
 				return fmt.Errorf("Get VolumeGroup failed, %v", err)
 			}
@@ -66,15 +66,15 @@ func initBlocks(cli client.Client, cluster storagev1.Cluster) error {
 				continue
 			}
 			log.Debugf("[%s] Validate block %s", host.NodeName, block)
-			if err := Validate(ctx, lvmdcli, block); err != nil {
+			if err := common.Validate(ctx, lvmdcli, block); err != nil {
 				return fmt.Errorf("Validate block failed, %v", err)
 			}
 			log.Debugf("[%s] Create pv with %s", host.NodeName, block)
-			if err := CreatePV(ctx, lvmdcli, block); err != nil {
+			if err := common.CreatePV(ctx, lvmdcli, block); err != nil {
 				return fmt.Errorf("Create pv failed, %v", err)
 			}
 			log.Debugf("[%s] Create vg with %s", host.NodeName, block)
-			if err := CreateVG(ctx, lvmdcli, block, VolumeGroup); err != nil {
+			if err := common.CreateVG(ctx, lvmdcli, block, VolumeGroup); err != nil {
 				return fmt.Errorf("Create vg failed, %v", err)
 			}
 		}

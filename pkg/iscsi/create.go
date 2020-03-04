@@ -10,10 +10,23 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
+func deployIscsiInit(cli client.Client, conf *storagev1.Iscsi) error {
+	log.Debugf("Deploy iscsi %s init", conf.Name)
+	yaml, err := inityaml(conf.Name, conf.Spec.Target, conf.Spec.Port, conf.Spec.Iqn, conf.Spec.Chap)
+	if err != nil {
+		return err
+	}
+	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
+		return err
+	}
+	common.WaitDsReady(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiInitDsNameSuffix))
+	return nil
+}
+
 func deployIscsiLvmd(cli client.Client, conf *storagev1.Iscsi) error {
 	log.Debugf("Deploy iscsi %s lvmd", conf.Name)
 
-	yaml, err := lvmdyaml(conf.Name, conf.Spec.Target, conf.Spec.Port, conf.Spec.Iqn)
+	yaml, err := lvmdyaml(conf.Name)
 	if err != nil {
 		return err
 	}

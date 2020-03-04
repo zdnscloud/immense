@@ -23,7 +23,7 @@ func (s *Ceph) GetType() string {
 
 func (s *Ceph) Create(cluster storagev1.Cluster) error {
 	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Creating)
-	if err := common.CreateNodeAnnotationsAndLabels(s.cli, s.GetType(), cluster.Spec.Hosts); err != nil {
+	if err := common.CreateNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
 		return err
 	}
 	if err := create(s.cli, cluster); err != nil {
@@ -36,10 +36,10 @@ func (s *Ceph) Create(cluster storagev1.Cluster) error {
 
 func (s *Ceph) Update(dels, adds storagev1.Cluster) error {
 	common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Updating)
-	if err := common.DeleteNodeAnnotationsAndLabels(s.cli, s.GetType(), dels.Spec.Hosts); err != nil {
+	if err := common.DeleteNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), dels.Spec.Hosts); err != nil {
 		return err
 	}
-	if err := common.CreateNodeAnnotationsAndLabels(s.cli, s.GetType(), adds.Spec.Hosts); err != nil {
+	if err := common.CreateNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), adds.Spec.Hosts); err != nil {
 		return err
 	}
 	if err := doAddhost(s.cli, adds); err != nil {
@@ -60,7 +60,7 @@ func (s *Ceph) Update(dels, adds storagev1.Cluster) error {
 
 func (s *Ceph) Delete(cluster storagev1.Cluster) error {
 	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Deleting)
-	if err := common.DeleteNodeAnnotationsAndLabels(s.cli, s.GetType(), cluster.Spec.Hosts); err != nil {
+	if err := common.DeleteNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
 		return err
 	}
 	if err := delete(s.cli, cluster); err != nil {

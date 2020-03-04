@@ -3,20 +3,24 @@ package common
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"text/template"
 	"time"
 
-	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gok8s/helper"
-	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sstorage "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	k8stypes "k8s.io/apimachinery/pkg/types"
+
+	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/gok8s/helper"
+	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 )
 
 const (
@@ -27,19 +31,20 @@ const (
 	StorageHostLabels           = "storage.zcloud.cn/storagetype"
 	StorageNamespace            = "zcloud"
 	PodCheckInterval            = 10
+	LvmdPort                    = "1736"
 )
 
 var ctx = context.TODO()
 
-func CreateNodeAnnotationsAndLabels(cli client.Client, value string, hosts []string) error {
+func CreateNodeAnnotationsAndLabels(cli client.Client, key, value string, hosts []string) error {
 	for _, host := range hosts {
 		log.Debugf("Add Labels for storage %s on host:%s", value, host)
 		node := corev1.Node{}
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host}, &node); err != nil {
 			return fmt.Errorf("Add Labels for storage %s on host %s failed. Err: %v", value, host, err)
 		}
-		node.Labels[StorageHostRole] = "true"
-		node.Labels[StorageHostLabels] = value
+		//node.Labels[StorageHostRole] = "true"
+		node.Labels[key] = value
 		if err := cli.Update(ctx, &node); err != nil {
 			return fmt.Errorf("Add Labels for storage %s on host %s failed. Err: %v", value, host, err)
 		}
@@ -47,15 +52,15 @@ func CreateNodeAnnotationsAndLabels(cli client.Client, value string, hosts []str
 	return nil
 }
 
-func DeleteNodeAnnotationsAndLabels(cli client.Client, value string, hosts []string) error {
+func DeleteNodeAnnotationsAndLabels(cli client.Client, key, value string, hosts []string) error {
 	for _, host := range hosts {
 		log.Debugf("Del Labels for storage %s on host:%s", value, host)
 		node := corev1.Node{}
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host}, &node); err != nil {
 			return fmt.Errorf("Delete Labels for storage %s on host %s failed. Err: %v", value, host, err)
 		}
-		delete(node.Labels, StorageHostRole)
-		delete(node.Labels, StorageHostLabels)
+		//delete(node.Labels, StorageHostRole)
+		delete(node.Labels, key)
 		if err := cli.Update(ctx, &node); err != nil {
 			return fmt.Errorf("Delete Labels for storage %s on host %s failed. Err: %v", value, host, err)
 		}
@@ -70,6 +75,15 @@ func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error)
 		return "", err
 	}
 	return out.String(), nil
+}
+
+func UpdateClusterStatus(cli client.Client, name string, status storagev1.ClusterStatus) error {
+	storagecluster, err := GetStorageCluster(cli, name)
+	if err != nil {
+		return err
+	}
+	storagecluster.Status = status
+	return cli.Update(ctx, storagecluster)
 }
 
 func UpdateClusterStatusPhase(cli client.Client, name string, phase storagev1.StatusPhase) {
@@ -90,6 +104,14 @@ func UpdateClusterStatusPhase(cli client.Client, name string, phase storagev1.St
 		return
 	}
 	return
+}
+
+func GetStorageClusterFromPv(cli client.Client, name string) (string, error) {
+	pv := &corev1.PersistentVolume{}
+	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, pv); err != nil {
+		return "", err
+	}
+	return pv.Spec.StorageClassName, nil
 }
 
 func GetStorageCluster(cli client.Client, name string) (*storagev1.Cluster, error) {
@@ -306,4 +328,38 @@ func WaitPodSucceeded(cli client.Client, namespace, name string) {
 		}
 		break
 	}
+}
+
+func GetLVMDAddr(cli client.Client, node, ds string) (string, error) {
+	selector, err := getSelector(cli, ds)
+	if err != nil {
+		return "", err
+	}
+
+	pods, err := getPods(cli, selector)
+	if err != nil {
+		return "", err
+	}
+	for _, pod := range pods.Items {
+		if pod.Spec.NodeName == node {
+			return pod.Status.PodIP + ":" + LvmdPort, nil
+		}
+	}
+	return "", errors.New(fmt.Sprintf("can not find lvmd on node %s", node))
+}
+
+func getPods(cli client.Client, selector labels.Selector) (*corev1.PodList, error) {
+	pods := &corev1.PodList{}
+	if err := cli.List(ctx, &client.ListOptions{Namespace: StorageNamespace, LabelSelector: selector}, pods); err != nil {
+		return nil, err
+	}
+	return pods, nil
+}
+
+func getSelector(cli client.Client, name string) (labels.Selector, error) {
+	daemonSet := &appsv1.DaemonSet{}
+	if err := cli.Get(ctx, k8stypes.NamespacedName{StorageNamespace, name}, daemonSet); err != nil {
+		return nil, err
+	}
+	return metav1.LabelSelectorAsSelector(daemonSet.Spec.Selector)
 }

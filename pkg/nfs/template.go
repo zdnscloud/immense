@@ -5,13 +5,13 @@ const NfsCSITemplate = `
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: nfs-client-provisioner
+  name: nfs-client-provisioner-{{.Instance}}
   namespace: {{.StorageNamespace}}
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: nfs-client-provisioner-runner
+  name: nfs-client-provisioner-runner-{{.Instance}}
   namespace: {{.StorageNamespace}}
 rules:
   - apiGroups: [""]
@@ -30,21 +30,21 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: run-nfs-client-provisioner
+  name: run-nfs-client-provisioner-{{.Instance}}
   namespace: {{.StorageNamespace}}
 subjects:
   - kind: ServiceAccount
-    name: nfs-client-provisioner
+    name: nfs-client-provisioner-{{.Instance}}
     namespace: {{.StorageNamespace}}
 roleRef:
   kind: ClusterRole
-  name: nfs-client-provisioner-runner
+  name: nfs-client-provisioner-runner-{{.Instance}}
   apiGroup: rbac.authorization.k8s.io
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: leader-locking-nfs-client-provisioner
+  name: leader-locking-nfs-client-provisioner-{{.Instance}}
     # replace with namespace where provisioner is deployed
   namespace: {{.StorageNamespace}}
 rules:
@@ -55,15 +55,15 @@ rules:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: leader-locking-nfs-client-provisioner
+  name: leader-locking-nfs-client-provisioner-{{.Instance}}
   namespace: {{.StorageNamespace}}
 subjects:
   - kind: ServiceAccount
-    name: nfs-client-provisioner
+    name: nfs-client-provisioner-{{.Instance}}
     namespace: {{.StorageNamespace}}
 roleRef:
   kind: Role
-  name: leader-locking-nfs-client-provisioner
+  name: leader-locking-nfs-client-provisioner-{{.Instance}}
   apiGroup: rbac.authorization.k8s.io
 {{- end}}
 ---
@@ -72,24 +72,24 @@ kind: Deployment
 metadata:
   name: {{.NfsCSIDpName}}
   labels:
-    app: nfs-client-provisioner
+    app: nfs-client-provisioner-{{.Instance}}
   namespace: {{.StorageNamespace}}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: nfs-client-provisioner
+      app: nfs-client-provisioner-{{.Instance}}
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: nfs-client-provisioner
+      app: nfs-client-provisioner-{{.Instance}}
   template:
     metadata:
       labels:
-        app: nfs-client-provisioner
+        app: nfs-client-provisioner-{{.Instance}}
     spec:
-      serviceAccountName: nfs-client-provisioner
+      serviceAccountName: nfs-client-provisioner-{{.Instance}}
       containers:
         - name: nfs-client-provisioner
           image: {{.NFSProvisionerImage}}

@@ -1,7 +1,6 @@
 package status
 
 import (
-	"context"
 	"strconv"
 	"strings"
 	"time"
@@ -33,12 +32,12 @@ func Watch(cli client.Client, name string) {
 		if storagecluster.Status.Phase == "Updating" || storagecluster.Status.Phase == "Creating" {
 			continue
 		}
-		storagecluster.Status, err = genStatus(storagecluster)
+		status, err := genStatus(storagecluster)
 		if err != nil {
 			log.Warnf("[ceph-status-controller] Get ceph status failed. Err: %s", err.Error())
 			continue
 		}
-		if err := cli.Update(context.TODO(), storagecluster); err != nil {
+		if err := common.UpdateClusterStatus(cli, storagecluster.Name, status); err != nil {
 			log.Warnf("[ceph-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
 		}
 	}

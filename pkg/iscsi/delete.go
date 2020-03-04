@@ -11,9 +11,22 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
+func unDeployIscsiInit(cli client.Client, conf *storagev1.Iscsi) error {
+	log.Debugf("Undeploy iscsi %s init", conf.Name)
+	yaml, err := inityaml(conf.Name, conf.Spec.Target, conf.Spec.Port, conf.Spec.Iqn, conf.Spec.Chap)
+	if err != nil {
+		return err
+	}
+	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
+		return err
+	}
+	common.WaitDsTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiInitDsNameSuffix))
+	return nil
+}
+
 func unDeployIscsiLvmd(cli client.Client, conf *storagev1.Iscsi) error {
 	log.Debugf("Undeploy iscsi %s lvmd", conf.Name)
-	yaml, err := lvmdyaml(conf.Name, conf.Spec.Target, conf.Spec.Port, conf.Spec.Iqn)
+	yaml, err := lvmdyaml(conf.Name)
 	if err != nil {
 		return err
 	}
@@ -70,7 +83,7 @@ func jobDo(cli client.Client, host, iqn string) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitPodSucceeded(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", IscsiStopJobPrefix, host))
+	common.WaitPodSucceeded(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", host, IscsiStopJobSuffix))
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}

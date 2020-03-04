@@ -37,8 +37,8 @@ func StatusControl(cli client.Client, name string) {
 		if storagecluster.Status.Phase == storagev1.Updating || storagecluster.Status.Phase == storagev1.Creating {
 			continue
 		}
-		storagecluster.Status = genStatus(cli, storagecluster)
-		if err := cli.Update(ctx, storagecluster); err != nil {
+		status := genStatus(cli, storagecluster)
+		if err := common.UpdateClusterStatus(cli, storagecluster.Name, status); err != nil {
 			log.Warnf("[lvm-status-controller] Update storage cluster %s failed. Err: %s", name, err.Error())
 			continue
 		}
@@ -66,7 +66,7 @@ func genStatus(cli client.Client, storagecluster *storagev1.Cluster) storagev1.C
 			log.Warnf("[lvm-status-controller] Hosts %s have no block devices can used", host.NodeName)
 			continue
 		}
-		lvmdcli, err := CreateLvmdClient(ctx, cli, host.NodeName)
+		lvmdcli, err := common.CreateLvmdClient(ctx, cli, host.NodeName)
 		if err != nil {
 			status.Phase = storagev1.Warnning
 			status.Message = status.Message + host.NodeName + ":" + err.Error() + "\n"

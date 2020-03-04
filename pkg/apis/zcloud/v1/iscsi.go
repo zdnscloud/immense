@@ -15,6 +15,7 @@ type IscsiSpec struct {
 	Target     string   `json:"target"`
 	Port       string   `json:"port"`
 	Iqn        string   `json:"iqn"`
+	Chap       bool     `json:"chap"`
 	Initiators []string `json:"initiators"`
 }
 

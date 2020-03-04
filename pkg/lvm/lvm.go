@@ -12,7 +12,7 @@ type Lvm struct {
 
 const (
 	StorageType           = "lvm"
-	VolumeGroup                = "k8s"
+	VolumeGroup           = "k8s"
 	LvmdDsName            = "lvmd"
 	CSIPluginDsName       = "csi-lvmplugin"
 	CSIProvisionerStsName = "csi-lvmplugin-provisioner"
@@ -31,7 +31,7 @@ func (s *Lvm) GetType() string {
 
 func (s *Lvm) Create(cluster storagev1.Cluster) error {
 	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Creating)
-	if err := common.CreateNodeAnnotationsAndLabels(s.cli, s.GetType(), cluster.Spec.Hosts); err != nil {
+	if err := common.CreateNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
 		return err
 	}
 	if err := deployLvmd(s.cli, cluster); err != nil {
@@ -80,7 +80,7 @@ func (s *Lvm) Delete(cluster storagev1.Cluster) error {
 		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
 		return err
 	}
-	if err := common.DeleteNodeAnnotationsAndLabels(s.cli, s.GetType(), cluster.Spec.Hosts); err != nil {
+	if err := common.DeleteNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
 		return err
 	}
 	return common.DelFinalizerForStorage(s.cli, cluster.Name, common.StoragePrestopHookFinalizer)

@@ -13,7 +13,7 @@ func doDelhost(cli client.Client, cluster storagev1.Cluster) error {
 	if err := unInitBlocks(cli, cluster); err != nil {
 		return err
 	}
-	if err := common.DeleteNodeAnnotationsAndLabels(cli, cluster.Spec.StorageType, cluster.Spec.Hosts); err != nil {
+	if err := common.DeleteNodeAnnotationsAndLabels(cli, common.StorageHostLabels, cluster.Spec.StorageType, cluster.Spec.Hosts); err != nil {
 		return err
 	}
 	return nil
@@ -23,7 +23,7 @@ func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 	if len(cluster.Spec.Hosts) == 0 {
 		return nil
 	}
-	if err := common.CreateNodeAnnotationsAndLabels(cli, cluster.Spec.StorageType, cluster.Spec.Hosts); err != nil {
+	if err := common.CreateNodeAnnotationsAndLabels(cli, common.StorageHostLabels, cluster.Spec.StorageType, cluster.Spec.Hosts); err != nil {
 		return err
 	}
 	common.WaitDsReady(cli, common.StorageNamespace, LvmdDsName)

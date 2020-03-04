@@ -9,37 +9,53 @@ import (
 func csiyaml(name string) (string, error) {
 	cfg := map[string]interface{}{
 		"RBACConfig":              common.RBACConfig,
-		"LabelKey":                common.StorageHostLabels,
-		"LabelValue":              fmt.Sprintf("%s-%s", StorageType, name),
+		"IscsiInstanceLabelKey":   fmt.Sprintf("%s-%s", IscsiInstanceLabelKeyPrefix, name),
+		"IscsiInstanceLabelValue": IscsiInstanceLabelValue,
 		"StorageNamespace":        common.StorageNamespace,
 		"CSIAttacherImage":        common.CSIAttacherImage,
 		"CSIResizerImage":         common.CSIResizerImage,
 		"CSIProvisionerImage":     common.CSIProvisionerImage,
 		"CSIDriverRegistrarImage": common.CSIDriverRegistrarImage,
 		"IscsiPluginImage":        IscsiPluginImage,
+		"Instance":                name,
 		"IscsiInitImage":          IscsiInitImage,
 		"IscsiLvmdImage":          IscsiLvmdImage,
 		"IscsiCSIDsName":          fmt.Sprintf("%s-%s", name, IscsiCSIDsSuffix),
 		"IscsiCSIStsName":         fmt.Sprintf("%s-%s", name, IscsiCSIStsSuffix),
 		"VolumeGroup":             fmt.Sprintf("%s-%s", name, VolumeGroupSuffix),
 		"IscsiDriverName":         fmt.Sprintf("%s.%s", name, IscsiDriverSuffix),
+		"LvmdDsName":              fmt.Sprintf("%s-%s", name, IscsiLvmdDsSuffix),
 	}
 	return common.CompileTemplateFromMap(IscsiCSITemplate, cfg)
 }
 
-func lvmdyaml(name, host, port, iqn string) (string, error) {
+func inityaml(name, host, port, iqn string, chap bool) (string, error) {
 	cfg := map[string]interface{}{
-		"RBACConfig":       common.RBACConfig,
-		"LabelKey":         common.StorageHostLabels,
-		"LabelValue":       fmt.Sprintf("%s-%s", StorageType, name),
-		"StorageNamespace": common.StorageNamespace,
-		"IscsiLvmdDsName":  fmt.Sprintf("%s-%s", name, IscsiLvmdDsSuffix),
-		"IscsiLvmdImage":   IscsiLvmdImage,
-		"IscsiInitImage":   IscsiInitImage,
-		"TargetHost":       host,
-		"TargetPort":       port,
-		"TargetIqn":        iqn,
-		"VolumeGroup":      fmt.Sprintf("%s-%s", name, VolumeGroupSuffix),
+		"CHAPConfig":              chap,
+		"Instance":                name,
+		"IscsiInitDsName":         fmt.Sprintf("%s-%s", name, IscsiInitDsNameSuffix),
+		"IscsiInstanceSecret":     fmt.Sprintf("%s-%s", name, IscsiInstanceSecretSuffix),
+		"IscsiInstanceLabelKey":   fmt.Sprintf("%s-%s", IscsiInstanceLabelKeyPrefix, name),
+		"IscsiInstanceLabelValue": IscsiInstanceLabelValue,
+		"StorageNamespace":        common.StorageNamespace,
+		"IscsiInitImage":          IscsiInitImage,
+		"TargetHost":              host,
+		"TargetPort":              port,
+		"TargetIqn":               iqn,
+		"VolumeGroup":             fmt.Sprintf("%s-%s", name, VolumeGroupSuffix),
+	}
+	return common.CompileTemplateFromMap(IscsiInitTemplate, cfg)
+}
+
+func lvmdyaml(name string) (string, error) {
+	cfg := map[string]interface{}{
+		"RBACConfig":              common.RBACConfig,
+		"Instance":                name,
+		"IscsiInstanceLabelKey":   fmt.Sprintf("%s-%s", IscsiInstanceLabelKeyPrefix, name),
+		"IscsiInstanceLabelValue": IscsiInstanceLabelValue,
+		"StorageNamespace":        common.StorageNamespace,
+		"IscsiLvmdDsName":         fmt.Sprintf("%s-%s", name, IscsiLvmdDsSuffix),
+		"IscsiLvmdImage":          IscsiLvmdImage,
 	}
 	return common.CompileTemplateFromMap(IscsiLvmdTemplate, cfg)
 }
@@ -47,7 +63,7 @@ func lvmdyaml(name, host, port, iqn string) (string, error) {
 func jobyaml(host, iqn string) (string, error) {
 	cfg := map[string]interface{}{
 		"StorageNamespace": common.StorageNamespace,
-		"IscsiStopJobName": fmt.Sprintf("%s-%s", IscsiStopJobPrefix, host),
+		"IscsiStopJobName": fmt.Sprintf("%s-%s", host, IscsiStopJobSuffix),
 		"IscsiInitImage":   IscsiInitImage,
 		"TargetIqn":        iqn,
 		"Host":             host,

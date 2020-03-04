@@ -1,26 +1,26 @@
 package iscsi
 
-const IscsiLvmdTemplate = `
+const IscsiInitTemplate = `
 apiVersion: apps/v1
-kind: DaemonSet
+kind: DaemonSet 
 metadata:
   labels:
-    app: iscsi-lvmd
-  name: {{.IscsiLvmdDsName}}
+    app: iscsi-init-{{.Instance}}
+  name: {{.IscsiInitDsName}}
   namespace: {{.StorageNamespace}}
 spec:
   selector:
     matchLabels:
-      app: iscsi-lvmd
+      app: iscsi-init-{{.Instance}}
   template:
     metadata:
       labels:
-        app: iscsi-lvmd
+        app: iscsi-init-{{.Instance}}
     spec:
       hostNetwork: true
       nodeSelector:
-        {{.LabelKey}}: {{.LabelValue}}
-      initContainers:
+        {{.IscsiInstanceLabelKey}}: "{{.IscsiInstanceLabelValue}}"
+      containers:
       - name: init
         image: {{.IscsiInitImage}}
         command: ["/bin/bash", "-c", "sh -x /init.sh"]
@@ -30,6 +30,11 @@ spec:
             mountPath: /dev
           - mountPath: /run/udev
             name: run-udev
+{{- if .CHAPConfig}}
+          - mountPath: /root/secret
+            name: iscsipwd
+            readOnly: true
+{{- end}}
         securityContext:
           privileged: true
           readOnlyRootFilesystem: false
@@ -43,6 +48,54 @@ spec:
             value: "{{.TargetIqn}}"
           - name: VOLUME_GROUP
             value: "{{.VolumeGroup}}"
+      volumes:
+{{- if .CHAPConfig}}
+      - name: iscsipwd
+        secret:
+          secretName: {{.IscsiInstanceSecret}}
+{{- end}}
+      - hostPath:
+          path: /dev
+          type: ""
+        name: host-dev
+      - hostPath:
+          path: /run/udev
+          type: ""
+        name: run-udev`
+
+const IscsiLvmdTemplate = `
+kind: Service
+apiVersion: v1
+metadata:
+  name: iscsi-lvmd-{{.Instance}}
+  namespace: {{.StorageNamespace}}
+  labels:
+    app: iscsi-lvmd-{{.Instance}}
+spec:
+  selector:
+    app: iscsi-lvmd-{{.Instance}}
+  ports:
+    - name: lvmd
+      port: 1736
+---
+apiVersion: apps/v1
+kind: DaemonSet 
+metadata:
+  labels:
+    app: iscsi-lvmd-{{.Instance}}
+  name: {{.IscsiLvmdDsName}}
+  namespace: {{.StorageNamespace}}
+spec:
+  selector:
+    matchLabels:
+      app: iscsi-lvmd-{{.Instance}}
+  template:
+    metadata:
+      labels:
+        app: iscsi-lvmd-{{.Instance}}
+    spec:
+      nodeSelector:
+        {{.IscsiInstanceLabelKey}}: "{{.IscsiInstanceLabelValue}}"
       containers:
       - name: iscsi-lvmd
         image: {{.IscsiLvmdImage}}
@@ -52,12 +105,6 @@ spec:
         - /lvmd
         - -listen
         - 0.0.0.0:1736
-        env:
-        - name: NodeName
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: spec.nodeName
         securityContext:
           allowPrivilegeEscalation: true
           capabilities:
@@ -92,11 +139,7 @@ spec:
         name: host-dev
       - name: lib-modules
         hostPath:
-          path: /lib/modules
-      - hostPath:
-          path: /run/udev
-          type: ""
-        name: run-udev`
+          path: /lib/modules`
 
 const IscsiCSITemplate = `
 {{- if eq .RBACConfig "rbac"}}
@@ -104,13 +147,13 @@ const IscsiCSITemplate = `
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: csi-iscsiplugin-provisioner
+  name: csi-iscsiplugin-provisioner-{{.Instance}}
   namespace: {{.StorageNamespace}}
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-iscsiplugin-provisioner
+  name: csi-iscsiplugin-provisioner-{{.Instance}}
   namespace: {{.StorageNamespace}}
 rules:
   - apiGroups: [""]
@@ -118,7 +161,10 @@ rules:
     verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["pods"]
-    verbs: ["list", "watch"]
+    verbs: ["list", "watch", "get"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["list", "watch", "get"]
   - apiGroups: ["apps"]
     resources: ["statefulsets"]
     verbs: ["list", "watch"]
@@ -156,27 +202,27 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-iscsiplugin-provisioner-role
+  name: csi-iscsiplugin-provisioner-role-{{.Instance}}
   namespace: {{.StorageNamespace}}
 subjects:
   - kind: ServiceAccount
-    name: csi-iscsiplugin-provisioner
+    name: csi-iscsiplugin-provisioner-{{.Instance}}
     namespace: {{.StorageNamespace}}
 roleRef:
   kind: ClusterRole
-  name: csi-iscsiplugin-provisioner
+  name: csi-iscsiplugin-provisioner-{{.Instance}}
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: csi-iscsiplugin
+  name: csi-iscsiplugin-{{.Instance}}
   namespace: {{.StorageNamespace}}
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-iscsiplugin
+  name: csi-iscsiplugin-{{.Instance}}
   namespace: {{.StorageNamespace}}
 rules:
   - apiGroups: [""]
@@ -184,7 +230,10 @@ rules:
     verbs: ["get", "list", "update", "watch"]
   - apiGroups: [""]
     resources: ["pods"]
-    verbs: ["list", "watch"]
+    verbs: ["list", "watch", "get"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["list", "watch", "get"]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["list", "watch"]
@@ -213,15 +262,15 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-iscsiplugin
+  name: csi-iscsiplugin-{{.Instance}}
   namespace: {{.StorageNamespace}}
 subjects:
   - kind: ServiceAccount
-    name: csi-iscsiplugin
+    name: csi-iscsiplugin-{{.Instance}}
     namespace: {{.StorageNamespace}}
 roleRef:
   kind: ClusterRole
-  name: csi-iscsiplugin
+  name: csi-iscsiplugin-{{.Instance}}
   apiGroup: rbac.authorization.k8s.io  
 {{- end}}
 ---
@@ -233,27 +282,26 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: csi-iscsiplugin
+      app: csi-iscsiplugin-{{.Instance}}
   template:
     metadata:
       labels:
-        app: csi-iscsiplugin
+        app: csi-iscsiplugin-{{.Instance}}
     spec:
       nodeSelector: 
-        {{.LabelKey}}: {{.LabelValue}}
-      serviceAccount: csi-iscsiplugin
-      hostNetwork: true
+        {{.IscsiInstanceLabelKey}}: "{{.IscsiInstanceLabelValue}}"
+      serviceAccount: csi-iscsiplugin-{{.Instance}}
       containers:
         - name: csi-iscsiplugin-driver-registrar
           image: {{.CSIDriverRegistrarImage}}
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-iscsi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-iscsi-{{.Instance}}/csi.sock"
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "rm -rf /registration/csi-iscsiplugin-reg.sock /csi/"]
+                command: ["/bin/sh", "-c", "rm -rf /registration/{{.Instance}}.iscsi.storage.zcloud.cn-reg.sock /csi/"]
           env:
             - name: ADDRESS
               value: /csi/csi.sock
@@ -274,8 +322,9 @@ spec:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--vgname=$(VG_NAME)"
             - "--drivername={{.IscsiDriverName}}"
-            - "--labelKey={{.LabelKey}}"
-            - "--labelValue={{.LabelValue}}"
+            - "--labelKey={{.IscsiInstanceLabelKey}}"
+            - "--labelValue={{.IscsiInstanceLabelValue}}"
+            - "--lvmdDsName={{.LvmdDsName}}"
           env:
             - name: VG_NAME
               value: "{{.VolumeGroup}}"
@@ -310,7 +359,7 @@ spec:
             type: Directory
         - name: plugin-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/csi-iscsi/
+            path: /var/lib/kubelet/plugins/csi-iscsi-{{.Instance}}/
             type: DirectoryOrCreate
         - name: host-dev
           hostPath:
@@ -325,13 +374,13 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-  name: csi-iscsiplugin-provisioner
+  name: csi-iscsiplugin-provisioner-{{.Instance}}
   namespace: {{.StorageNamespace}}
   labels:
-    app: csi-iscsiplugin-provisioner
+    app: csi-iscsiplugin-provisioner-{{.Instance}}
 spec:
   selector:
-    app: csi-iscsiplugin-provisioner
+    app: csi-iscsiplugin-provisioner-{{.Instance}}
   ports:
     - name: dummy
       port: 12345
@@ -342,20 +391,19 @@ metadata:
   name: {{.IscsiCSIStsName}}
   namespace: {{.StorageNamespace}}
 spec:
-  serviceName: csi-iscsiplugin-provisioner
+  serviceName: csi-iscsiplugin-provisioner-{{.Instance}}
   replicas: 1
   selector:
     matchLabels:
-      app: csi-iscsiplugin-provisioner
+      app: csi-iscsiplugin-provisioner-{{.Instance}}
   template:
     metadata:
       labels:
-        app: csi-iscsiplugin-provisioner
+        app: csi-iscsiplugin-provisioner-{{.Instance}}
     spec:
-      serviceAccount: csi-iscsiplugin-provisioner
+      serviceAccount: csi-iscsiplugin-provisioner-{{.Instance}}
       nodeSelector: 
-        {{.LabelKey}}: {{.LabelValue}}
-      hostNetwork: true
+        {{.IscsiInstanceLabelKey}}: "{{.IscsiInstanceLabelValue}}"
       containers:
         - name: csi-resizer
           image: {{.CSIResizerImage}}
@@ -412,8 +460,9 @@ spec:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--vgname=$(VG_NAME)"
             - "--drivername={{.IscsiDriverName}}"
-            - "--labelKey={{.LabelKey}}"
-            - "--labelValue={{.LabelValue}}"
+            - "--labelKey={{.IscsiInstanceLabelKey}}"
+            - "--labelValue={{.IscsiInstanceLabelValue}}"
+            - "--lvmdDsName={{.LvmdDsName}}"
           env:
             - name: VG_NAME
               value: "{{.VolumeGroup}}"

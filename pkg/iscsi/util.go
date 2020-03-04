@@ -18,6 +18,15 @@ func getIscsi(cli client.Client, name string) (*storagev1.Iscsi, error) {
 	return iscsi, nil
 }
 
+func updateStatus(cli client.Client, name string, status storagev1.IscsiStatus) error {
+	iscsi, err := getIscsi(cli, name)
+	if err != nil {
+		return err
+	}
+	iscsi.Status = status
+	return cli.Update(ctx, iscsi)
+}
+
 func AddFinalizer(cli client.Client, name, finalizer string) error {
 	iscsi, err := getIscsi(cli, name)
 	if err != nil {
