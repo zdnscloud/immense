@@ -31,7 +31,7 @@ func Start(cli client.Client, id, name string, monsvc map[string]string) error {
 		}
 	}
 	log.Debugf("Deploy fscsi")
-	yaml, err := fscsiYaml()
+	yaml, err := fscsiYaml(name)
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func Stop(cli client.Client, id, name string) error {
 	}
 
 	log.Debugf("Undeploy fscsi")
-	yaml, err = fscsiYaml()
+	yaml, err = fscsiYaml(name)
 	if err != nil {
 		return err
 	}

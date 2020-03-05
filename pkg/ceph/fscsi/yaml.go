@@ -1,6 +1,8 @@
 package fscsi
 
 import (
+	"fmt"
+
 	"github.com/zdnscloud/immense/pkg/ceph/global"
 	"github.com/zdnscloud/immense/pkg/common"
 )
@@ -15,7 +17,7 @@ func CSICfgYaml(id, mons string) (string, error) {
 	return common.CompileTemplateFromMap(FSconfigmapTemp, cfg)
 }
 
-func fscsiYaml() (string, error) {
+func fscsiYaml(name string) (string, error) {
 	cfg := map[string]interface{}{
 		"RBACConfig":                      common.RBACConfig,
 		"StorageNamespace":                common.StorageNamespace,
@@ -27,7 +29,7 @@ func fscsiYaml() (string, error) {
 		"CSIProvisionerStsName":           global.CSIProvisionerStsName,
 		"StorageCephFsCSIImage":           global.CephFsCSIImage,
 		"CSIConfigmapName":                global.CSIConfigmapName,
-		"StorageDriverName":               global.StorageDriverName,
+		"StorageDriverName":               fmt.Sprintf("%s.%s", name, global.CephFsDriverSuffix),
 	}
 	return common.CompileTemplateFromMap(FScsiTemp, cfg)
 }
@@ -36,7 +38,7 @@ func StorageClassYaml(id, name string) (string, error) {
 	cfg := map[string]interface{}{
 		"StorageNamespace":  common.StorageNamespace,
 		"StorageClassName":  name,
-		"StorageDriverName": global.StorageDriverName,
+		"StorageDriverName": fmt.Sprintf("%s.%s", name, global.CephFsDriverSuffix),
 		"CephSecretName":    global.SecretName,
 		"CephFsPool":        global.CephFsDate,
 		"CephFsName":        global.CephFsName,

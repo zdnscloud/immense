@@ -15,7 +15,7 @@ const (
 	IscsiInstanceSecretSuffix   = "iscsi-secret"
 	IscsiDriverSuffix           = "iscsi.storage.zcloud.cn"
 	IscsiCSIDsSuffix            = "iscsi-plugin"
-	IscsiCSIStsSuffix           = "iscsi-csi"
+	IscsiCSIDpSuffix            = "iscsi-csi"
 	IscsiInitDsNameSuffix       = "iscsi-init"
 	IscsiLvmdDsSuffix           = "iscsi-lvmd"
 	IscsiStopJobSuffix          = "iscsi-stop-job"

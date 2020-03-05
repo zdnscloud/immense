@@ -57,3 +57,12 @@ func UpdateStatusPhase(cli client.Client, name string, phase storagev1.StatusPha
 	}
 	return
 }
+
+func updateSize(cli client.Client, name string, size *storagev1.Size) error {
+	nfs, err := getNfs(cli, name)
+	if err != nil {
+		return err
+	}
+	nfs.Status.Capacity.Total = *size
+	return cli.Update(ctx, nfs)
+}

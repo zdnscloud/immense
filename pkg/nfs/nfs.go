@@ -42,6 +42,7 @@ func (h *HandlerManager) Create(conf *storagev1.Nfs) error {
 		return err
 	}
 	UpdateStatusPhase(h.client, conf.Name, storagev1.Running)
+	go StatusControl(h.client, conf.Name)
 	log.Debugf("[nfs] create finish")
 	return nil
 }

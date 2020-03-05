@@ -21,7 +21,7 @@ func csiyaml(name string) (string, error) {
 		"IscsiInitImage":          IscsiInitImage,
 		"IscsiLvmdImage":          IscsiLvmdImage,
 		"IscsiCSIDsName":          fmt.Sprintf("%s-%s", name, IscsiCSIDsSuffix),
-		"IscsiCSIStsName":         fmt.Sprintf("%s-%s", name, IscsiCSIStsSuffix),
+		"IscsiCSIDpName":          fmt.Sprintf("%s-%s", name, IscsiCSIDpSuffix),
 		"VolumeGroup":             fmt.Sprintf("%s-%s", name, VolumeGroupSuffix),
 		"IscsiDriverName":         fmt.Sprintf("%s.%s", name, IscsiDriverSuffix),
 		"LvmdDsName":              fmt.Sprintf("%s-%s", name, IscsiLvmdDsSuffix),

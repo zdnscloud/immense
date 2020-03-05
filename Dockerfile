@@ -11,7 +11,7 @@ FROM alpine:3.10.0
 
 LABEL maintainers="Zdns Authors"
 LABEL description="K8S Storage Operator"
-RUN apk update && apk add udev blkid file util-linux e2fsprogs lvm2 udev sgdisk device-mapper python py-pip python-dev ceph --no-cache
+RUN apk update && apk add udev blkid file util-linux e2fsprogs lvm2 udev sgdisk device-mapper python py-pip python-dev ceph bash nfs-utils --no-cache 
 RUN pip install prettytable
 COPY --from=build /go/src/github.com/zdnscloud/immense/operator /operator
 COPY deploy/ceph-key.py /ceph-key.py

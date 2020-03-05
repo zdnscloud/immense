@@ -409,4 +409,6 @@ metadata:
   name: {{.StorageClassName}}
 provisioner: {{.StorageDriverName}}
 reclaimPolicy: Delete
-allowVolumeExpansion: true`
+allowVolumeExpansion: true
+parameters:
+  accessMode: ReadWriteOnce`

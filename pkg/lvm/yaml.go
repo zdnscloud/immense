@@ -1,6 +1,8 @@
 package lvm
 
 import (
+	"fmt"
+
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
@@ -18,7 +20,7 @@ func csiyaml(name string) (string, error) {
 		"CSIProvisionerStsName":          CSIProvisionerStsName,
 		"CSIPluginDsName":                CSIPluginDsName,
 		"StorageClassName":               name,
-		"StorageDriverName":              StorageDriverName,
+		"StorageDriverName":              fmt.Sprintf("%s.%s", name, LvmDriverSuffix),
 		"VolumeGroup":                    VolumeGroup,
 	}
 	return common.CompileTemplateFromMap(LvmCSITemplate, cfg)
@@ -39,7 +41,7 @@ func lvmdyaml() (string, error) {
 func scyaml(name string) (string, error) {
 	cfg := map[string]interface{}{
 		"StorageClassName":  name,
-		"StorageDriverName": StorageDriverName,
+		"StorageDriverName": fmt.Sprintf("%s.%s", name, LvmDriverSuffix),
 	}
 	return common.CompileTemplateFromMap(StorageClassTemp, cfg)
 }

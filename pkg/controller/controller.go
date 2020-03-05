@@ -194,24 +194,20 @@ func (d *Controller) OnGeneric(e event.GenericEvent) (handler.Result, error) {
 }
 
 func (d *Controller) CreateFinalizer(va *k8sstorage.VolumeAttachment) error {
-	switch driver := va.Spec.Attacher; driver {
-	case lvm.StorageDriverName, cephGlobal.StorageDriverName:
-		if va.Spec.Source.PersistentVolumeName != nil {
-			storagecluster, err := common.GetStorageClusterFromPv(d.client, *va.Spec.Source.PersistentVolumeName)
-			if err != nil {
-				return err
-			}
-			return common.AddFinalizerForStorage(d.client, storagecluster, common.StorageInUsedFinalizer)
-		}
-	default:
-		if strings.HasSuffix(driver, iscsi.IscsiDriverSuffix) {
-			name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", iscsi.IscsiDriverSuffix))
-			return iscsi.AddFinalizer(d.client, name, common.StorageInUsedFinalizer)
-		}
-		if strings.HasSuffix(driver, nfs.NfsDriverSuffix) {
-			name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", nfs.NfsDriverSuffix))
-			return nfs.AddFinalizer(d.client, name, common.StorageInUsedFinalizer)
-		}
+	driver := va.Spec.Attacher
+	switch {
+	case strings.HasSuffix(driver, lvm.LvmDriverSuffix):
+		name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", lvm.LvmDriverSuffix))
+		return common.AddFinalizerForStorage(d.client, name, common.StorageInUsedFinalizer)
+	case strings.HasSuffix(driver, cephGlobal.CephFsDriverSuffix):
+		name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", cephGlobal.CephFsDriverSuffix))
+		return common.AddFinalizerForStorage(d.client, name, common.StorageInUsedFinalizer)
+	case strings.HasSuffix(driver, iscsi.IscsiDriverSuffix):
+		name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", iscsi.IscsiDriverSuffix))
+		return iscsi.AddFinalizer(d.client, name, common.StorageInUsedFinalizer)
+	case strings.HasSuffix(driver, nfs.NfsDriverSuffix):
+		name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", nfs.NfsDriverSuffix))
+		return nfs.AddFinalizer(d.client, name, common.StorageInUsedFinalizer)
 	}
 	return nil
 }
@@ -223,24 +219,20 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 	if !lastone {
 		return nil
 	}
-	switch driver := va.Spec.Attacher; driver {
-	case lvm.StorageDriverName, cephGlobal.StorageDriverName:
-		if va.Spec.Source.PersistentVolumeName != nil {
-			storagecluster, err := common.GetStorageClusterFromPv(d.client, *va.Spec.Source.PersistentVolumeName)
-			if err != nil {
-				return err
-			}
-			return common.DelFinalizerForStorage(d.client, storagecluster, common.StorageInUsedFinalizer)
-		}
-	default:
-		if strings.HasSuffix(driver, iscsi.IscsiDriverSuffix) {
-			name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", iscsi.IscsiDriverSuffix))
-			return iscsi.RemoveFinalizer(d.client, name, common.StorageInUsedFinalizer)
-		}
-		if strings.HasSuffix(driver, nfs.NfsDriverSuffix) {
-			name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", nfs.NfsDriverSuffix))
-			return nfs.RemoveFinalizer(d.client, name, common.StorageInUsedFinalizer)
-		}
+	driver := va.Spec.Attacher
+	switch {
+	case strings.HasSuffix(driver, lvm.LvmDriverSuffix):
+		name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", lvm.LvmDriverSuffix))
+		return common.DelFinalizerForStorage(d.client, name, common.StorageInUsedFinalizer)
+	case strings.HasSuffix(driver, cephGlobal.CephFsDriverSuffix):
+		name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", cephGlobal.CephFsDriverSuffix))
+		return common.DelFinalizerForStorage(d.client, name, common.StorageInUsedFinalizer)
+	case strings.HasSuffix(driver, iscsi.IscsiDriverSuffix):
+		name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", iscsi.IscsiDriverSuffix))
+		return iscsi.RemoveFinalizer(d.client, name, common.StorageInUsedFinalizer)
+	case strings.HasSuffix(driver, nfs.NfsDriverSuffix):
+		name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", nfs.NfsDriverSuffix))
+		return nfs.RemoveFinalizer(d.client, name, common.StorageInUsedFinalizer)
 	}
 	return nil
 }

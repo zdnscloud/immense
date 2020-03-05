@@ -117,4 +117,5 @@ metadata:
   name: {{.StorageClassName}}
 provisioner: {{.ProvisionerName}}
 parameters:
-  archiveOnDelete: "false"`
+  archiveOnDelete: "false"
+  accessMode: ReadWriteOnce`

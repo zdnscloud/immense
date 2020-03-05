@@ -25,6 +25,7 @@ func StatusControl(cli client.Client, name string) {
 		if err != nil {
 			if apierrors.IsNotFound(err) == false {
 				log.Warnf("[lvm-status-controller] Get storage cluster %s failed. Err: %s", name, err.Error())
+				continue
 			}
 			log.Debugf("[lvm-status-controller] Stop")
 			return

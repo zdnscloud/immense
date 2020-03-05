@@ -37,6 +37,9 @@ spec:
 {{- end}}
         securityContext:
           privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+          allowPrivilegeEscalation: true
           readOnlyRootFilesystem: false
           runAsUser: 0
         env:
@@ -297,11 +300,11 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-iscsi-{{.Instance}}/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/{{.IscsiDriverName}}/csi.sock"
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "rm -rf /registration/{{.Instance}}.iscsi.storage.zcloud.cn-reg.sock /csi/"]
+                command: ["/bin/sh", "-c", "rm -rf /registration/{{.IscsiDriverName}}-reg.sock /csi/"]
           env:
             - name: ADDRESS
               value: /csi/csi.sock
@@ -359,7 +362,7 @@ spec:
             type: Directory
         - name: plugin-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/csi-iscsi-{{.Instance}}/
+            path: /var/lib/kubelet/plugins/{{.IscsiDriverName}}/
             type: DirectoryOrCreate
         - name: host-dev
           hostPath:
@@ -385,13 +388,12 @@ spec:
     - name: dummy
       port: 12345
 ---
-kind: StatefulSet
+kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: {{.IscsiCSIStsName}}
+  name: {{.IscsiCSIDpName}}
   namespace: {{.StorageNamespace}}
 spec:
-  serviceName: csi-iscsiplugin-provisioner-{{.Instance}}
   replicas: 1
   selector:
     matchLabels:
@@ -402,8 +404,6 @@ spec:
         app: csi-iscsiplugin-provisioner-{{.Instance}}
     spec:
       serviceAccount: csi-iscsiplugin-provisioner-{{.Instance}}
-      nodeSelector: 
-        {{.IscsiInstanceLabelKey}}: "{{.IscsiInstanceLabelValue}}"
       containers:
         - name: csi-resizer
           image: {{.CSIResizerImage}}
@@ -504,6 +504,8 @@ metadata:
   name: {{.StorageClassName}}
 provisioner: {{.IscsiDriverName}}
 reclaimPolicy: Delete
+parameters:
+  accessMode: ReadWriteOnce
 #allowVolumeExpansion: true`
 
 const IscsiStopJobTemplate = `

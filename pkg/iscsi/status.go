@@ -22,8 +22,9 @@ func StatusControl(cli client.Client, name string) {
 		if err != nil {
 			if apierrors.IsNotFound(err) == false {
 				log.Warnf("%s Get storage failed. Err: %s", ctrlName, err.Error())
+				continue
 			}
-			log.Debugf("%s Start", ctrlName)
+			log.Debugf("%s Stop", ctrlName)
 			return
 		}
 		if iscsi.DeletionTimestamp != nil {

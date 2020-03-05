@@ -46,7 +46,7 @@ func unDeployIscsiCSI(cli client.Client, conf *storagev1.Iscsi) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitStsTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIStsSuffix))
+	common.WaitDpTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDpSuffix))
 	common.WaitDsTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDsSuffix))
 	return nil
 }

@@ -462,6 +462,7 @@ parameters:
   csi.storage.k8s.io/node-stage-secret-namespace: {{.StorageNamespace}}
   csi.storage.k8s.io/controller-expand-secret-name: {{.CephSecretName}}
   csi.storage.k8s.io/controller-expand-secret-namespace: {{.StorageNamespace}}
+  accessMode: ReadWriteMany
 allowVolumeExpansion: true
 reclaimPolicy: Delete
 `

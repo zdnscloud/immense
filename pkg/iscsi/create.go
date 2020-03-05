@@ -46,7 +46,7 @@ func deployIscsiCSI(cli client.Client, conf *storagev1.Iscsi) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitStsReady(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIStsSuffix))
+	common.WaitDpReady(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDpSuffix))
 	common.WaitDsReady(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDsSuffix))
 	return nil
 }
