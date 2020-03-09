@@ -49,7 +49,7 @@ func genStatus(cli client.Client, iscsi *storagev1.Iscsi, ctrlName string) stora
 	for _, host := range iscsi.Spec.Initiators {
 		var instance storagev1.Instance
 		instance.Host = host
-		lvmdcli, err := common.CreateLvmdClientForPod(cli, host, fmt.Sprintf("%s-%s", iscsi.Name, IscsiLvmdDsSuffix))
+		lvmdcli, err := common.CreateLvmdClientForPod(cli, host, common.StorageNamespace, fmt.Sprintf("%s-%s", iscsi.Name, IscsiLvmdDsSuffix))
 		if err != nil {
 			status.Phase = storagev1.Warnning
 			status.Message = status.Message + host + ":" + err.Error() + "\n"

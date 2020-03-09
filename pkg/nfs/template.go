@@ -118,4 +118,4 @@ metadata:
 provisioner: {{.ProvisionerName}}
 parameters:
   archiveOnDelete: "false"
-  accessMode: ReadWriteOnce`
+  accessMode: ReadWriteMany`

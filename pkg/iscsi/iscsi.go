@@ -2,6 +2,7 @@ package iscsi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/zdnscloud/cement/log"
@@ -50,6 +51,15 @@ func (h *HandlerManager) Create(conf *storagev1.Iscsi) error {
 	if err := deployIscsiLvmd(h.client, conf); err != nil {
 		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		return err
+	}
+	ok, err := checkVolumeGroup(h.client, conf)
+	if err != nil {
+		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
+		return err
+	}
+	if !ok {
+		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
+		return errors.New("can not get volumegroup from initiators")
 	}
 	if err := deployIscsiCSI(h.client, conf); err != nil {
 		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)

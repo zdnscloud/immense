@@ -37,6 +37,31 @@ func deployIscsiLvmd(cli client.Client, conf *storagev1.Iscsi) error {
 	return nil
 }
 
+func checkVolumeGroup(cli client.Client, conf *storagev1.Iscsi) (bool, error) {
+	log.Debugf("Check iscsi %s volumegroup ready", conf.Name)
+	var ok int
+	for _, node := range conf.Spec.Initiators {
+		lvmdcli, err := common.CreateLvmdClientForPod(cli, node, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiLvmdDsSuffix))
+		if err != nil {
+			return false, fmt.Errorf("Create Lvmd client failed for host %s, %v", node, err)
+		}
+		defer lvmdcli.Close()
+		vgs, err := common.GetVGs(ctx, lvmdcli)
+		if err != nil {
+			return false, fmt.Errorf("list VolumeGroup failed, %v", err)
+		}
+		for _, vg := range vgs.VolumeGroups {
+			if vg.Name == fmt.Sprintf("%s-%s", conf.Name, VolumeGroupSuffix) {
+				ok += 1
+			}
+		}
+	}
+	if ok == len(conf.Spec.Initiators) {
+		return true, nil
+	}
+	return false, nil
+}
+
 func deployIscsiCSI(cli client.Client, conf *storagev1.Iscsi) error {
 	log.Debugf("Deploy iscsi %s csi", conf.Name)
 	yaml, err := csiyaml(conf.Name)

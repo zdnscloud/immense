@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"time"
@@ -26,10 +27,24 @@ func getHostAddr(ctx context.Context, cli client.Client, name string) (string, e
 	return node.Annotations[NodeIPLabels], nil
 }
 
-func CreateLvmdClientForPod(cli client.Client, node, ds string) (*lvmdclient.Client, error) {
-	addr, err := GetLVMDAddr(cli, node, ds)
+func CreateLvmdClientForPod(cli client.Client, node, namespace, ds string) (*lvmdclient.Client, error) {
+	var addr string
+	selector, err := getSelector(cli, namespace, ds)
 	if err != nil {
 		return nil, err
+	}
+
+	pods, err := getPods(cli, namespace, selector)
+	if err != nil {
+		return nil, err
+	}
+	for _, pod := range pods.Items {
+		if pod.Spec.NodeName == node {
+			addr = pod.Status.PodIP + ":" + LvmdPort
+		}
+	}
+	if len(addr) == 0 {
+		return nil, errors.New(fmt.Sprintf("can not find lvmd on node %s", node))
 	}
 	if !waitLvmd(addr) {
 		return nil, errors.New("Lvmd not ready!" + addr)
@@ -187,6 +202,15 @@ func GetVG(ctx context.Context, lvmdcli *lvmdclient.Client, block string) (strin
 		return "", err
 	} else {
 		return out.CommandOutput, nil
+	}
+}
+
+func GetVGs(ctx context.Context, lvmdcli *lvmdclient.Client) (*pb.ListVGReply, error) {
+	req := pb.ListVGRequest{}
+	if out, err := lvmdcli.ListVG(ctx, &req); err != nil {
+		return nil, err
+	} else {
+		return out, nil
 	}
 }
 

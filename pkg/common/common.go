@@ -3,7 +3,6 @@ package common
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"text/template"
@@ -330,35 +329,17 @@ func WaitPodSucceeded(cli client.Client, namespace, name string) {
 	}
 }
 
-func GetLVMDAddr(cli client.Client, node, ds string) (string, error) {
-	selector, err := getSelector(cli, ds)
-	if err != nil {
-		return "", err
-	}
-
-	pods, err := getPods(cli, selector)
-	if err != nil {
-		return "", err
-	}
-	for _, pod := range pods.Items {
-		if pod.Spec.NodeName == node {
-			return pod.Status.PodIP + ":" + LvmdPort, nil
-		}
-	}
-	return "", errors.New(fmt.Sprintf("can not find lvmd on node %s", node))
-}
-
-func getPods(cli client.Client, selector labels.Selector) (*corev1.PodList, error) {
+func getPods(cli client.Client, namespace string, selector labels.Selector) (*corev1.PodList, error) {
 	pods := &corev1.PodList{}
-	if err := cli.List(ctx, &client.ListOptions{Namespace: StorageNamespace, LabelSelector: selector}, pods); err != nil {
+	if err := cli.List(ctx, &client.ListOptions{Namespace: namespace, LabelSelector: selector}, pods); err != nil {
 		return nil, err
 	}
 	return pods, nil
 }
 
-func getSelector(cli client.Client, name string) (labels.Selector, error) {
+func getSelector(cli client.Client, namespace, name string) (labels.Selector, error) {
 	daemonSet := &appsv1.DaemonSet{}
-	if err := cli.Get(ctx, k8stypes.NamespacedName{StorageNamespace, name}, daemonSet); err != nil {
+	if err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, daemonSet); err != nil {
 		return nil, err
 	}
 	return metav1.LabelSelectorAsSelector(daemonSet.Spec.Selector)
