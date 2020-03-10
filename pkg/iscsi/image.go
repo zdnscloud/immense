@@ -2,6 +2,6 @@ package iscsi
 
 const (
 	IscsiPluginImage = "zdnscloud/iscsi-csi:latest"
-	IscsiLvmdImage   = "zdnscloud/lvmd:lvm-thinpool"
+	IscsiLvmdImage   = "zdnscloud/lvmd:latest"
 	IscsiInitImage   = "zdnscloud/iscsi-init:latest"
 )

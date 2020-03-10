@@ -1,9 +1,8 @@
 package global
 
 const (
-	StorageType        = "cephfs"
-	CephFsDriverSuffix = "cephfs.storage.zcloud.cn"
-	//StorageDriverName     = "cephfs.storage.ceph.com"
+	StorageType           = "cephfs"
+	CephFsDriverSuffix    = "cephfs.storage.zcloud.cn"
 	ServiceAccountName    = "ceph"
 	MonDpName             = "ceph-mon"
 	MdsDpName             = "ceph-mds"
