@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
@@ -17,7 +18,6 @@ const (
 	IscsiDriverSuffix           = "iscsi.storage.zcloud.cn"
 	IscsiCSIDsSuffix            = "iscsi-plugin"
 	IscsiCSIDpSuffix            = "iscsi-csi"
-	IscsiInitDsNameSuffix       = "iscsi-init"
 	IscsiLvmdDsSuffix           = "iscsi-lvmd"
 	IscsiStopJobSuffix          = "iscsi-stop-job"
 	VolumeGroupSuffix           = "iscsi-group"
@@ -44,7 +44,7 @@ func (h *HandlerManager) Create(conf *storagev1.Iscsi) error {
 		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		return err
 	}
-	if err := deployIscsiInit(h.client, conf); err != nil {
+	if err := iscsiLoginAll(h.client, conf, conf.Spec.Initiators); err != nil {
 		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		return err
 	}
@@ -52,12 +52,11 @@ func (h *HandlerManager) Create(conf *storagev1.Iscsi) error {
 		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		return err
 	}
-	ok, err := checkVolumeGroup(h.client, conf)
-	if err != nil {
+	if err := createVolumeGroup(h.client, conf); err != nil {
 		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		return err
 	}
-	if !ok {
+	if !checkVolumeGroup(h.client, conf) {
 		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		return errors.New("can not get volumegroup from initiators")
 	}
@@ -83,6 +82,14 @@ func (h *HandlerManager) Update(oldConf, newConf *storagev1.Iscsi) error {
 	log.Debugf("[iscsi] update event, old: %v,new: %v", *oldConf, *newConf)
 	UpdateStatusPhase(h.client, newConf.Name, storagev1.Updating)
 	dels, adds := common.HostsDiff(oldConf.Spec.Initiators, newConf.Spec.Initiators)
+	if err := iscsiLoginAll(h.client, newConf, adds); err != nil {
+		UpdateStatusPhase(h.client, newConf.Name, storagev1.Failed)
+		return err
+	}
+	if err := iscsiLogoutAll(h.client, oldConf, dels); err != nil {
+		UpdateStatusPhase(h.client, oldConf.Name, storagev1.Failed)
+		return err
+	}
 	if err := common.CreateNodeAnnotationsAndLabels(h.client, fmt.Sprintf("%s-%s", IscsiInstanceLabelKeyPrefix, newConf.Name), IscsiInstanceLabelValue, adds); err != nil {
 		UpdateStatusPhase(h.client, newConf.Name, storagev1.Failed)
 		return err
@@ -91,15 +98,10 @@ func (h *HandlerManager) Update(oldConf, newConf *storagev1.Iscsi) error {
 		UpdateStatusPhase(h.client, newConf.Name, storagev1.Failed)
 		return err
 	}
-	common.WaitDsReady(h.client, common.StorageNamespace, fmt.Sprintf("%s-%s", newConf.Name, IscsiInitDsNameSuffix))
+	time.Sleep(30 * time.Second)
 	common.WaitDsReady(h.client, common.StorageNamespace, fmt.Sprintf("%s-%s", newConf.Name, IscsiLvmdDsSuffix))
 	common.WaitDsReady(h.client, common.StorageNamespace, fmt.Sprintf("%s-%s", newConf.Name, IscsiCSIDsSuffix))
-	ok, err := checkVolumeGroup(h.client, newConf)
-	if err != nil {
-		UpdateStatusPhase(h.client, newConf.Name, storagev1.Failed)
-		return err
-	}
-	if !ok {
+	if !checkVolumeGroup(h.client, newConf) {
 		UpdateStatusPhase(h.client, newConf.Name, storagev1.Failed)
 		return errors.New("can not get volumegroup from initiators")
 	}
@@ -112,7 +114,7 @@ func (h *HandlerManager) Update(oldConf, newConf *storagev1.Iscsi) error {
 func (h *HandlerManager) Delete(conf *storagev1.Iscsi) error {
 	log.Debugf("[iscsi] delete event, conf: %v", *conf)
 	UpdateStatusPhase(h.client, conf.Name, storagev1.Deleting)
-	if err := unDeployIscsiInit(h.client, conf); err != nil {
+	if err := iscsiLogoutAll(h.client, conf, conf.Spec.Initiators); err != nil {
 		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		return err
 	}
@@ -128,11 +130,6 @@ func (h *HandlerManager) Delete(conf *storagev1.Iscsi) error {
 		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		return err
 	}
-	/*
-		if err := logoutIscsi(h.client, conf); err != nil {
-			UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
-			return err
-		}*/
 	if err := RemoveFinalizer(h.client, conf.Name, common.StoragePrestopHookFinalizer); err != nil {
 		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		return err

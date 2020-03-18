@@ -223,6 +223,11 @@ func (in *IscsiList) DeepCopyObject() runtime.Object {
 
 func (in *IscsiSpec) DeepCopyInto(out *IscsiSpec) {
 	*out = *in
+	if in.Targets != nil {
+		in, out := &in.Targets, &out.Targets
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.Initiators != nil {
 		in, out := &in.Initiators, &out.Initiators
 		*out = make([]string, len(*in))

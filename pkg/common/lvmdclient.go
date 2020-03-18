@@ -19,7 +19,7 @@ const (
 	NodeIPLabels = "zdnscloud.cn/internal-ip"
 )
 
-func getHostAddr(ctx context.Context, cli client.Client, name string) (string, error) {
+func GetHostAddr(ctx context.Context, cli client.Client, name string) (string, error) {
 	node := corev1.Node{}
 	if err := cli.Get(ctx, k8stypes.NamespacedName{"", name}, &node); err != nil {
 		return "", err
@@ -53,7 +53,7 @@ func CreateLvmdClientForPod(cli client.Client, node, namespace, ds string) (*lvm
 }
 
 func CreateLvmdClient(ctx context.Context, cli client.Client, hostname string) (*lvmdclient.Client, error) {
-	hostip, err := getHostAddr(ctx, cli, hostname)
+	hostip, err := GetHostAddr(ctx, cli, hostname)
 	if err != nil {
 		return nil, errors.New("Get host address failed!" + err.Error())
 	}
@@ -327,6 +327,23 @@ func Validate(ctx context.Context, lvmdcli *lvmdclient.Client, block string) err
 		if err != nil {
 			return errors.New("Destory block failed!" + err.Error())
 		}
+	}
+	return nil
+}
+
+func GenVolumeGroup(lvmdcli *lvmdclient.Client, block, vgName string) error {
+	name, err := GetVG(ctx, lvmdcli, block)
+	if err != nil {
+		return fmt.Errorf("Get VolumeGroup failed, %v", err)
+	}
+	if name == vgName {
+		return nil
+	}
+	if err := CreatePV(ctx, lvmdcli, block); err != nil {
+		return fmt.Errorf("Create pv failed, %v", err)
+	}
+	if err := CreateVG(ctx, lvmdcli, block, vgName); err != nil {
+		return fmt.Errorf("Create vg failed, %v", err)
 	}
 	return nil
 }

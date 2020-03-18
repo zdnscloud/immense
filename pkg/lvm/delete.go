@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
@@ -17,7 +19,7 @@ func undeployLvmCSI(cli client.Client, cluster storagev1.Cluster) error {
 	if err != nil {
 		return err
 	}
-	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
+	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	common.WaitStsTerminated(cli, common.StorageNamespace, CSIProvisionerStsName)
@@ -28,7 +30,7 @@ func undeployLvmCSI(cli client.Client, cluster storagev1.Cluster) error {
 	if err != nil {
 		return err
 	}
-	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
+	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	return nil
@@ -40,7 +42,7 @@ func undeployLvmd(cli client.Client, cluster storagev1.Cluster) error {
 	if err != nil {
 		return err
 	}
-	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
+	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	common.WaitDsTerminated(cli, common.StorageNamespace, LvmdDsName)

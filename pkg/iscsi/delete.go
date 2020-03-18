@@ -3,7 +3,8 @@ package iscsi
 import (
 	"fmt"
 
-	"github.com/zdnscloud/cement/errgroup"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
@@ -11,16 +12,42 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
-func unDeployIscsiInit(cli client.Client, conf *storagev1.Iscsi) error {
-	log.Debugf("Undeploy iscsi %s init", conf.Name)
-	yaml, err := inityaml(conf.Name, conf.Spec.Target, conf.Spec.Port, conf.Spec.Iqn, conf.Spec.Chap)
+func iscsiLogoutAll(cli client.Client, conf *storagev1.Iscsi, nodes []string) error {
+	for _, node := range nodes {
+		log.Debugf("%s: iscsi logout and clean device mapper", node)
+		nodeCli, err := createNodeAgentClient(cli, node)
+		if err != nil {
+			return err
+		}
+		devices, err := getIscsiDevices(nodeCli, conf.Spec.Iqn)
+		if err != nil {
+			return err
+		}
+		for _, dev := range devices {
+			if err := cleanIscsi(nodeCli, dev); err != nil {
+				return err
+			}
+		}
+		for _, target := range conf.Spec.Targets {
+			if err := logoutIscsi(nodeCli, target, conf.Spec.Port, conf.Spec.Iqn); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func deleteVolumeGroup(cli client.Client, conf *storagev1.Iscsi) error {
+	node := conf.Spec.Initiators[0]
+	vgName := fmt.Sprintf("%s-%s", conf.Name, VolumeGroupSuffix)
+	log.Debugf("%s: delete volumegroup %s", node, vgName)
+	lvmdcli, err := common.CreateLvmdClientForPod(cli, node, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiLvmdDsSuffix))
 	if err != nil {
-		return err
+		return fmt.Errorf("Create Lvmd client failed for host %s, %v", node, err)
 	}
-	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
-		return err
+	if err := common.RemoveVG(ctx, lvmdcli, vgName); err != nil {
+		return fmt.Errorf("Remove vg failed, %v", err)
 	}
-	common.WaitDsTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiInitDsNameSuffix))
 	return nil
 }
 
@@ -30,7 +57,7 @@ func unDeployIscsiLvmd(cli client.Client, conf *storagev1.Iscsi) error {
 	if err != nil {
 		return err
 	}
-	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
+	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	common.WaitDsTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiLvmdDsSuffix))
@@ -43,7 +70,7 @@ func unDeployIscsiCSI(cli client.Client, conf *storagev1.Iscsi) error {
 	if err != nil {
 		return err
 	}
-	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
+	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	common.WaitDpTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDpSuffix))
@@ -57,34 +84,7 @@ func unDeployStorageClass(cli client.Client, conf *storagev1.Iscsi) error {
 	if err != nil {
 		return err
 	}
-	return helper.DeleteResourceFromYaml(cli, yaml)
-}
-
-func logoutIscsi(cli client.Client, conf *storagev1.Iscsi) error {
-	_, err := errgroup.Batch(
-		conf.Spec.Initiators,
-		func(o interface{}) (interface{}, error) {
-			host := o.(string)
-			return nil, jobDo(cli, host, conf.Spec.Iqn)
-		},
-	)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func jobDo(cli client.Client, host, iqn string) error {
-	log.Debugf("Logout iscsi on host %s", host)
-	yaml, err := jobyaml(host, iqn)
-	if err != nil {
-		return err
-	}
-	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
-		return err
-	}
-	common.WaitPodSucceeded(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", host, IscsiStopJobSuffix))
-	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
+	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	return nil

@@ -3,6 +3,8 @@ package nfs
 import (
 	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
@@ -17,7 +19,7 @@ func unDeployNfsCSI(cli client.Client, conf *storagev1.Nfs) error {
 	if err != nil {
 		return err
 	}
-	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
+	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	common.WaitDpTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, NfsCSIDpSuffix))
@@ -30,5 +32,8 @@ func unDeployStorageClass(cli client.Client, conf *storagev1.Nfs) error {
 	if err != nil {
 		return err
 	}
-	return helper.DeleteResourceFromYaml(cli, yaml)
+	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
 }

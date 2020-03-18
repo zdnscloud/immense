@@ -3,6 +3,8 @@ package ceph
 import (
 	"strings"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/zdnscloud/cement/errgroup"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
@@ -19,10 +21,10 @@ import (
 func delete(cli client.Client, cluster storagev1.Cluster) error {
 	var uuid, adminkey, monkey string
 	var copies int
-	if err := fscsi.Stop(cli, uuid, cluster.Name); err != nil {
+	if err := fscsi.Stop(cli, uuid, cluster.Name); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	if err := mds.Stop(cli); err != nil {
+	if err := mds.Stop(cli); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	_, err := errgroup.Batch(
@@ -33,7 +35,7 @@ func delete(cli client.Client, cluster storagev1.Cluster) error {
 			return nil, osd.Remove(cli, host, dev)
 		},
 	)
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	_, err = errgroup.Batch(
@@ -43,16 +45,16 @@ func delete(cli client.Client, cluster storagev1.Cluster) error {
 			return nil, prepare.Delete(cli, host)
 		},
 	)
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	if err := mgr.Stop(cli); err != nil {
+	if err := mgr.Stop(cli); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	if err := mon.Stop(cli); err != nil {
+	if err := mon.Stop(cli); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	if err := config.Stop(cli, uuid, adminkey, monkey, copies); err != nil {
+	if err := config.Stop(cli, uuid, adminkey, monkey, copies); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	if err := util.RemoveConf(cli); err != nil {
