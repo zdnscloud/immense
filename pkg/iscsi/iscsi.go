@@ -99,8 +99,12 @@ func (h *HandlerManager) Update(oldConf, newConf *storagev1.Iscsi) error {
 		return err
 	}
 	time.Sleep(30 * time.Second)
-	common.WaitDsReady(h.client, common.StorageNamespace, fmt.Sprintf("%s-%s", newConf.Name, IscsiLvmdDsSuffix))
-	common.WaitDsReady(h.client, common.StorageNamespace, fmt.Sprintf("%s-%s", newConf.Name, IscsiCSIDsSuffix))
+	if err := common.WaitDsReady(h.client, common.StorageNamespace, fmt.Sprintf("%s-%s", newConf.Name, IscsiLvmdDsSuffix)); err != nil {
+		return err
+	}
+	if err := common.WaitDsReady(h.client, common.StorageNamespace, fmt.Sprintf("%s-%s", newConf.Name, IscsiCSIDsSuffix)); err != nil {
+		return err
+	}
 	if !checkVolumeGroup(h.client, newConf) {
 		UpdateStatusPhase(h.client, newConf.Name, storagev1.Failed)
 		return errors.New("can not get volumegroup from initiators")

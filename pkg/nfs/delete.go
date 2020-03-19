@@ -22,8 +22,7 @@ func unDeployNfsCSI(cli client.Client, conf *storagev1.Nfs) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	common.WaitDpTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, NfsCSIDpSuffix))
-	return nil
+	return common.WaitDpTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, NfsCSIDpSuffix))
 }
 
 func unDeployStorageClass(cli client.Client, conf *storagev1.Nfs) error {

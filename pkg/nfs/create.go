@@ -20,8 +20,7 @@ func deployNfsCSI(cli client.Client, conf *storagev1.Nfs) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitDpReady(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, NfsCSIDpSuffix))
-	return nil
+	return common.WaitDpReady(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, NfsCSIDpSuffix))
 }
 
 func deployStorageClass(cli client.Client, conf *storagev1.Nfs) error {

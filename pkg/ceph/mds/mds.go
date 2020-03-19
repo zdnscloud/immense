@@ -23,8 +23,7 @@ func Start(cli client.Client, fsid string, monsvc map[string]string, size, pgnum
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitDpReady(cli, common.StorageNamespace, global.MdsDpName)
-	return nil
+	return common.WaitDpReady(cli, common.StorageNamespace, global.MdsDpName)
 }
 
 func Stop(cli client.Client) error {
@@ -38,6 +37,5 @@ func Stop(cli client.Client) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitDpTerminated(cli, common.StorageNamespace, global.MdsDpName)
-	return nil
+	return common.WaitDpTerminated(cli, common.StorageNamespace, global.MdsDpName)
 }

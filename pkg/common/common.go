@@ -43,7 +43,6 @@ func CreateNodeAnnotationsAndLabels(cli client.Client, key, value string, hosts 
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host}, &node); err != nil {
 			return fmt.Errorf("Add Labels for storage %s on host %s failed. Err: %v", value, host, err)
 		}
-		//node.Labels[StorageHostRole] = "true"
 		node.Labels[key] = value
 		if err := cli.Update(ctx, &node); err != nil {
 			return fmt.Errorf("Add Labels for storage %s on host %s failed. Err: %v", value, host, err)
@@ -59,7 +58,6 @@ func DeleteNodeAnnotationsAndLabels(cli client.Client, key, value string, hosts 
 		if err := cli.Get(ctx, k8stypes.NamespacedName{"", host}, &node); err != nil {
 			return fmt.Errorf("Delete Labels for storage %s on host %s failed. Err: %v", value, host, err)
 		}
-		//delete(node.Labels, StorageHostRole)
 		delete(node.Labels, key)
 		if err := cli.Update(ctx, &node); err != nil {
 			return fmt.Errorf("Delete Labels for storage %s on host %s failed. Err: %v", value, host, err)
@@ -164,170 +162,198 @@ func IsVaLastOne(cli client.Client, driver string) (bool, error) {
 	return true, nil
 }
 
-func IsDpReady(cli client.Client, namespace, name string) bool {
+func IsDpReady(cli client.Client, namespace, name string) (bool, error) {
 	deploy := appsv1.Deployment{}
 	if err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &deploy); err != nil {
-		return false
+		return false, err
 	}
 	log.Debugf("Deployment: %s ready:%d, desired: %d", name, deploy.Status.ReadyReplicas, *deploy.Spec.Replicas)
 	if *deploy.Spec.Replicas == 0 {
-		return false
+		return false, nil
 	}
-	return deploy.Status.ReadyReplicas == *deploy.Spec.Replicas
+	return deploy.Status.ReadyReplicas == *deploy.Spec.Replicas, nil
 }
 
-func IsDsReady(cli client.Client, namespace, name string) bool {
+func IsDsReady(cli client.Client, namespace, name string) (bool, error) {
 	daemonSet := appsv1.DaemonSet{}
 	if err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &daemonSet); err != nil {
-		return false
+		return false, err
 	}
 	log.Debugf("DaemonSet: %s ready:%d, desired: %d", name, daemonSet.Status.NumberReady, daemonSet.Status.DesiredNumberScheduled)
 	if daemonSet.Status.DesiredNumberScheduled == 0 {
-		return false
+		return false, nil
 	}
-	return daemonSet.Status.NumberReady == daemonSet.Status.DesiredNumberScheduled
+	return daemonSet.Status.NumberReady == daemonSet.Status.DesiredNumberScheduled, nil
 }
 
-func IsStsReady(cli client.Client, namespace, name string) bool {
+func IsStsReady(cli client.Client, namespace, name string) (bool, error) {
 	statefulset := appsv1.StatefulSet{}
 	if err := cli.Get(ctx, k8stypes.NamespacedName{namespace, name}, &statefulset); err != nil {
-		return false
+		return false, err
 	}
 	log.Debugf("StatefulSet: %s ready:%d, desired: %d", name, statefulset.Status.ReadyReplicas, *statefulset.Spec.Replicas)
 	if *statefulset.Spec.Replicas == 0 {
-		return false
+		return false, nil
 	}
-	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas
+	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas, nil
 }
 
-func IsDpTerminated(cli client.Client, namespace, name string) bool {
+func IsDpTerminated(cli client.Client, namespace, name string) (bool, error) {
 	deploys := appsv1.DeploymentList{}
 	if err := cli.List(ctx, &client.ListOptions{Namespace: namespace}, &deploys); err != nil {
-		return false
+		return false, err
 	}
 	for _, deploy := range deploys.Items {
 		if deploy.Name == name {
-			return false
+			return false, nil
 		}
 	}
-	return true
+	return true, nil
 }
 
-func IsDsTerminated(cli client.Client, namespace, name string) bool {
+func IsDsTerminated(cli client.Client, namespace, name string) (bool, error) {
 	daemonSets := appsv1.DaemonSetList{}
 	if err := cli.List(ctx, &client.ListOptions{Namespace: namespace}, &daemonSets); err != nil {
-		return false
+		return false, err
 	}
 	for _, daemonSet := range daemonSets.Items {
 		if daemonSet.Name == name {
-			return false
+			return false, nil
 		}
 	}
-	return true
+	return true, nil
 }
 
-func IsStsTerminated(cli client.Client, namespace, name string) bool {
+func IsStsTerminated(cli client.Client, namespace, name string) (bool, error) {
 	statefulsets := appsv1.StatefulSetList{}
 	if err := cli.List(ctx, &client.ListOptions{Namespace: namespace}, &statefulsets); err != nil {
-		return false
+		return false, err
 	}
 	for _, statefulset := range statefulsets.Items {
 		if statefulset.Name == name {
-			return false
+			return false, nil
 		}
 	}
-	return true
+	return true, nil
 }
 
-func WaitStsTerminated(cli client.Client, namespace, name string) {
+func WaitStsTerminated(cli client.Client, namespace, name string) error {
 	log.Debugf("Wait statefulset %s terminated, this will take some time", name)
 	for {
-		if !IsStsTerminated(cli, namespace, name) {
-			time.Sleep(PodCheckInterval * time.Second)
-			continue
+		terminated, err := IsStsTerminated(cli, namespace, name)
+		if err != nil {
+			return err
 		}
-		break
+		if terminated {
+			break
+		}
+		time.Sleep(PodCheckInterval * time.Second)
 	}
+	return nil
 }
 
-func WaitStsReady(cli client.Client, namespace, name string) {
+func WaitStsReady(cli client.Client, namespace, name string) error {
 	log.Debugf("Wait statefulset %s ready, this will take some time", name)
 	for {
-		if !IsStsReady(cli, namespace, name) {
-			time.Sleep(PodCheckInterval * time.Second)
-			continue
+		ready, err := IsStsReady(cli, namespace, name)
+		if err != nil {
+			return err
 		}
-		break
+		if ready {
+			break
+		}
+		time.Sleep(PodCheckInterval * time.Second)
 	}
+	return nil
 }
 
-func WaitDsTerminated(cli client.Client, namespace, name string) {
+func WaitDsTerminated(cli client.Client, namespace, name string) error {
 	log.Debugf("Wait daemonset %s terminated, this will take some time", name)
 	for {
-		if !IsDsTerminated(cli, namespace, name) {
-			time.Sleep(PodCheckInterval * time.Second)
-			continue
+		terminated, err := IsDsTerminated(cli, namespace, name)
+		if err != nil {
+			return err
 		}
-		break
+		if terminated {
+			break
+		}
+		time.Sleep(PodCheckInterval * time.Second)
 	}
+	return nil
 }
 
-func WaitDsReady(cli client.Client, namespace, name string) {
+func WaitDsReady(cli client.Client, namespace, name string) error {
 	log.Debugf("Wait daemonset %s ready, this will take some time", name)
 	for {
-		if !IsDsReady(cli, namespace, name) {
-			time.Sleep(PodCheckInterval * time.Second)
-			continue
+		ready, err := IsDsReady(cli, namespace, name)
+		if err != nil {
+			return err
 		}
-		break
+		if ready {
+			break
+		}
+		time.Sleep(PodCheckInterval * time.Second)
 	}
+	return nil
 }
 
-func WaitDpTerminated(cli client.Client, namespace, name string) {
+func WaitDpTerminated(cli client.Client, namespace, name string) error {
 	log.Debugf("Wait deployment %s terminated, this will take some time", name)
 	for {
-		if !IsDpTerminated(cli, namespace, name) {
-			time.Sleep(PodCheckInterval * time.Second)
-			continue
+		terminated, err := IsDpTerminated(cli, namespace, name)
+		if err != nil {
+			return err
 		}
-		break
+		if terminated {
+			break
+		}
+		time.Sleep(PodCheckInterval * time.Second)
 	}
+	return nil
 }
 
-func WaitDpReady(cli client.Client, namespace, name string) {
+func WaitDpReady(cli client.Client, namespace, name string) error {
 	log.Debugf("Wait deployment %s ready, this will take some time", name)
 	for {
-		if !IsDpReady(cli, namespace, name) {
-			time.Sleep(PodCheckInterval * time.Second)
-			continue
+		ready, err := IsDpReady(cli, namespace, name)
+		if err != nil {
+			return err
 		}
-		break
+		if ready {
+			break
+		}
+		time.Sleep(PodCheckInterval * time.Second)
 	}
+	return nil
 }
 
-func isPodSucceeded(cli client.Client, namespace, name string) bool {
+func isPodSucceeded(cli client.Client, namespace, name string) (bool, error) {
 	pods := corev1.PodList{}
 	err := cli.List(ctx, &client.ListOptions{Namespace: namespace}, &pods)
 	if err != nil {
-		return false
+		return false, err
 	}
 	for _, pod := range pods.Items {
 		if strings.Contains(pod.Name, name) && string(pod.Status.Phase) == "Succeeded" {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
-func WaitPodSucceeded(cli client.Client, namespace, name string) {
+func WaitPodSucceeded(cli client.Client, namespace, name string) error {
 	log.Debugf("Wait pod %s status succeeded, this will take some time", name)
 	for {
-		if !isPodSucceeded(cli, namespace, name) {
-			time.Sleep(PodCheckInterval * time.Second)
-			continue
+		succeeded, err := isPodSucceeded(cli, namespace, name)
+		if err != nil {
+			return err
 		}
-		break
+		if succeeded {
+			break
+		}
+		time.Sleep(PodCheckInterval * time.Second)
 	}
+	return nil
 }
 
 func getPods(cli client.Client, namespace string, selector labels.Selector) (*corev1.PodList, error) {

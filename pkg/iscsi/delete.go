@@ -60,8 +60,7 @@ func unDeployIscsiLvmd(cli client.Client, conf *storagev1.Iscsi) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	common.WaitDsTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiLvmdDsSuffix))
-	return nil
+	return common.WaitDsTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiLvmdDsSuffix))
 }
 
 func unDeployIscsiCSI(cli client.Client, conf *storagev1.Iscsi) error {
@@ -73,9 +72,10 @@ func unDeployIscsiCSI(cli client.Client, conf *storagev1.Iscsi) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	common.WaitDpTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDpSuffix))
-	common.WaitDsTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDsSuffix))
-	return nil
+	if err := common.WaitDpTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDpSuffix)); err != nil {
+		return err
+	}
+	return common.WaitDsTerminated(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDsSuffix))
 }
 
 func unDeployStorageClass(cli client.Client, conf *storagev1.Iscsi) error {

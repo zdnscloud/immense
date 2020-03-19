@@ -17,8 +17,7 @@ func Start(cli client.Client) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitDpReady(cli, common.StorageNamespace, global.MgrDpName)
-	return nil
+	return common.WaitDpReady(cli, common.StorageNamespace, global.MgrDpName)
 }
 
 func Stop(cli client.Client) error {
@@ -30,6 +29,5 @@ func Stop(cli client.Client) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitDpTerminated(cli, common.StorageNamespace, global.MgrDpName)
-	return nil
+	return common.WaitDpTerminated(cli, common.StorageNamespace, global.MgrDpName)
 }

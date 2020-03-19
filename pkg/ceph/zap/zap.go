@@ -13,7 +13,9 @@ func Do(cli client.Client, host, dev string) error {
 		return err
 	}
 	name := "ceph-job-zap-" + host + "-" + dev
-	common.WaitPodSucceeded(cli, common.StorageNamespace, name)
+	if err := common.WaitPodSucceeded(cli, common.StorageNamespace, name); err != nil {
+		return err
+	}
 	if err := delete(cli, host, dev); err != nil {
 		return err
 	}

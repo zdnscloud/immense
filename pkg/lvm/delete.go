@@ -22,8 +22,12 @@ func undeployLvmCSI(cli client.Client, cluster storagev1.Cluster) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	common.WaitStsTerminated(cli, common.StorageNamespace, CSIProvisionerStsName)
-	common.WaitDsTerminated(cli, common.StorageNamespace, CSIPluginDsName)
+	if err := common.WaitStsTerminated(cli, common.StorageNamespace, CSIProvisionerStsName); err != nil {
+		return err
+	}
+	if err := common.WaitDsTerminated(cli, common.StorageNamespace, CSIPluginDsName); err != nil {
+		return err
+	}
 
 	log.Debugf("Undeploy storageclass %s", cluster.Name)
 	yaml, err = scyaml(cluster.Name)
@@ -45,7 +49,9 @@ func undeployLvmd(cli client.Client, cluster storagev1.Cluster) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	common.WaitDsTerminated(cli, common.StorageNamespace, LvmdDsName)
+	if err := common.WaitDsTerminated(cli, common.StorageNamespace, LvmdDsName); err != nil {
+		return err
+	}
 	return nil
 }
 

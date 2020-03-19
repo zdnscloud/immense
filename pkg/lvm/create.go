@@ -20,8 +20,12 @@ func deployLvmCSI(cli client.Client, cluster storagev1.Cluster) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitStsReady(cli, common.StorageNamespace, CSIProvisionerStsName)
-	common.WaitDsReady(cli, common.StorageNamespace, CSIPluginDsName)
+	if err := common.WaitStsReady(cli, common.StorageNamespace, CSIProvisionerStsName); err != nil {
+		return err
+	}
+	if err := common.WaitDsReady(cli, common.StorageNamespace, CSIPluginDsName); err != nil {
+		return err
+	}
 
 	log.Debugf("Deploy storageclass %s", cluster.Name)
 	yaml, err = scyaml(cluster.Name)
@@ -40,7 +44,9 @@ func deployLvmd(cli client.Client, cluster storagev1.Cluster) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitDsReady(cli, common.StorageNamespace, LvmdDsName)
+	if err := common.WaitDsReady(cli, common.StorageNamespace, LvmdDsName); err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -38,8 +38,12 @@ func Start(cli client.Client, id, name string, monsvc map[string]string) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitStsReady(cli, common.StorageNamespace, global.CSIProvisionerStsName)
-	common.WaitDsReady(cli, common.StorageNamespace, global.CSIPluginDsName)
+	if err := common.WaitStsReady(cli, common.StorageNamespace, global.CSIProvisionerStsName); err != nil {
+		return err
+	}
+	if err := common.WaitDsReady(cli, common.StorageNamespace, global.CSIPluginDsName); err != nil {
+		return err
+	}
 
 	exist, err = util.CheckStorageclass(cli, name)
 	if !exist || err != nil {
@@ -73,8 +77,12 @@ func Stop(cli client.Client, id, name string) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	common.WaitStsTerminated(cli, common.StorageNamespace, global.CSIProvisionerStsName)
-	common.WaitDsTerminated(cli, common.StorageNamespace, global.CSIPluginDsName)
+	if err := common.WaitStsTerminated(cli, common.StorageNamespace, global.CSIProvisionerStsName); err != nil {
+		return err
+	}
+	if err := common.WaitDsTerminated(cli, common.StorageNamespace, global.CSIPluginDsName); err != nil {
+		return err
+	}
 
 	log.Debugf("Undeploy csi-cfg")
 	yaml, err = CSICfgYaml("", "")

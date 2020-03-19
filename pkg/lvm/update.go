@@ -26,7 +26,11 @@ func doAddhost(cli client.Client, cluster storagev1.Cluster) error {
 	if err := common.CreateNodeAnnotationsAndLabels(cli, common.StorageHostLabels, cluster.Spec.StorageType, cluster.Spec.Hosts); err != nil {
 		return err
 	}
-	common.WaitDsReady(cli, common.StorageNamespace, LvmdDsName)
-	common.WaitDsReady(cli, common.StorageNamespace, CSIPluginDsName)
+	if err := common.WaitDsReady(cli, common.StorageNamespace, LvmdDsName); err != nil {
+		return err
+	}
+	if err := common.WaitDsReady(cli, common.StorageNamespace, CSIPluginDsName); err != nil {
+		return err
+	}
 	return initBlocks(cli, cluster)
 }

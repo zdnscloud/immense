@@ -21,8 +21,7 @@ func Do(cli client.Client, host string, devs []string) error {
 		return err
 	}
 	name := "ceph-job-prepare-" + host
-	common.WaitPodSucceeded(cli, common.StorageNamespace, name)
-	return nil
+	return common.WaitPodSucceeded(cli, common.StorageNamespace, name)
 }
 
 func Delete(cli client.Client, host string) error {
