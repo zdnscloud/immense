@@ -12,7 +12,7 @@ type Iscsi struct {
 }
 
 type IscsiSpec struct {
-	Targets    []string `json:"target"`
+	Targets    []string `json:"targets"`
 	Port       string   `json:"port"`
 	Iqn        string   `json:"iqn"`
 	Chap       bool     `json:"chap"`
