@@ -93,7 +93,6 @@ func genkey() (string, string, error) {
 	return adminkey, monkey, nil
 }
 
-//func getReplicationAndPgNum(cluster storagev1.Cluster) (int, int) {
 func getReplicationAndPgNum(hosts []storagev1.HostInfo) (int, int) {
 	var num, Replication, PgNum int
 	for _, host := range hosts {

@@ -7,6 +7,11 @@ import (
 	"strings"
 	"sync"
 
+	corev1 "k8s.io/api/core/v1"
+	k8sstorage "k8s.io/api/storage/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/cache"
@@ -22,9 +27,6 @@ import (
 	"github.com/zdnscloud/immense/pkg/iscsi"
 	"github.com/zdnscloud/immense/pkg/lvm"
 	"github.com/zdnscloud/immense/pkg/nfs"
-	k8sstorage "k8s.io/api/storage/v1"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 )
 
 var ctx = context.TODO()
@@ -74,6 +76,7 @@ func New(config *rest.Config) (*Controller, error) {
 	ctrl.Watch(&storagev1.Iscsi{})
 	ctrl.Watch(&storagev1.Nfs{})
 	ctrl.Watch(&k8sstorage.VolumeAttachment{})
+	ctrl.Watch(&corev1.PersistentVolume{})
 	ctrl.Start(stopCh, storageCtrl, predicate.NewIgnoreUnchangedUpdate())
 	return storageCtrl, nil
 }
@@ -84,28 +87,31 @@ func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	switch obj := e.Object.(type) {
 	case *storagev1.Cluster:
 		go func() {
-			conf := e.Object.(*storagev1.Cluster)
-			if err := d.clusterMgr.Create(conf); err != nil {
+			if err := d.clusterMgr.Create(obj); err != nil {
 				log.Warnf("Create failed:%s", err.Error())
 			}
 		}()
 	case *storagev1.Iscsi:
 		go func() {
-			conf := e.Object.(*storagev1.Iscsi)
-			if err := d.iscsiMgr.Create(conf); err != nil {
+			if err := d.iscsiMgr.Create(obj); err != nil {
 				log.Warnf("Create failed:%s", err.Error())
 			}
 		}()
 	case *storagev1.Nfs:
 		go func() {
-			conf := e.Object.(*storagev1.Nfs)
-			if err := d.nfsMgr.Create(conf); err != nil {
+			if err := d.nfsMgr.Create(obj); err != nil {
 				log.Warnf("Create failed:%s", err.Error())
 			}
 		}()
 	case *k8sstorage.VolumeAttachment:
-		if err := d.CreateFinalizer(obj); err != nil {
+		if err := d.CreateFinalizer(obj.Spec.Attacher); err != nil {
 			log.Warnf("Watch to volumeAttachment create event, but add finalizer failed:%s", err.Error())
+		}
+	case *corev1.PersistentVolume:
+		if driver, ok := obj.Annotations[common.PvProvisionerKey]; ok && strings.HasSuffix(driver, nfs.NfsDriverSuffix) {
+			if err := d.CreateFinalizer(driver); err != nil {
+				log.Warnf("Watch to persistentVolume create event, but add finalizer failed:%s", err.Error())
+			}
 		}
 	}
 	return handler.Result{}, nil
@@ -174,9 +180,19 @@ func (d *Controller) OnDelete(e event.DeleteEvent) (handler.Result, error) {
 	defer d.lock.Unlock()
 	switch obj := e.Object.(type) {
 	case *k8sstorage.VolumeAttachment:
-		if err := d.DeleteFinalizer(obj); err != nil {
-			log.Warnf("Watch to volumeAttachment delete event, but del finalizer failed:%s", err.Error())
-		}
+		go func() {
+			if err := d.DeleteFinalizer(obj.Spec.Attacher); err != nil {
+				log.Warnf("Watch to volumeAttachment delete event, but del finalizer failed:%s", err.Error())
+			}
+		}()
+	case *corev1.PersistentVolume:
+		go func() {
+			if driver, ok := obj.Annotations[common.PvProvisionerKey]; ok && strings.HasSuffix(driver, nfs.NfsDriverSuffix) {
+				if err := d.DeleteFinalizer(driver); err != nil {
+					log.Warnf("Watch to volumeAttachment delete event, but del finalizer failed:%s", err.Error())
+				}
+			}
+		}()
 	case *storagev1.Cluster:
 		go func() {
 			if slice.SliceIndex(obj.Finalizers, common.StoragePrestopHookFinalizer) == -1 {
@@ -187,18 +203,16 @@ func (d *Controller) OnDelete(e event.DeleteEvent) (handler.Result, error) {
 		}()
 	case *storagev1.Iscsi:
 		go func() {
-			conf := e.Object.(*storagev1.Iscsi)
-			if slice.SliceIndex(conf.Finalizers, common.StoragePrestopHookFinalizer) == -1 {
-				if err := d.iscsiMgr.Delete(conf); err != nil {
+			if slice.SliceIndex(obj.Finalizers, common.StoragePrestopHookFinalizer) == -1 {
+				if err := d.iscsiMgr.Delete(obj); err != nil {
 					log.Warnf("Delete failed:%s", err.Error())
 				}
 			}
 		}()
 	case *storagev1.Nfs:
 		go func() {
-			conf := e.Object.(*storagev1.Nfs)
-			if slice.SliceIndex(conf.Finalizers, common.StoragePrestopHookFinalizer) == -1 {
-				if err := d.nfsMgr.Delete(conf); err != nil {
+			if slice.SliceIndex(obj.Finalizers, common.StoragePrestopHookFinalizer) == -1 {
+				if err := d.nfsMgr.Delete(obj); err != nil {
 					log.Warnf("Delete failed:%s", err.Error())
 				}
 			}
@@ -211,8 +225,7 @@ func (d *Controller) OnGeneric(e event.GenericEvent) (handler.Result, error) {
 	return handler.Result{}, nil
 }
 
-func (d *Controller) CreateFinalizer(va *k8sstorage.VolumeAttachment) error {
-	driver := va.Spec.Attacher
+func (d *Controller) CreateFinalizer(driver string) error {
 	switch {
 	case strings.HasSuffix(driver, lvm.LvmDriverSuffix):
 		name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", lvm.LvmDriverSuffix))
@@ -229,15 +242,15 @@ func (d *Controller) CreateFinalizer(va *k8sstorage.VolumeAttachment) error {
 	}
 	return nil
 }
-func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
-	lastone, err := common.IsLastOne(d.client, va)
+
+func (d *Controller) DeleteFinalizer(driver string) error {
+	lastone, err := common.IsVaLastOne(d.client, driver)
 	if err != nil {
 		return err
 	}
 	if !lastone {
 		return nil
 	}
-	driver := va.Spec.Attacher
 	switch {
 	case strings.HasSuffix(driver, lvm.LvmDriverSuffix):
 		name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", lvm.LvmDriverSuffix))
@@ -249,8 +262,14 @@ func (d *Controller) DeleteFinalizer(va *k8sstorage.VolumeAttachment) error {
 		name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", iscsi.IscsiDriverSuffix))
 		return iscsi.RemoveFinalizer(d.client, name, common.StorageInUsedFinalizer)
 	case strings.HasSuffix(driver, nfs.NfsDriverSuffix):
-		name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", nfs.NfsDriverSuffix))
-		return nfs.RemoveFinalizer(d.client, name, common.StorageInUsedFinalizer)
+		lastone, err := nfs.IsPvLastOne(d.client, driver)
+		if err != nil {
+			return err
+		}
+		if lastone {
+			name := strings.TrimSuffix(driver, fmt.Sprintf(".%s", nfs.NfsDriverSuffix))
+			return nfs.RemoveFinalizer(d.client, name, common.StorageInUsedFinalizer)
+		}
 	}
 	return nil
 }

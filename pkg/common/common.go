@@ -24,6 +24,7 @@ import (
 
 const (
 	StorageInUsedFinalizer      = "storage.zcloud.cn/inused"
+	PvProvisionerKey            = "pv.kubernetes.io/provisioned-by"
 	StoragePrestopHookFinalizer = "storage.zcloud.cn/prestophook"
 	RBACConfig                  = "rbac"
 	StorageHostRole             = "node-role.kubernetes.io/storage"
@@ -150,13 +151,13 @@ func DelFinalizerForStorage(cli client.Client, name, finalizer string) error {
 	return nil
 }
 
-func IsLastOne(cli client.Client, va *k8sstorage.VolumeAttachment) (bool, error) {
+func IsVaLastOne(cli client.Client, driver string) (bool, error) {
 	volumeattachments := k8sstorage.VolumeAttachmentList{}
 	if err := cli.List(ctx, nil, &volumeattachments); err != nil {
 		return false, err
 	}
 	for _, v := range volumeattachments.Items {
-		if v.Spec.Attacher == va.Spec.Attacher {
+		if v.Spec.Attacher == driver {
 			return false, nil
 		}
 	}
