@@ -2,6 +2,7 @@ package iscsi
 
 import (
 	"fmt"
+	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -12,6 +13,28 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
+func delete(cli client.Client, conf *storagev1.Iscsi) error {
+	if err := deleteVolumeGroup(cli, conf); err != nil {
+		return err
+	}
+	if err := iscsiLogoutAll(cli, conf, conf.Spec.Initiators); err != nil {
+		return err
+	}
+	if err := unDeployIscsiLvmd(cli, conf); err != nil {
+		return err
+	}
+	if err := unDeployIscsiCSI(cli, conf); err != nil {
+		return err
+	}
+	if err := unDeployStorageClass(cli, conf); err != nil {
+		return err
+	}
+	if err := RemoveFinalizer(cli, conf.Name, common.StoragePrestopHookFinalizer); err != nil {
+		return err
+	}
+	return common.DeleteNodeAnnotationsAndLabels(cli, fmt.Sprintf("%s-%s", IscsiInstanceLabelKeyPrefix, conf.Name), IscsiInstanceLabelValue, conf.Spec.Initiators)
+}
+
 func iscsiLogoutAll(cli client.Client, conf *storagev1.Iscsi, nodes []string) error {
 	for _, node := range nodes {
 		log.Debugf("%s: iscsi logout and clean device mapper", node)
@@ -21,6 +44,9 @@ func iscsiLogoutAll(cli client.Client, conf *storagev1.Iscsi, nodes []string) er
 		}
 		devices, err := getIscsiDevices(nodeCli, conf.Spec.Iqn)
 		if err != nil {
+			if strings.Contains(err.Error(), "exit status 21") {
+				continue
+			}
 			return err
 		}
 		for _, dev := range devices {
@@ -30,8 +56,14 @@ func iscsiLogoutAll(cli client.Client, conf *storagev1.Iscsi, nodes []string) er
 		}
 		for _, target := range conf.Spec.Targets {
 			if err := logoutIscsi(nodeCli, target, conf.Spec.Port, conf.Spec.Iqn); err != nil {
+				if strings.Contains(err.Error(), "exit status 21") {
+					continue
+				}
 				return err
 			}
+		}
+		if err := reloadMultipath(nodeCli); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -43,6 +75,9 @@ func deleteVolumeGroup(cli client.Client, conf *storagev1.Iscsi) error {
 	log.Debugf("%s: delete volumegroup %s", node, vgName)
 	lvmdcli, err := common.CreateLvmdClientForPod(cli, node, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiLvmdDsSuffix))
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
 		return fmt.Errorf("Create Lvmd client failed for host %s, %v", node, err)
 	}
 	if err := common.RemoveVG(ctx, lvmdcli, vgName); err != nil {

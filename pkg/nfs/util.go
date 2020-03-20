@@ -1,7 +1,6 @@
 package nfs
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	"github.com/zdnscloud/immense/pkg/common"
 )
 
 func getNfs(cli client.Client, name string) (*storagev1.Nfs, error) {
@@ -67,17 +65,4 @@ func updateSize(cli client.Client, name string, size *storagev1.Size) error {
 	}
 	nfs.Status.Capacity.Total = *size
 	return cli.Update(ctx, nfs)
-}
-
-func IsPvLastOne(cli client.Client, driver string) (bool, error) {
-	pvs := corev1.PersistentVolumeList{}
-	if err := cli.List(ctx, nil, &pvs); err != nil {
-		return false, err
-	}
-	for _, pv := range pvs.Items {
-		if _driver, ok := pv.Annotations[common.PvProvisionerKey]; ok && _driver == driver {
-			return false, nil
-		}
-	}
-	return true, nil
 }

@@ -12,6 +12,19 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
+func delete(cli client.Client, conf *storagev1.Nfs) error {
+	if err := unDeployNfsCSI(cli, conf); err != nil {
+		return err
+	}
+	if err := unDeployStorageClass(cli, conf); err != nil {
+		return err
+	}
+	if err := RemoveFinalizer(cli, conf.Name, common.StoragePrestopHookFinalizer); err != nil {
+		return err
+	}
+	return nil
+}
+
 func unDeployNfsCSI(cli client.Client, conf *storagev1.Nfs) error {
 	log.Debugf("Undeploy nfs %s csi", conf.Name)
 

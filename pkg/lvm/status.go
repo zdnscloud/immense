@@ -35,7 +35,7 @@ func StatusControl(cli client.Client, name string) {
 			return
 		}
 
-		if storagecluster.Status.Phase == storagev1.Updating || storagecluster.Status.Phase == storagev1.Creating {
+		if storagecluster.Status.Phase == storagev1.Updating || storagecluster.Status.Phase == storagev1.Creating || storagecluster.Status.Phase == storagev1.Failed {
 			continue
 		}
 		status := genStatus(cli, storagecluster)

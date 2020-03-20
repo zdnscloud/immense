@@ -32,7 +32,7 @@ func StatusControl(cli client.Client, name string) {
 			return
 		}
 
-		if iscsi.Status.Phase == storagev1.Updating || iscsi.Status.Phase == storagev1.Creating {
+		if iscsi.Status.Phase == storagev1.Updating || iscsi.Status.Phase == storagev1.Creating || iscsi.Status.Phase == storagev1.Failed {
 			continue
 		}
 		status := genStatus(cli, iscsi, ctrlName)

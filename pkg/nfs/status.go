@@ -45,7 +45,7 @@ func StatusControl(cli client.Client, name string) {
 			return
 		}
 
-		if nfs.Status.Phase == storagev1.Updating || nfs.Status.Phase == storagev1.Creating {
+		if nfs.Status.Phase == storagev1.Updating || nfs.Status.Phase == storagev1.Creating || nfs.Status.Phase == storagev1.Failed {
 			continue
 		}
 		size, err := getSize(cli, nfs)

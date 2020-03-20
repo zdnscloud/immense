@@ -22,6 +22,34 @@ const (
 	DeviceWaitRetryInterval = 1 * time.Second
 )
 
+func create(cli client.Client, conf *storagev1.Iscsi) error {
+	if err := common.CreateNodeAnnotationsAndLabels(cli, fmt.Sprintf("%s-%s", IscsiInstanceLabelKeyPrefix, conf.Name), IscsiInstanceLabelValue, conf.Spec.Initiators); err != nil {
+		return err
+	}
+	if err := iscsiLoginAll(cli, conf, conf.Spec.Initiators); err != nil {
+		return err
+	}
+	if err := deployIscsiLvmd(cli, conf); err != nil {
+		return err
+	}
+	if err := createVolumeGroup(cli, conf); err != nil {
+		return err
+	}
+	if !checkVolumeGroup(cli, conf) {
+		return errors.New("can not get volumegroup from initiators")
+	}
+	if err := deployIscsiCSI(cli, conf); err != nil {
+		return err
+	}
+	if err := deployStorageClass(cli, conf); err != nil {
+		return err
+	}
+	if err := AddFinalizer(cli, conf.Name, common.StoragePrestopHookFinalizer); err != nil {
+		return err
+	}
+	return nil
+}
+
 func iscsiLoginAll(cli client.Client, conf *storagev1.Iscsi, nodes []string) error {
 	for _, node := range nodes {
 		log.Debugf("%s: iscsi login", node)
@@ -43,6 +71,9 @@ func iscsiLoginAll(cli client.Client, conf *storagev1.Iscsi, nodes []string) err
 			if err := loginIscsi(nodeCli, target, conf.Spec.Port, conf.Spec.Iqn, username, password); err != nil {
 				return err
 			}
+		}
+		if err := reloadMultipath(nodeCli); err != nil {
+			return err
 		}
 	}
 	return nil

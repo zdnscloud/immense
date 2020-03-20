@@ -10,7 +10,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8sstorage "k8s.io/api/storage/v1"
+	k8sstoragev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -24,8 +24,8 @@ import (
 
 const (
 	StorageInUsedFinalizer      = "storage.zcloud.cn/inused"
-	PvProvisionerKey            = "pv.kubernetes.io/provisioned-by"
 	StoragePrestopHookFinalizer = "storage.zcloud.cn/prestophook"
+	PvAnnotationsKey            = "volume.beta.kubernetes.io/storage-provisioner"
 	RBACConfig                  = "rbac"
 	StorageHostRole             = "node-role.kubernetes.io/storage"
 	StorageHostLabels           = "storage.zcloud.cn/storagetype"
@@ -149,14 +149,23 @@ func DelFinalizerForStorage(cli client.Client, name, finalizer string) error {
 	return nil
 }
 
-func IsVaLastOne(cli client.Client, driver string) (bool, error) {
-	volumeattachments := k8sstorage.VolumeAttachmentList{}
-	if err := cli.List(ctx, nil, &volumeattachments); err != nil {
+func IsPvcLastOne(cli client.Client, driver string) (bool, error) {
+	namespaces := corev1.NamespaceList{}
+	if err := cli.List(context.TODO(), nil, &namespaces); err != nil {
 		return false, err
 	}
-	for _, v := range volumeattachments.Items {
-		if v.Spec.Attacher == driver {
-			return false, nil
+	for _, namespace := range namespaces.Items {
+		pvcs := corev1.PersistentVolumeClaimList{}
+		if err := cli.List(context.TODO(), &client.ListOptions{Namespace: namespace.Name}, &pvcs); err != nil {
+			return false, err
+		}
+		for _, pvc := range pvcs.Items {
+			_driver, ok := pvc.Annotations[PvAnnotationsKey]
+			if ok {
+				if _driver == driver {
+					return false, nil
+				}
+			}
 		}
 	}
 	return true, nil
@@ -370,4 +379,12 @@ func getSelector(cli client.Client, namespace, name string) (labels.Selector, er
 		return nil, err
 	}
 	return metav1.LabelSelectorAsSelector(daemonSet.Spec.Selector)
+}
+
+func GetProvisionerFromStorageclass(cli client.Client, name string) (string, error) {
+	storageClass := k8sstoragev1.StorageClass{}
+	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &storageClass); err != nil {
+		return "", err
+	}
+	return storageClass.Provisioner, nil
 }

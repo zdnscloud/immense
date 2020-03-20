@@ -75,30 +75,44 @@ func UpdateStatusPhase(cli client.Client, name string, phase storagev1.StatusPha
 }
 
 func loginIscsi(cli pb.NodeAgentClient, host, port, iqn, username, password string) error {
-	if _, err := cli.IscsiDiscovery(ctx, &pb.IscsiDiscoveryRequest{
+	_, err := cli.IscsiDiscovery(ctx, &pb.IscsiDiscoveryRequest{
 		Host: host,
 		Port: port,
 		Iqn:  iqn,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("iscsi discovery failed. %v", err)
 	}
 	if username != "" && password != "" {
-		if _, err := cli.IscsiChap(ctx, &pb.IscsiChapRequest{
+		_, err := cli.IscsiChap(ctx, &pb.IscsiChapRequest{
 			Host:     host,
 			Port:     port,
 			Iqn:      iqn,
 			Username: username,
 			Password: password,
-		}); err != nil {
+		})
+		if err != nil {
 			return fmt.Errorf("iscsi chap failed. %v", err)
 		}
 	}
-	if _, err := cli.IscsiLogin(ctx, &pb.IscsiLoginRequest{
+	_, err = cli.IscsiLogin(ctx, &pb.IscsiLoginRequest{
 		Host: host,
 		Port: port,
 		Iqn:  iqn,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("iscsi login failed. %v", err)
+	}
+	reply, err := cli.IsTargetLoggedIn(ctx, &pb.IsTargetLoggedInRequest{
+		Host: host,
+		Port: port,
+		Iqn:  iqn,
+	})
+	if err != nil {
+		return fmt.Errorf("iscsi login check failed. %v", err)
+	}
+	if !reply.Login {
+		return fmt.Errorf("can not find target session")
 	}
 	return nil
 }
@@ -112,7 +126,23 @@ func cleanIscsi(cli pb.NodeAgentClient, device string) error {
 	return nil
 }
 
+func reloadMultipath(cli pb.NodeAgentClient) error {
+	_, err := cli.ReloadMultipath(ctx, &pb.ReloadMultipathRequest{})
+	return err
+}
+
 func logoutIscsi(cli pb.NodeAgentClient, host, port, iqn string) error {
+	reply, err := cli.IsTargetLoggedIn(ctx, &pb.IsTargetLoggedInRequest{
+		Host: host,
+		Port: port,
+		Iqn:  iqn,
+	})
+	if err != nil {
+		return fmt.Errorf("iscsi login check failed. %v", err)
+	}
+	if !reply.Login {
+		return nil
+	}
 	if _, err := cli.IscsiLogout(ctx, &pb.IscsiLogoutRequest{
 		Host: host,
 		Port: port,
@@ -132,7 +162,7 @@ func getIscsiDevices(cli pb.NodeAgentClient, iqn string) ([]string, error) {
 	}
 	var devices []string
 	for _, info := range blocks.IscsiBlock {
-		if len(info.Blocks) > 0 {
+		if len(info.Blocks) > 1 {
 			path, err := cli.IscsiGetMultipaths(ctx, &pb.IscsiGetMultipathsRequest{
 				Devs: info.Blocks,
 			})

@@ -10,6 +10,19 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
+func create(cli client.Client, conf *storagev1.Nfs) error {
+	if err := deployNfsCSI(cli, conf); err != nil {
+		return err
+	}
+	if err := deployStorageClass(cli, conf); err != nil {
+		return err
+	}
+	if err := AddFinalizer(cli, conf.Name, common.StoragePrestopHookFinalizer); err != nil {
+		return err
+	}
+	return nil
+}
+
 func deployNfsCSI(cli client.Client, conf *storagev1.Nfs) error {
 	log.Debugf("Deploy nfs %s csi", conf.Name)
 
