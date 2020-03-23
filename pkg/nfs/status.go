@@ -98,6 +98,9 @@ func uMountTmpdir(name string) error {
 	if err != nil {
 		return err
 	}
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		return nil
+	}
 	if _, err := exec.Command("umount", targetDir).Output(); err != nil {
 		return err
 	}
