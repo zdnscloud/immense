@@ -75,6 +75,7 @@ func New(config *rest.Config) (*Controller, error) {
 	ctrl.Watch(&storagev1.Iscsi{})
 	ctrl.Watch(&storagev1.Nfs{})
 	ctrl.Watch(&corev1.PersistentVolumeClaim{})
+	ctrl.Watch(&corev1.Secret{})
 	ctrl.Start(stopCh, storageCtrl, predicate.NewIgnoreUnchangedUpdate())
 	return storageCtrl, nil
 }
@@ -168,6 +169,16 @@ func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 					if err := d.nfsMgr.Delete(newc); err != nil {
 						log.Warnf("Delete failed:%s", err.Error())
 					}
+				}
+			}
+		}()
+	case *corev1.Secret:
+		go func() {
+			newc := e.ObjectNew.(*corev1.Secret)
+			if strings.HasSuffix(newc.Name, iscsi.IscsiInstanceSecretSuffix) && newc.Namespace == common.StorageNamespace {
+				iscsiName := strings.TrimRight(newc.Name, "-"+iscsi.IscsiInstanceSecretSuffix)
+				if err := d.iscsiMgr.Redeploy(iscsiName); err != nil {
+					log.Warnf("Update failed:%s", err.Error())
 				}
 			}
 		}()

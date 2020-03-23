@@ -68,3 +68,18 @@ func (h *HandlerManager) Delete(conf *storagev1.Iscsi) error {
 	log.Debugf("[iscsi] delete finish")
 	return nil
 }
+
+func (h *HandlerManager) Redeploy(name string) error {
+	log.Debugf("[iscsi] redeploy %s", name)
+	UpdateStatusPhase(h.client, name, storagev1.Updating)
+	iscsi, err := getIscsi(h.client, name)
+	if err != nil {
+		return err
+	}
+	if err := redeploy(h.client, iscsi, iscsi); err != nil {
+		return err
+	}
+	UpdateStatusPhase(h.client, name, storagev1.Running)
+	log.Debugf("[iscsi] redeploy finish")
+	return nil
+}
