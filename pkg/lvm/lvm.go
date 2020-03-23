@@ -31,6 +31,7 @@ func (s *Lvm) GetType() string {
 }
 
 func (s *Lvm) Create(cluster storagev1.Cluster) error {
+	go StatusControl(s.cli, cluster.Name)
 	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Creating)
 	if err := common.CreateNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
 		return err
@@ -49,7 +50,6 @@ func (s *Lvm) Create(cluster storagev1.Cluster) error {
 	}
 
 	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Running)
-	go StatusControl(s.cli, cluster.Name)
 	return common.AddFinalizerForStorage(s.cli, cluster.Name, common.StoragePrestopHookFinalizer)
 }
 

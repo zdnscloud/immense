@@ -4,6 +4,7 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/ceph/global"
+	"github.com/zdnscloud/immense/pkg/ceph/status"
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
@@ -22,6 +23,7 @@ func (s *Ceph) GetType() string {
 }
 
 func (s *Ceph) Create(cluster storagev1.Cluster) error {
+	go status.Watch(s.cli, cluster.Name)
 	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Creating)
 	if err := common.CreateNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
 		return err

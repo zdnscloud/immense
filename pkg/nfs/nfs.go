@@ -27,13 +27,13 @@ func New(c client.Client) *HandlerManager {
 
 func (h *HandlerManager) Create(conf *storagev1.Nfs) error {
 	log.Debugf("[nfs] create event, conf: %v", *conf)
+	go StatusControl(h.client, conf.Name)
 	UpdateStatusPhase(h.client, conf.Name, storagev1.Creating)
 	if err := create(h.client, conf); err != nil {
 		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		return err
 	}
 	UpdateStatusPhase(h.client, conf.Name, storagev1.Running)
-	go StatusControl(h.client, conf.Name)
 	log.Debugf("[nfs] create finish")
 	return nil
 }

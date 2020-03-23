@@ -16,7 +16,6 @@ import (
 	"github.com/zdnscloud/immense/pkg/ceph/mon"
 	"github.com/zdnscloud/immense/pkg/ceph/osd"
 	"github.com/zdnscloud/immense/pkg/ceph/prepare"
-	"github.com/zdnscloud/immense/pkg/ceph/status"
 	"github.com/zdnscloud/immense/pkg/ceph/util"
 )
 
@@ -76,7 +75,6 @@ func create(cli client.Client, cluster storagev1.Cluster) error {
 	if err := fscsi.Start(cli, uuid, cluster.Name, monsvc); err != nil {
 		return err
 	}
-	go status.Watch(cli, cluster.Name)
 	return nil
 }
 
