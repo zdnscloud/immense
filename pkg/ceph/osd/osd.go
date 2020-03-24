@@ -32,7 +32,7 @@ func Start(cli client.Client, fsid, host, dev string, monsvc map[string]string) 
 		return err
 	}
 	name := "ceph-osd-" + host + "-" + dev
-	return common.WaitDsReady(cli, common.StorageNamespace, name)
+	return common.WaitReady(common.DaemonSetObj(), cli, common.StorageNamespace, name)
 }
 
 func Remove(cli client.Client, host, dev string) error {
@@ -46,7 +46,7 @@ func Remove(cli client.Client, host, dev string) error {
 		return err
 	}
 	name := "ceph-osd-" + host + "-" + dev
-	if err := common.WaitDsTerminated(cli, common.StorageNamespace, name); err != nil {
+	if err := common.WaitTerminated(common.DaemonSetObj(), cli, common.StorageNamespace, name); err != nil {
 		return err
 	}
 	if err := zap.Do(cli, host, dev); err != nil {

@@ -21,15 +21,16 @@ func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (*stora
 	infos := make([]storagev1.HostInfo, 0)
 	for _, h := range cluster.Spec.Hosts {
 		devs := make([]string, 0)
-		exist, devstmp := isExist(h, storagecluster.Status.Config)
+		var (
+			exist bool
+			err   error
+		)
+		exist, devs = isExist(h, storagecluster.Status.Config)
 		if !exist {
-			devstmp, err := GetBlocksFromClusterAgent(cli, h)
+			devs, err = GetBlocksFromClusterAgent(cli, h)
 			if err != nil {
 				return cluster, err
 			}
-			devs = append(devs, devstmp...)
-		} else {
-			devs = append(devs, devstmp...)
 		}
 
 		info := storagev1.HostInfo{

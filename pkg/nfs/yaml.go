@@ -6,7 +6,16 @@ import (
 	"github.com/zdnscloud/immense/pkg/common"
 )
 
-func csiyaml(name, host, path string) (string, error) {
+func csiSayaml(name string) (string, error) {
+	cfg := map[string]interface{}{
+		"RBACConfig":       common.RBACConfig,
+		"Instance":         name,
+		"StorageNamespace": common.StorageNamespace,
+	}
+	return common.CompileTemplateFromMap(NfsCSISaTemplate, cfg)
+}
+
+func csiDpyaml(name, host, path string) (string, error) {
 	cfg := map[string]interface{}{
 		"RBACConfig":          common.RBACConfig,
 		"Instance":            name,
@@ -18,8 +27,9 @@ func csiyaml(name, host, path string) (string, error) {
 		"NfsServer":           host,
 		"NfsPath":             path,
 	}
-	return common.CompileTemplateFromMap(NfsCSITemplate, cfg)
+	return common.CompileTemplateFromMap(NfsCSIDpTemplate, cfg)
 }
+
 func scyaml(name string) (string, error) {
 	cfg := map[string]interface{}{
 		"StorageClassName": name,

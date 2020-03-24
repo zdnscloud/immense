@@ -16,8 +16,7 @@ const (
 	LvmdDsName            = "lvmd"
 	CSIPluginDsName       = "csi-lvmplugin"
 	CSIProvisionerStsName = "csi-lvmplugin-provisioner"
-	//StorageDriverName     = "csi-lvmplugin"
-	LvmDriverSuffix = "lvm.storage.zcloud.cn"
+	LvmDriverSuffix       = "lvm.storage.zcloud.cn"
 )
 
 func New(c client.Client) *Lvm {
@@ -31,58 +30,75 @@ func (s *Lvm) GetType() string {
 }
 
 func (s *Lvm) Create(cluster storagev1.Cluster) error {
-	go StatusControl(s.cli, cluster.Name)
 	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Creating)
-	if err := common.CreateNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
+	go StatusControl(s.cli, cluster.Name)
+	var err error
+	defer func() {
+		if err != nil {
+			common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+		} else {
+			common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Running)
+		}
+	}()
+	if err = common.AddFinalizerForStorage(s.cli, cluster.Name, common.StoragePrestopHookFinalizer); err != nil {
 		return err
 	}
-	if err := deployLvmd(s.cli, cluster); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+	if err = common.CreateNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
 		return err
 	}
-	if err := initBlocks(s.cli, cluster); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+	if err = deployLvmd(s.cli, cluster); err != nil {
 		return err
 	}
-	if err := deployLvmCSI(s.cli, cluster); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+	if err = initBlocks(s.cli, cluster); err != nil {
 		return err
 	}
-
-	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Running)
-	return common.AddFinalizerForStorage(s.cli, cluster.Name, common.StoragePrestopHookFinalizer)
+	if err = deployLvmCSI(s.cli, cluster); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *Lvm) Update(dels, adds storagev1.Cluster) error {
 	common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Updating)
-	if err := doAddhost(s.cli, adds); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Failed)
+	var err error
+	defer func() {
+		if err != nil {
+			common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Failed)
+		} else {
+			common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Running)
+		}
+	}()
+	if err = doAddhost(s.cli, adds); err != nil {
 		return err
 	}
-	if err := doDelhost(s.cli, dels); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Failed)
+	if err = doDelhost(s.cli, dels); err != nil {
 		return err
 	}
-	common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Running)
 	return nil
 }
 
 func (s *Lvm) Delete(cluster storagev1.Cluster) error {
 	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Deleting)
-	if err := undeployLvmCSI(s.cli, cluster); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+	var err error
+	defer func() {
+		if err != nil {
+			common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+		}
+	}()
+	if err = undeployLvmCSI(s.cli, cluster); err != nil {
 		return err
 	}
-	if err := unInitBlocks(s.cli, cluster); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+	if err = unInitBlocks(s.cli, cluster); err != nil {
 		return err
 	}
-	if err := undeployLvmd(s.cli, cluster); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+	if err = undeployLvmd(s.cli, cluster); err != nil {
 		return err
 	}
-	if err := common.DeleteNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
+	if err = common.DeleteNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
 		return err
 	}
-	return common.DelFinalizerForStorage(s.cli, cluster.Name, common.StoragePrestopHookFinalizer)
+	if err = common.DelFinalizerForStorage(s.cli, cluster.Name, common.StoragePrestopHookFinalizer); err != nil {
+		return err
+	}
+	return nil
 }

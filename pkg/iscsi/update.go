@@ -57,10 +57,10 @@ func updateInitiators(cli client.Client, oldConf, newConf *storagev1.Iscsi) erro
 		return err
 	}
 	time.Sleep(30 * time.Second)
-	if err := common.WaitDsReady(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", newConf.Name, IscsiLvmdDsSuffix)); err != nil {
+	if err := common.WaitReady(common.DaemonSetObj(), cli, common.StorageNamespace, fmt.Sprintf("%s-%s", newConf.Name, IscsiLvmdDsSuffix)); err != nil {
 		return err
 	}
-	if err := common.WaitDsReady(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", newConf.Name, IscsiCSIDsSuffix)); err != nil {
+	if err := common.WaitReady(common.DaemonSetObj(), cli, common.StorageNamespace, fmt.Sprintf("%s-%s", newConf.Name, IscsiCSIDsSuffix)); err != nil {
 		return err
 	}
 	if !checkVolumeGroup(cli, newConf) {

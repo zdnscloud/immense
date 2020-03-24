@@ -29,7 +29,7 @@ func GetHostAddr(ctx context.Context, cli client.Client, name string) (string, e
 
 func CreateLvmdClientForPod(cli client.Client, node, namespace, ds string) (*lvmdclient.Client, error) {
 	var addr string
-	selector, err := getSelector(cli, namespace, ds)
+	selector, err := getDsSelector(cli, namespace, ds)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +277,6 @@ func RemovePV(ctx context.Context, lvmdcli *lvmdclient.Client, block string) err
 	p, err := pvExist(ctx, lvmdcli, block)
 	if err != nil {
 		return errors.New("Check pv exist failed!" + err.Error())
-		return err
 	}
 	if p {
 		_, err := removePV(ctx, lvmdcli, block)

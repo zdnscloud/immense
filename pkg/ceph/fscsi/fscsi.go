@@ -38,10 +38,10 @@ func Start(cli client.Client, id, name string, monsvc map[string]string) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	if err := common.WaitStsReady(cli, common.StorageNamespace, global.CSIProvisionerStsName); err != nil {
+	if err := common.WaitReady(common.StatefulSetObj(), cli, common.StorageNamespace, global.CSIProvisionerStsName); err != nil {
 		return err
 	}
-	if err := common.WaitDsReady(cli, common.StorageNamespace, global.CSIPluginDsName); err != nil {
+	if err := common.WaitReady(common.DaemonSetObj(), cli, common.StorageNamespace, global.CSIPluginDsName); err != nil {
 		return err
 	}
 
@@ -77,10 +77,11 @@ func Stop(cli client.Client, id, name string) error {
 	if err := helper.DeleteResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	if err := common.WaitStsTerminated(cli, common.StorageNamespace, global.CSIProvisionerStsName); err != nil {
+
+	if err := common.WaitTerminated(common.StatefulSetObj(), cli, common.StorageNamespace, global.CSIProvisionerStsName); err != nil {
 		return err
 	}
-	if err := common.WaitDsTerminated(cli, common.StorageNamespace, global.CSIPluginDsName); err != nil {
+	if err := common.WaitTerminated(common.DaemonSetObj(), cli, common.StorageNamespace, global.CSIPluginDsName); err != nil {
 		return err
 	}
 

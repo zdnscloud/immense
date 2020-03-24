@@ -6,6 +6,7 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"github.com/zdnscloud/immense/pkg/common"
 )
 
 const (
@@ -35,13 +36,22 @@ func New(c client.Client) *HandlerManager {
 
 func (h *HandlerManager) Create(conf *storagev1.Iscsi) error {
 	log.Debugf("[iscsi] create event, conf: %v", *conf)
-	go StatusControl(h.client, conf.Name)
 	UpdateStatusPhase(h.client, conf.Name, storagev1.Creating)
-	if err := create(h.client, conf); err != nil {
-		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
+	go StatusControl(h.client, conf.Name)
+	var err error
+	defer func() {
+		if err != nil {
+			common.UpdateClusterStatusPhase(h.client, conf.Name, storagev1.Failed)
+		} else {
+			common.UpdateClusterStatusPhase(h.client, conf.Name, storagev1.Running)
+		}
+	}()
+	if err = AddFinalizer(h.client, conf.Name, common.StoragePrestopHookFinalizer); err != nil {
 		return err
 	}
-	UpdateStatusPhase(h.client, conf.Name, storagev1.Running)
+	if err = create(h.client, conf); err != nil {
+		return err
+	}
 	log.Debugf("[iscsi] create finish")
 	return nil
 }
@@ -61,8 +71,16 @@ func (h *HandlerManager) Update(oldConf, newConf *storagev1.Iscsi) error {
 func (h *HandlerManager) Delete(conf *storagev1.Iscsi) error {
 	log.Debugf("[iscsi] delete event, conf: %v", *conf)
 	UpdateStatusPhase(h.client, conf.Name, storagev1.Deleting)
-	if err := delete(h.client, conf); err != nil {
-		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
+	var err error
+	defer func() {
+		if err != nil {
+			common.UpdateClusterStatusPhase(h.client, conf.Name, storagev1.Failed)
+		}
+	}()
+	if err = delete(h.client, conf); err != nil {
+		return err
+	}
+	if err = RemoveFinalizer(h.client, conf.Name, common.StoragePrestopHookFinalizer); err != nil {
 		return err
 	}
 	log.Debugf("[iscsi] delete finish")
@@ -72,14 +90,24 @@ func (h *HandlerManager) Delete(conf *storagev1.Iscsi) error {
 func (h *HandlerManager) Redeploy(name string) error {
 	log.Debugf("[iscsi] redeploy %s", name)
 	UpdateStatusPhase(h.client, name, storagev1.Updating)
-	iscsi, err := getIscsi(h.client, name)
+	var err error
+	defer func() {
+		if err != nil {
+			common.UpdateClusterStatusPhase(h.client, name, storagev1.Failed)
+		} else {
+			common.UpdateClusterStatusPhase(h.client, name, storagev1.Running)
+		}
+	}()
+	var iscsi *storagev1.Iscsi
+	iscsi, err = getIscsi(h.client, name)
 	if err != nil {
+		UpdateStatusPhase(h.client, name, storagev1.Failed)
 		return err
 	}
-	if err := redeploy(h.client, iscsi, iscsi); err != nil {
+	if err = redeploy(h.client, iscsi, iscsi); err != nil {
+		UpdateStatusPhase(h.client, name, storagev1.Failed)
 		return err
 	}
-	UpdateStatusPhase(h.client, name, storagev1.Running)
 	log.Debugf("[iscsi] redeploy finish")
 	return nil
 }

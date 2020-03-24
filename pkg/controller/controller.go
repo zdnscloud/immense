@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -35,7 +34,6 @@ type Controller struct {
 	clusterMgr *cluster.HandlerManager
 	iscsiMgr   *iscsi.HandlerManager
 	nfsMgr     *nfs.HandlerManager
-	lock       sync.RWMutex
 	client     client.Client
 }
 
@@ -81,8 +79,6 @@ func New(config *rest.Config) (*Controller, error) {
 }
 
 func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
 	switch obj := e.Object.(type) {
 	case *storagev1.Cluster:
 		go func() {
@@ -115,61 +111,62 @@ func (d *Controller) OnCreate(e event.CreateEvent) (handler.Result, error) {
 }
 
 func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
 	switch e.ObjectOld.(type) {
 	case *storagev1.Cluster:
 		go func() {
 			oldc := e.ObjectOld.(*storagev1.Cluster)
 			newc := e.ObjectNew.(*storagev1.Cluster)
-			if !reflect.DeepEqual(oldc.Status, newc.Status) {
-				return
-			} else if !reflect.DeepEqual(oldc.Spec, newc.Spec) {
+			if !reflect.DeepEqual(oldc.Spec, newc.Spec) {
 				if err := d.clusterMgr.Update(oldc, newc); err != nil {
 					log.Warnf("Update failed:%s", err.Error())
 				}
-			} else {
-				if newc.DeletionTimestamp != nil && slice.SliceIndex(newc.Finalizers, common.StorageInUsedFinalizer) == -1 {
-					if err := d.clusterMgr.Delete(newc); err != nil {
-						log.Warnf("Delete failed:%s", err.Error())
-					}
+				return
+			}
+			if newc.DeletionTimestamp != nil &&
+				reflect.DeepEqual(oldc.Status, newc.Status) &&
+				slice.SliceIndex(newc.Finalizers, common.StorageInUsedFinalizer) == -1 {
+				if err := d.clusterMgr.Delete(newc); err != nil {
+					log.Warnf("Delete failed:%s", err.Error())
 				}
+				return
 			}
 		}()
 	case *storagev1.Iscsi:
 		go func() {
 			oldc := e.ObjectOld.(*storagev1.Iscsi)
 			newc := e.ObjectNew.(*storagev1.Iscsi)
-			if !reflect.DeepEqual(oldc.Status, newc.Status) {
-				return
-			} else if !reflect.DeepEqual(oldc.Spec, newc.Spec) {
+			if !reflect.DeepEqual(oldc.Spec, newc.Spec) {
 				if err := d.iscsiMgr.Update(oldc, newc); err != nil {
 					log.Warnf("Update failed:%s", err.Error())
 				}
-			} else {
-				if newc.DeletionTimestamp != nil && slice.SliceIndex(newc.Finalizers, common.StorageInUsedFinalizer) == -1 {
-					if err := d.iscsiMgr.Delete(newc); err != nil {
-						log.Warnf("Delete failed:%s", err.Error())
-					}
+				return
+			}
+			if newc.DeletionTimestamp != nil &&
+				reflect.DeepEqual(oldc.Status, newc.Status) &&
+				slice.SliceIndex(newc.Finalizers, common.StorageInUsedFinalizer) == -1 {
+				if err := d.iscsiMgr.Delete(newc); err != nil {
+					log.Warnf("Delete failed:%s", err.Error())
 				}
+				return
 			}
 		}()
 	case *storagev1.Nfs:
 		go func() {
 			oldc := e.ObjectOld.(*storagev1.Nfs)
 			newc := e.ObjectNew.(*storagev1.Nfs)
-			if !reflect.DeepEqual(oldc.Status, newc.Status) {
-				return
-			} else if !reflect.DeepEqual(oldc.Spec, newc.Spec) {
+			if !reflect.DeepEqual(oldc.Spec, newc.Spec) {
 				if err := d.nfsMgr.Update(oldc, newc); err != nil {
 					log.Warnf("Update failed:%s", err.Error())
 				}
-			} else {
-				if newc.DeletionTimestamp != nil && slice.SliceIndex(newc.Finalizers, common.StorageInUsedFinalizer) == -1 {
-					if err := d.nfsMgr.Delete(newc); err != nil {
-						log.Warnf("Delete failed:%s", err.Error())
-					}
+				return
+			}
+			if newc.DeletionTimestamp != nil &&
+				reflect.DeepEqual(oldc.Status, newc.Status) &&
+				slice.SliceIndex(newc.Finalizers, common.StorageInUsedFinalizer) == -1 {
+				if err := d.nfsMgr.Delete(newc); err != nil {
+					log.Warnf("Delete failed:%s", err.Error())
 				}
+				return
 			}
 		}()
 	case *corev1.Secret:
@@ -187,33 +184,7 @@ func (d *Controller) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 }
 
 func (d *Controller) OnDelete(e event.DeleteEvent) (handler.Result, error) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
 	switch obj := e.Object.(type) {
-	case *storagev1.Cluster:
-		go func() {
-			if slice.SliceIndex(obj.Finalizers, common.StoragePrestopHookFinalizer) == -1 {
-				if err := d.clusterMgr.Delete(obj); err != nil {
-					log.Warnf("Delete failed:%s", err.Error())
-				}
-			}
-		}()
-	case *storagev1.Iscsi:
-		go func() {
-			if slice.SliceIndex(obj.Finalizers, common.StoragePrestopHookFinalizer) == -1 {
-				if err := d.iscsiMgr.Delete(obj); err != nil {
-					log.Warnf("Delete failed:%s", err.Error())
-				}
-			}
-		}()
-	case *storagev1.Nfs:
-		go func() {
-			if slice.SliceIndex(obj.Finalizers, common.StoragePrestopHookFinalizer) == -1 {
-				if err := d.nfsMgr.Delete(obj); err != nil {
-					log.Warnf("Delete failed:%s", err.Error())
-				}
-			}
-		}()
 	case *corev1.PersistentVolumeClaim:
 		go func() {
 			if obj.Spec.StorageClassName != nil {

@@ -23,51 +23,72 @@ func (s *Ceph) GetType() string {
 }
 
 func (s *Ceph) Create(cluster storagev1.Cluster) error {
-	go status.Watch(s.cli, cluster.Name)
 	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Creating)
-	if err := common.CreateNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
+	go status.Watch(s.cli, cluster.Name)
+	var err error
+	defer func() {
+		if err != nil {
+			common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+		} else {
+			common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Running)
+		}
+	}()
+	if err = common.AddFinalizerForStorage(s.cli, cluster.Name, common.StoragePrestopHookFinalizer); err != nil {
 		return err
 	}
-	if err := create(s.cli, cluster); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+	if err = common.CreateNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
 		return err
 	}
-	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Running)
-	return common.AddFinalizerForStorage(s.cli, cluster.Name, common.StoragePrestopHookFinalizer)
+	if err = create(s.cli, cluster); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *Ceph) Update(dels, adds storagev1.Cluster) error {
 	common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Updating)
-	if err := common.DeleteNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), dels.Spec.Hosts); err != nil {
+	var err error
+	defer func() {
+		if err != nil {
+			common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Failed)
+		} else {
+			common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Running)
+		}
+	}()
+	if err = common.DeleteNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), dels.Spec.Hosts); err != nil {
 		return err
 	}
-	if err := common.CreateNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), adds.Spec.Hosts); err != nil {
+	if err = common.CreateNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), adds.Spec.Hosts); err != nil {
 		return err
 	}
-	if err := doAddhost(s.cli, adds); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Failed)
+	if err = doAddhost(s.cli, adds); err != nil {
 		return err
 	}
-	if err := doDelhost(s.cli, dels); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Failed)
+	if err = doDelhost(s.cli, dels); err != nil {
 		return err
 	}
-	if err := updatePgNumIfNeed(s.cli, adds.Name); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Failed)
+	if err = updatePgNumIfNeed(s.cli, adds.Name); err != nil {
 		return err
 	}
-	common.UpdateClusterStatusPhase(s.cli, adds.Name, storagev1.Running)
 	return nil
 }
 
 func (s *Ceph) Delete(cluster storagev1.Cluster) error {
 	common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Deleting)
-	if err := common.DeleteNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
+	var err error
+	defer func() {
+		if err != nil {
+			common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+		}
+	}()
+	if err = common.DeleteNodeAnnotationsAndLabels(s.cli, common.StorageHostLabels, s.GetType(), cluster.Spec.Hosts); err != nil {
 		return err
 	}
-	if err := delete(s.cli, cluster); err != nil {
-		common.UpdateClusterStatusPhase(s.cli, cluster.Name, storagev1.Failed)
+	if err = delete(s.cli, cluster); err != nil {
 		return err
 	}
-	return common.DelFinalizerForStorage(s.cli, cluster.Name, common.StoragePrestopHookFinalizer)
+	if err = common.DelFinalizerForStorage(s.cli, cluster.Name, common.StoragePrestopHookFinalizer); err != nil {
+		return err
+	}
+	return nil
 }

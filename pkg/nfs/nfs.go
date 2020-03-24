@@ -6,6 +6,7 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"github.com/zdnscloud/immense/pkg/common"
 )
 
 const (
@@ -27,13 +28,22 @@ func New(c client.Client) *HandlerManager {
 
 func (h *HandlerManager) Create(conf *storagev1.Nfs) error {
 	log.Debugf("[nfs] create event, conf: %v", *conf)
-	go StatusControl(h.client, conf.Name)
 	UpdateStatusPhase(h.client, conf.Name, storagev1.Creating)
-	if err := create(h.client, conf); err != nil {
-		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
+	go StatusControl(h.client, conf.Name)
+	var err error
+	defer func() {
+		if err != nil {
+			common.UpdateClusterStatusPhase(h.client, conf.Name, storagev1.Failed)
+		} else {
+			common.UpdateClusterStatusPhase(h.client, conf.Name, storagev1.Running)
+		}
+	}()
+	if err = AddFinalizer(h.client, conf.Name, common.StoragePrestopHookFinalizer); err != nil {
 		return err
 	}
-	UpdateStatusPhase(h.client, conf.Name, storagev1.Running)
+	if err = create(h.client, conf); err != nil {
+		return err
+	}
 	log.Debugf("[nfs] create finish")
 	return nil
 }
@@ -41,8 +51,16 @@ func (h *HandlerManager) Create(conf *storagev1.Nfs) error {
 func (h *HandlerManager) Delete(conf *storagev1.Nfs) error {
 	log.Debugf("[nfs] delete event, conf: %v", *conf)
 	UpdateStatusPhase(h.client, conf.Name, storagev1.Deleting)
-	if err := delete(h.client, conf); err != nil {
-		UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
+	var err error
+	defer func() {
+		if err != nil {
+			common.UpdateClusterStatusPhase(h.client, conf.Name, storagev1.Failed)
+		}
+	}()
+	if err = delete(h.client, conf); err != nil {
+		return err
+	}
+	if err = RemoveFinalizer(h.client, conf.Name, common.StoragePrestopHookFinalizer); err != nil {
 		return err
 	}
 	log.Debugf("[nfs] delete finish")
@@ -52,15 +70,7 @@ func (h *HandlerManager) Delete(conf *storagev1.Nfs) error {
 func (h *HandlerManager) Update(oldConf, newConf *storagev1.Nfs) error {
 	log.Debugf("[nfs] update event, conf: %v", *newConf)
 	UpdateStatusPhase(h.client, newConf.Name, storagev1.Updating)
-	if err := uMountTmpdir(oldConf.Name); err != nil {
-		UpdateStatusPhase(h.client, oldConf.Name, storagev1.Failed)
-		return err
-	}
-	if err := delete(h.client, oldConf); err != nil {
-		UpdateStatusPhase(h.client, oldConf.Name, storagev1.Failed)
-		return err
-	}
-	if err := create(h.client, newConf); err != nil {
+	if err := update(h.client, oldConf, newConf); err != nil {
 		UpdateStatusPhase(h.client, newConf.Name, storagev1.Failed)
 		return err
 	}

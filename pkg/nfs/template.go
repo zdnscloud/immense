@@ -1,6 +1,6 @@
 package nfs
 
-const NfsCSITemplate = `
+const NfsCSISaTemplate = `
 {{- if eq .RBACConfig "rbac"}}
 apiVersion: v1
 kind: ServiceAccount
@@ -65,7 +65,8 @@ roleRef:
   kind: Role
   name: leader-locking-nfs-client-provisioner-{{.Instance}}
   apiGroup: rbac.authorization.k8s.io
-{{- end}}
+{{- end}}`
+const NfsCSIDpTemplate = `
 ---
 apiVersion: apps/v1
 kind: Deployment

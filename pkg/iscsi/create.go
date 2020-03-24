@@ -44,9 +44,6 @@ func create(cli client.Client, conf *storagev1.Iscsi) error {
 	if err := deployStorageClass(cli, conf); err != nil {
 		return err
 	}
-	if err := AddFinalizer(cli, conf.Name, common.StoragePrestopHookFinalizer); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -115,7 +112,7 @@ func deployIscsiLvmd(cli client.Client, conf *storagev1.Iscsi) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	return common.WaitDsReady(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiLvmdDsSuffix))
+	return common.WaitTerminated(common.DaemonSetObj(), cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiLvmdDsSuffix))
 }
 
 func checkVolumeGroup(cli client.Client, conf *storagev1.Iscsi) bool {
@@ -162,10 +159,10 @@ func deployIscsiCSI(cli client.Client, conf *storagev1.Iscsi) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	if err := common.WaitDpReady(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDpSuffix)); err != nil {
+	if err := common.WaitReady(common.DeploymentObj(), cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDpSuffix)); err != nil {
 		return err
 	}
-	return common.WaitDsReady(cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDsSuffix))
+	return common.WaitReady(common.DaemonSetObj(), cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiCSIDsSuffix))
 }
 
 func deployStorageClass(cli client.Client, conf *storagev1.Iscsi) error {

@@ -20,10 +20,10 @@ func deployLvmCSI(cli client.Client, cluster storagev1.Cluster) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	if err := common.WaitStsReady(cli, common.StorageNamespace, CSIProvisionerStsName); err != nil {
+	if err := common.WaitReady(common.StatefulSetObj(), cli, common.StorageNamespace, CSIProvisionerStsName); err != nil {
 		return err
 	}
-	if err := common.WaitDsReady(cli, common.StorageNamespace, CSIPluginDsName); err != nil {
+	if err := common.WaitReady(common.DaemonSetObj(), cli, common.StorageNamespace, CSIPluginDsName); err != nil {
 		return err
 	}
 
@@ -44,7 +44,7 @@ func deployLvmd(cli client.Client, cluster storagev1.Cluster) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	if err := common.WaitDsReady(cli, common.StorageNamespace, LvmdDsName); err != nil {
+	if err := common.WaitReady(common.DaemonSetObj(), cli, common.StorageNamespace, LvmdDsName); err != nil {
 		return err
 	}
 	return nil

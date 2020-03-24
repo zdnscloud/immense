@@ -26,7 +26,7 @@ func Start(cli client.Client, fsid string, monsvc map[string]string) error {
 			return err
 		}
 		name := global.MonDpName + "-" + id
-		if err := common.WaitDpReady(cli, common.StorageNamespace, name); err != nil {
+		if err := common.WaitReady(common.DeploymentObj(), cli, common.StorageNamespace, name); err != nil {
 			return err
 		}
 	}
@@ -46,7 +46,7 @@ func Stop(cli client.Client) error {
 			return err
 		}
 		name := global.MonDpName + "-" + id
-		if err := common.WaitDpTerminated(cli, common.StorageNamespace, name); err != nil {
+		if err := common.WaitTerminated(common.DeploymentObj(), cli, common.StorageNamespace, name); err != nil {
 			return err
 		}
 	}
