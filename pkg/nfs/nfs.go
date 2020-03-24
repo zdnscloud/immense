@@ -33,9 +33,9 @@ func (h *HandlerManager) Create(conf *storagev1.Nfs) error {
 	var err error
 	defer func() {
 		if err != nil {
-			common.UpdateClusterStatusPhase(h.client, conf.Name, storagev1.Failed)
+			UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		} else {
-			common.UpdateClusterStatusPhase(h.client, conf.Name, storagev1.Running)
+			UpdateStatusPhase(h.client, conf.Name, storagev1.Running)
 		}
 	}()
 	if err = AddFinalizer(h.client, conf.Name, common.StoragePrestopHookFinalizer); err != nil {
@@ -54,7 +54,7 @@ func (h *HandlerManager) Delete(conf *storagev1.Nfs) error {
 	var err error
 	defer func() {
 		if err != nil {
-			common.UpdateClusterStatusPhase(h.client, conf.Name, storagev1.Failed)
+			UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		}
 	}()
 	if err = delete(h.client, conf); err != nil {

@@ -41,9 +41,9 @@ func (h *HandlerManager) Create(conf *storagev1.Iscsi) error {
 	var err error
 	defer func() {
 		if err != nil {
-			common.UpdateClusterStatusPhase(h.client, conf.Name, storagev1.Failed)
+			UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		} else {
-			common.UpdateClusterStatusPhase(h.client, conf.Name, storagev1.Running)
+			UpdateStatusPhase(h.client, conf.Name, storagev1.Running)
 		}
 	}()
 	if err = AddFinalizer(h.client, conf.Name, common.StoragePrestopHookFinalizer); err != nil {
@@ -74,7 +74,7 @@ func (h *HandlerManager) Delete(conf *storagev1.Iscsi) error {
 	var err error
 	defer func() {
 		if err != nil {
-			common.UpdateClusterStatusPhase(h.client, conf.Name, storagev1.Failed)
+			UpdateStatusPhase(h.client, conf.Name, storagev1.Failed)
 		}
 	}()
 	if err = delete(h.client, conf); err != nil {
@@ -93,9 +93,9 @@ func (h *HandlerManager) Redeploy(name string) error {
 	var err error
 	defer func() {
 		if err != nil {
-			common.UpdateClusterStatusPhase(h.client, name, storagev1.Failed)
+			UpdateStatusPhase(h.client, name, storagev1.Failed)
 		} else {
-			common.UpdateClusterStatusPhase(h.client, name, storagev1.Running)
+			UpdateStatusPhase(h.client, name, storagev1.Running)
 		}
 	}()
 	var iscsi *storagev1.Iscsi

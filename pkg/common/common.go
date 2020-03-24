@@ -192,19 +192,16 @@ func IsObjReady(obj runtime.Object, cli client.Client, namespace, name string) (
 		if *r.Spec.Replicas == 0 {
 			return false, nil
 		}
-		fmt.Println("sts", name, *r.Spec.Replicas, r.Status.ReadyReplicas)
 		return r.Status.ReadyReplicas == *r.Spec.Replicas, nil
 	case *appsv1.DaemonSet:
 		if r.Status.DesiredNumberScheduled == 0 {
 			return false, nil
 		}
-		fmt.Println("ds", name, r.Status.DesiredNumberScheduled, r.Status.NumberReady)
 		return r.Status.NumberReady == r.Status.DesiredNumberScheduled, nil
 	case *appsv1.Deployment:
 		if *r.Spec.Replicas == 0 {
 			return false, nil
 		}
-		fmt.Println("dp", name, *r.Spec.Replicas, r.Status.ReadyReplicas)
 		return r.Status.ReadyReplicas == *r.Spec.Replicas, nil
 	}
 	return false, errors.New("unknow runtime object")

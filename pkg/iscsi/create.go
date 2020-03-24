@@ -112,7 +112,7 @@ func deployIscsiLvmd(cli client.Client, conf *storagev1.Iscsi) error {
 	if err := helper.CreateResourceFromYaml(cli, yaml); err != nil {
 		return err
 	}
-	return common.WaitTerminated(common.DaemonSetObj(), cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiLvmdDsSuffix))
+	return common.WaitReady(common.DaemonSetObj(), cli, common.StorageNamespace, fmt.Sprintf("%s-%s", conf.Name, IscsiLvmdDsSuffix))
 }
 
 func checkVolumeGroup(cli client.Client, conf *storagev1.Iscsi) bool {
