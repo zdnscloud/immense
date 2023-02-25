@@ -8,7 +8,7 @@ require (
 	github.com/zdnscloud/gok8s v0.0.0-20200212071629-b06587f54ee6
 	github.com/zdnscloud/lvmd v0.0.0-20200225080023-e0ab301fa0df
 	github.com/zdnscloud/node-agent v0.0.0-20200320065543-9d901fd108bb
-	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413 // indirect
+	golang.org/x/crypto v0.1.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20191202225959-858c2ad4c8b6 // indirect
 	k8s.io/api v0.17.2
 	k8s.io/apimachinery v0.17.2
